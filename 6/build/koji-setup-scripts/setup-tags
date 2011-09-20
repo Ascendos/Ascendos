@@ -1,0 +1,31 @@
+#!/bin/sh
+
+echo "======================"
+echo "=== setup-tags ==="
+echo "======================"
+  
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in DIST; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then   
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+koji add-tag dist-$DIST
+koji add-tag --parent "dist-$DIST" dist-$DIST-updates
+koji add-tag --parent "dist-$DIST-updates" dist-$DIST-updates-candidate
+koji add-tag --parent "dist-$DIST-updates" --arches "i686,x86_64" dist-$DIST-build
+koji add-target dist-$DIST dist-$DIST-build dist-$DIST
+koji add-target dist-$DIST-updates-candidate dist-$DIST-build dist-$DIST
+koji add-group dist-$DIST-build build
+koji add-group-pkg dist-$DIST-build build bash  bzip2 coreutils cpio diffutils fedora-release findutils gawk gcc gcc-c++ grep gzip info make patch python redhat-rpm-config rpm-build sed shadow-utils tar unzip util-linux-ng which

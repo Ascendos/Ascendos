@@ -1,0 +1,70 @@
+#!/bin/sh
+echo "======================"
+echo "=== setup-firewall ==="
+echo "======================"
+  
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP FW_ENABLE DEFAULT_DEV; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then   
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+if [ $FW_ENABLE == 1 ]; then
+	echo "Adding iptable and ip6table entries specifically for http(s) and postgres"
+
+	# We DELETE (-D) rules before adding (-A) it again to make sure we don't end up
+	# with an iptable list full of duplicates should this script be run more than once.
+	# if a rule doesn't exist when it's deleted, an error message is emitted which is harmless
+	# so any output is directed to /dev/null
+
+	# Http/https
+#CJS this was not working so made my own
+	for i in D I ; do
+#		iptables -$i INPUT -p tcp -i $DEFAULT_DEV --dport 80 -j ACCEPT > /dev/null  2>&1
+#		iptables -$i INPUT -p udp -i $DEFAULT_DEV --dport 80 -j ACCEPT > /dev/null  2>&1
+#		iptables -$i INPUT -p tcp -i $DEFAULT_DEV --dport 443 -j ACCEPT > /dev/null  2>&1
+#		iptables -$i INPUT -p udp -i $DEFAULT_DEV --dport 443 -j ACCEPT > /dev/null  2>&1
+		iptables -$i INPUT -m state --state NEW -m tcp -p tcp $FW_OPTIONS --dport 80 -j ACCEPT
+		iptables -$i INPUT -m state --state NEW -m tcp -p tcp $FW_OPTIONS --dport 443 -j ACCEPT
+
+		# Postgresql uses port 5432
+		# CJS not sure why we need to open up postgresql so closing now
+#	        iptables -$i INPUT -p tcp --dport 5432 -m state --state NEW,ESTABLISHED -j ACCEPT > /dev/null  2>&1
+#	        iptables -$i INPUT -p udp --dport 5432 -m state --state NEW,ESTABLISHED -j ACCEPT > /dev/null  2>&1
+	done
+	service iptables save
+
+# CJS we do not use ipv6 yet
+#	for i in D A ; do
+#		ip6tables -$i INPUT -p tcp -i $DEFAULT_DEV --dport 80 -j ACCEPT > /dev/null  2>&1
+#		ip6tables -$i INPUT -p udp -i $DEFAULT_DEV --dport 80 -j ACCEPT > /dev/null  2>&1
+#		ip6tables -$i INPUT -p tcp -i $DEFAULT_DEV --dport 443 -j ACCEPT > /dev/null  2>&1
+#		ip6tables -$i INPUT -p udp -i $DEFAULT_DEV --dport 443 -j ACCEPT > /dev/null  2>&1
+#
+		# Postgresql uses port 5432
+		# CJS not sure why we need to open up postgresql so closing now
+                # Plus we do not use ipv6 yet
+#		ip6tables -$i INPUT -p tcp --dport 5432 -m state --state NEW,ESTABLISHED -j ACCEPT > /dev/null  2>&1
+#		ip6tables -$i INPUT -p udp --dport 5432 -m state --state NEW,ESTABLISHED -j ACCEPT > /dev/null  2>&1
+#	done
+#	service ip6tables save
+else
+	# It maes no sense to be running iptables and then not enable connectivity to the koji system
+	# so it's logically reasonable to disable any currently running iptables
+	/sbin/service iptables stop
+	/sbin/service ip6tables stop   
+	/sbin/chkconfig --del iptables
+	/sbin/chkconfig --del ip6tables
+	echo "iptables/ip6tables have been disabled"
+fi

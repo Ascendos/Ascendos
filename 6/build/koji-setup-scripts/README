@@ -1,0 +1,64 @@
+One of the biggest PITA issues with koji is the initial setup as it's a long
+series of steps where a single typo can furstrate your efforts.
+This directory contains a chain of shell scripts that can be used to
+quickly setup a simple localized koji environment.
+
+Recommendation:
+	If you have the resources, I'd recommend working with a minimal vm
+	at least to start with. (see virt-manager (kvm/xen/qemu))
+	That way you can play around a bit without accidentally 'damaging'
+	your system
+
+Caveat: Assumes that postgres has no other databases being managed
+	If you have databases on postgres, BACK THEM UP because this
+	WILL destroy them
+
+Step 1:
+	change directory to the directory where the setup files are
+	eg cd /export/setup
+
+Step 2:
+	*EDIT* the 'defaults' file
+	a number of variables are automagically set but you may wish to
+	override those with your own preferances
+
+Step 3:
+	run the 'makeworld' script from that directory
+
+You may notice that some services are restarted a number of times, this is
+because some scripts can be run standalone but need certain services to be
+available when run outside of the makeworld script.
+
+Adding new users after the fact
+eg user 'joe'
+
+cd /etc/pki/koji
+openssl genrsa -out certs/joe.key 2048
+openssl req -config /etc/pki/koji/ssl.cnf -new -nodes \
+	-subj /C=US/ST=CA/O=Oracle/OU=OSS/CN=joe/emailAddress=joe@blackknight \
+	-out certs/joe.csr -key certs/joe.key
+openssl ca -config /etc/pki/koji/ssl.cnf \
+	-subj /C=US/ST=CA/O=Oracle/OU=OSS/CN=joe/emailAddress=joe@blackknight \
+	-keyfile private/koji_ca_cert.key -cert koji_ca_cert.crt \
+	-outdir certs -out certs/joe.crt -infiles certs/joe.csr
+openssl pkcs12 -export -password pass: -inkey certs/joe.key -in certs/joe.crt \
+	-CAfile koji_ca_cert.crt -out certs/joe_browser_cert.p12
+koji add-user joe
+
+copy/tarball up koji_ca_cert.crt, joe.pem, joe_browser_cert.p12 and
+/etc/koji.conf (as 'config') making sure to change the "cert = " line
+to joe.pem and have your user install it all under the directory .koji in
+their home directory
+ie
+	[joe@blackknight /tmp]# ls  ~/.koji
+	config  joe_browser_cert.p12  koji_ca_cert.crt  joe.pem
+
+For firefox, the joe_browser_cert.p12 file can be imported through
+	Edit -> Preferences -> Advanced -> Encryption -> View Certificates
+	-> Your Certificates -> Import
+Type in the location of the .p12 file
+There is no password set on the .p12 file so just press ok
+After Firefox imports the .p12 file you should be able to access the koji
+webpage and use the login link in the top right
+
+

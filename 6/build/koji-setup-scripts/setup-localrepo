@@ -1,0 +1,32 @@
+
+#!/bin/sh
+echo "======================"
+echo "=== setup-localrepo ==="
+echo "======================"
+  
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in DIST  ; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then   
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+echo -e "adding \n $REPO_LOCAL_MAIN  \n $REPO_LOCAL_OPTIONAL "
+
+if [  ! -z $REPO_LOCAL_MAIN ] ; then
+  koji add-external-repo -t dist-$DIST-build dist-$DIST-repo-local-main $REPO_LOCAL_MAIN 
+fi
+
+if [  ! -z $REPO_LOCAL_OPTIONAL ] ; then
+  koji add-external-repo -t dist-$DIST-build dist-$DIST-repo-local-optional $REPO_LOCAL_OPTIONAL
+fi

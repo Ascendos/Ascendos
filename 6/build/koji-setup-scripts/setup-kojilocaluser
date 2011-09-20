@@ -1,0 +1,39 @@
+#!/bin/sh
+echo "======================"
+echo "=== setup-kojiuser ==="
+echo "======================"
+
+# The Fedora docs say to make these accounts without passwords but I think
+# thats a terrible idea. For script purposes the passwords are defined here
+# but can be reset to something a bit more secure afterwards
+
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in KOJILOCALUSER; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! ${n} ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+TOPDIR=$TOP/koji
+
+
+# ========================================================================
+# No way around it, we gotta be root to do all this stuff
+# ------------------------------------------------------------------------
+#
+
+for user in ${KOJILOCALUSER}
+do
+  echo "Adding user $user to koji"
+  koji add-user $user
+done

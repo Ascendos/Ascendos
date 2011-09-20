@@ -1,0 +1,44 @@
+Differing file fingerprints:
+--- /tmp/workdir.F3QQ0s/CMPDIR-list	2011-07-22 10:49:16.000000000 +1000
++++ /tmp/workdir.F3QQ0s/REFDIR-list	2011-07-22 10:49:16.000000000 +1000
+@@ -1,9 +1,9 @@
+-/usr/lib64/perl5/vendor_perl/Sys mode:040755 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/Sys/Guestfs mode:040755 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/Sys/Guestfs.pm mode:0100444 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/Sys/Guestfs/Lib.pm mode:0100444 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/auto mode:040755 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/auto/Sys mode:040755 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/auto/Sys/Guestfs mode:040755 owner:root group:root linkto:X
+-/usr/lib64/perl5/vendor_perl/auto/Sys/Guestfs/Guestfs.so mode:0100555 owner:root group:root linkto:X
++/usr/lib64/perl5/Sys mode:040755 owner:root group:root linkto:X
++/usr/lib64/perl5/Sys/Guestfs mode:040755 owner:root group:root linkto:X
++/usr/lib64/perl5/Sys/Guestfs.pm mode:0100444 owner:root group:root linkto:X
++/usr/lib64/perl5/Sys/Guestfs/Lib.pm mode:0100444 owner:root group:root linkto:X
++/usr/lib64/perl5/auto mode:040755 owner:root group:root linkto:X
++/usr/lib64/perl5/auto/Sys mode:040755 owner:root group:root linkto:X
++/usr/lib64/perl5/auto/Sys/Guestfs mode:040755 owner:root group:root linkto:X
++/usr/lib64/perl5/auto/Sys/Guestfs/Guestfs.so mode:0100555 owner:root group:root linkto:X
+ /usr/share/doc/perl-libguestfs-1.2.7 mode:040755 owner:root group:root linkto:X
+Differing libraries:
+--- /tmp/workdir.F3QQ0s/CMPDIR-libs	2011-07-22 10:49:16.000000000 +1000
++++ /tmp/workdir.F3QQ0s/REFDIR-libs	2011-07-22 10:49:16.000000000 +1000
+@@ -1,2 +1,2 @@
+-./usr/lib64/perl5/vendor_perl/auto/Sys/Guestfs/Guestfs.so
++./usr/lib64/perl5/auto/Sys/Guestfs/Guestfs.so
+ 	/lib64/ld-linux-x86-64.so.2
+ldd for CMPDIR-rpm:
+./usr/lib64/perl5/vendor_perl/auto/Sys/Guestfs/Guestfs.so
+	/lib64/ld-linux-x86-64.so.2
+	libc.so.6
+	libguestfs.so.0
+	linux-vdso.so.1
+./usr/share/doc/perl-libguestfs-1.2.7/examples/lvs.pl
+	not a dynamic executable
+ldd for REFDIR-rpm:
+./usr/lib64/perl5/auto/Sys/Guestfs/Guestfs.so
+	/lib64/ld-linux-x86-64.so.2
+	libc.so.6
+	libguestfs.so.0
+	linux-vdso.so.1
+./usr/share/doc/perl-libguestfs-1.2.7/examples/lvs.pl
+	not a dynamic executable

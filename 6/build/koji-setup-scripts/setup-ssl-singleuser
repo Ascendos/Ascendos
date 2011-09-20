@@ -1,0 +1,110 @@
+#!/bin/sh
+echo "================="
+echo "=== setup-ssl-singleuser ==="
+echo "================="
+
+# Pull in default vars
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in HOSTNAME  PKI SSL_SUBJ ; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+
+
+# REMEMBER CN= is the *username* not a hostname in normal cases
+# and is augmented with emailAddress= username@somehostname.com
+# like so:  CN=fred/emailAddress=fredrick@bedrock.org
+
+
+# ------------------------------------------------------------------------
+# Create a promptless ssl.cnf file for automatic scriptimg use
+# ------------------------------------------------------------------------
+#
+
+# DOH! $dir in the text file below will -literally- be translated by bash to "". Lets make sure that doesn't happen
+dir="\$dir"
+caname=koji
+
+echo
+echo ------------------------------------------------------------------------
+echo NOTE: Using $PKI/ssl.cnf template already reated for promptless script use.
+echo ------------------------------------------------------------------------
+echo
+
+cd $PKI
+
+        if [ -z $1 ] ; then
+	   echo "First parameter on the command line must be the user to make certificates for"
+           exit 1
+        else
+           USERLIST=$1
+        fi
+	echo "Making $USERLIST users that use emailAddress in the DN"
+	for user in $USERLIST ; do
+		echo
+		echo "=============================================================="
+		echo "Generate rsa key for $user" -- `pwd`/${user}.pem
+		echo "--------------------------------------------------------------"
+
+		openssl genrsa -out certs/${user}.key 2048
+
+		# Common Name -> ${user} (the username)
+		# Mail Address -> admin@example.com
+
+		echo "Generate csr"
+		openssl req		\
+			-config 	$PKI/ssl.cnf \
+			-new		\
+			-nodes		\
+			-subj		$SSL_SUBJ/CN=${user}/emailAddress=${user}@$HOSTNAME \
+			-out		certs/${user}.csr \
+			-key		certs/${user}.key
+
+		echo "Generate certificate"
+		yes | openssl ca	\
+			-config 	$PKI/ssl.cnf \
+			-subj		$SSL_SUBJ/CN=${user}/emailAddress=${user}@$HOSTNAME \
+			-keyfile	private/${caname}_ca_cert.key \
+			-cert		${caname}_ca_cert.crt \
+			-outdir 	certs \
+			-out		certs/${user}.crt \
+			-infiles	certs/${user}.csr
+
+		echo "Generate human readable pem file"
+		cat certs/${user}.crt certs/${user}.key > ${user}.pem
+		echo "Finish"
+	done
+
+	# ------------------------------------------------------------------------
+	# Generate a PKCS12 user certificate (for web browser) This is only
+	# required for user certificates ie the $USERLIST
+	# ------------------------------------------------------------------------
+	#
+
+	echo "Making PKCS12 user certificates (for the web browser)"
+
+	for user in $USERLIST; do
+		echo
+		echo "* creating certs/${user}_browser_cert.p12 with NO PASSWORD as"
+		echo "  `pwd`/certs/${user}_browser_cert.p12"
+		echo "* this file should be imported into user ${user}'s web browser"
+		openssl pkcs12		\
+			-export 	\
+			-password	pass: \
+			-inkey		certs/${user}.key \
+			-in		certs/${user}.crt \
+			-CAfile 	${caname}_ca_cert.crt \
+			-out		certs/${user}_browser_cert.p12
+	done

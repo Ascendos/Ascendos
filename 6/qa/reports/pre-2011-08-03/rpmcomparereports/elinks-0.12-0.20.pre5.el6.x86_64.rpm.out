@@ -1,0 +1,89 @@
+Differing rpm requires requirements:
+--- /tmp/workdir.1t7js3/CMPDIR-req	2011-07-21 21:53:38.000000000 +1000
++++ /tmp/workdir.1t7js3/REFDIR-req	2011-07-21 21:53:38.000000000 +1000
+@@ -19,2 +19,3 @@
+ libexpat.so.1()(64bit)  
++libfreebl3.so()(64bit)  
+ libgssapi_krb5.so.2()(64bit)  
+@@ -27,2 +28,3 @@
+ libnss_compat_ossl.so.0()(64bit)  
++libnssdbm3.so()(64bit)  
+ libnssutil3.so()(64bit)  
+@@ -33,2 +35,3 @@
+ libsmime3.so()(64bit)  
++libsoftokn3.so()(64bit)  
+ libssl3.so()(64bit)  
+Differing libraries:
+--- /tmp/workdir.1t7js3/CMPDIR-libs	2011-07-21 21:53:38.000000000 +1000
++++ /tmp/workdir.1t7js3/REFDIR-libs	2011-07-21 21:53:38.000000000 +1000
+@@ -7,2 +7,3 @@ ./usr/bin/elinks
+ 	libexpat.so.1
++	libfreebl3.so
+ 	libgssapi_krb5.so.2
+@@ -16,2 +17,3 @@ ./usr/bin/elinks
+ 	libnss_compat_ossl.so.0
++	libnssdbm3.so
+ 	libnssutil3.so
+@@ -23,2 +25,4 @@ ./usr/bin/elinks
+ 	libsmime3.so
++	libsoftokn3.so
++	libsqlite3.so.0
+ 	libssl3.so
+ldd for CMPDIR-rpm:
+./usr/bin/elinks
+	/lib64/ld-linux-x86-64.so.2
+	libbz2.so.1
+	libc.so.6
+	libcom_err.so.2
+	libdl.so.2
+	libexpat.so.1
+	libgssapi_krb5.so.2
+	libidn.so.11
+	libk5crypto.so.3
+	libkeyutils.so.1
+	libkrb5.so.3
+	libkrb5support.so.0
+	libnspr4.so
+	libnss3.so
+	libnss_compat_ossl.so.0
+	libnssutil3.so
+	libplc4.so
+	libplds4.so
+	libpthread.so.0
+	libresolv.so.2
+	libselinux.so.1
+	libsmime3.so
+	libssl3.so
+	libz.so.1
+	linux-vdso.so.1
+ldd for REFDIR-rpm:
+./usr/bin/elinks
+	/lib64/ld-linux-x86-64.so.2
+	libbz2.so.1
+	libc.so.6
+	libcom_err.so.2
+	libdl.so.2
+	libexpat.so.1
+	libfreebl3.so
+	libgssapi_krb5.so.2
+	libidn.so.11
+	libk5crypto.so.3
+	libkeyutils.so.1
+	libkrb5.so.3
+	libkrb5support.so.0
+	libnspr4.so
+	libnss3.so
+	libnss_compat_ossl.so.0
+	libnssdbm3.so
+	libnssutil3.so
+	libplc4.so
+	libplds4.so
+	libpthread.so.0
+	libresolv.so.2
+	libselinux.so.1
+	libsmime3.so
+	libsoftokn3.so
+	libsqlite3.so.0
+	libssl3.so
+	libz.so.1
+	linux-vdso.so.1

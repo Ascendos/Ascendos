@@ -1,0 +1,61 @@
+#!/bin/sh
+# Attempt to pull in default variable definitions
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP SUBDIR PKI WIPEDATA; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+today=`date +%Y-%m-%d:%k:%M`
+if [ $WIPEDATA == "1" ]; then
+        if [ -d $TOP/koji ] ; then
+		mv $TOP/koji $TOP/koji-$today
+	fi
+#else
+#	rm -rf $PKI
+fi
+
+#$TOP/$SUBDIR/setup-initialrpms
+$TOP/$SUBDIR/setup-kojiuser
+#$TOP/$SUBDIR/setup-firewall
+$TOP/$SUBDIR/setup-postgres
+#$TOP/$SUBDIR/setup-ssl
+
+#$TOP/$SUBDIR/setup-kojihub
+#$TOP/$SUBDIR/setup-kojihub-new
+$TOP/$SUBDIR/setup-filesystem
+#$TOP/$SUBDIR/setup-kojiweb
+#$TOP/$SUBDIR/setup-kojiconf
+
+#mkdir -p ~/.koji
+#tar -C ~/ -xf ~/koji-admin-login.tar
+
+#$TOP/$SUBDIR/setup-kojidconf-new
+#$TOP/$SUBDIR/setup-kojidconf
+#$TOP/$SUBDIR/setup-kojiraconf
+$TOP/$SUBDIR/setup-hub-loose-ends
+
+#Added by Fermi for SL 6
+$TOP/$SUBDIR/setup-tags
+$TOP/$SUBDIR/setup-localrepo
+#$TOP/$SUBDIR/setup-new-builder
+$TOP/$SUBDIR/setup-kojilocaluser
+$TOP/$SUBDIR/setup-kojiadminuser
+
+
+echo
+echo "*** NOTE ***"
+echo "Please check that $HTTPDIR/welcome.conf is changed appropriately"
+echo "or removed from the directory"
+echo
+

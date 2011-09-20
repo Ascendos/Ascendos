@@ -1,0 +1,11 @@
+Differing file fingerprints:
+--- /tmp/workdir.UKsJUN/CMPDIR-list	2011-07-22 10:49:13.000000000 +1000
++++ /tmp/workdir.UKsJUN/REFDIR-list	2011-07-22 10:49:14.000000000 +1000
+@@ -2,5 +2,5 @@
+ /usr/lib64/ocaml/guestfs/guestfs.cmx mode:0100644 owner:root group:root linkto:X
+-/usr/lib64/ocaml/guestfs/guestfs.mli mode:0100644 owner:root group:root linkto:X
++/usr/lib64/ocaml/guestfs/guestfs.mli mode:0100444 owner:root group:root linkto:X
+ /usr/lib64/ocaml/guestfs/guestfs_inspector.cmx mode:0100644 owner:root group:root linkto:X
+-/usr/lib64/ocaml/guestfs/guestfs_inspector.mli mode:0100644 owner:root group:root linkto:X
++/usr/lib64/ocaml/guestfs/guestfs_inspector.mli mode:0100444 owner:root group:root linkto:X
+ /usr/lib64/ocaml/guestfs/libmlguestfs.a mode:0100644 owner:root group:root linkto:X

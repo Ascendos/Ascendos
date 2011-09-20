@@ -1,0 +1,75 @@
+========================================================================
+========================================================================
+Douglas McClendon's misc ascendos notes
+========================================================================
+========================================================================
+
+current activities
+==================
+
+first installable release
+-------------------------
+a 6.0/dogfood1/rc1 tree is complete with netinst and DVD installable
+isos generated with f13 pungi on an sl60 base.  see notes in the
+makeAscendos-6.0 script/outline.  For right now we need a first alpha
+or prealpha release criteria/qa-script for the release to pass before
+we make it public.
+
+bugzilla
+--------
+we need a bugzilla instance.  known bugs-
+
+- SL ref in redhat logos COPYING file
+- SL ref in yum repo config
+- gnome menubar logo needs some padding
+- need a better index.html ff-startpage
+- Andrew and I have both noticed on my dogfood1rc1 release that
+  the wired network started offline, requiring a single initial
+  click to get it online.  (theoretically TUV behaviour? bug?)
+
+git
+---
+getting a more unified and long term structured git repo in place
+
+wiki
+----
+getting all needed information onto the wiki.  Notes on an initial
+proposed structure are in an email to ascendos-dev and just need to
+be implemented as a first pass
+
+build2
+------
+being able to recreate everything that was on build.ascendos.org when
+Troy left and I started as lead developer, i.e. koji and its output.
+I got through something like ~1950/2017 of the 6.0 package builds that
+could build without problem against an sl60 buildroot.  The remaining
+packages are from the troubledpackage list on the wiki and need some
+special, but not complex handling. The vm build2.ascendos.org had to
+be freed due to resource constraint, but I'll get the project finished
+on my local k/vm at home.  Then take everything I did and script it
+fold it into the makeAscendos-6.0 script
+
+maintenance process
+-------------------
+need to go over the rest of Troy's buildscripts and get them entirely
+centrally documented.  I.e. combine that with the 15 item workflow
+that Troy posted to ascendos-dev awhile back.  Ideally converting that
+workflow into a visual flowchart with the dia tool.  Then start 
+planning for how to distribute the maintenance workload amongst devs.
+I.e. time shifts for responsibility for handling incoming updates, as
+there will no doubt be a final human action to release a new update
+into the public repos
+
+mirrors
+-------
+Andrew is really handling this right now, but I may hit up my alma
+matter for another mirror.  I could probably even do a mirror myself
+on my $10/mo 1and1.com account.  Might be worthwhile.
+
+other stuff
+-----------
+I'm sure I've left some stuff out, I've got a lot of notes, many posted
+to -dev that I need to get put into the right structure in git/wiki.
+
+========================================================================
+========================================================================

@@ -1,0 +1,127 @@
+# It's not perfect but a number of variable values are automagically guessed
+# You should check that they return sensible values or hardcode your own
+# in place of the shell commands
+
+# Define external repository
+REPO_LOCAL_MAIN="http://koji-server/repo/ascendos/6rolling/\$arch/os/"
+# This dictates the top level directory under which all the files used by
+# koji will reside
+TOP=/srv
+
+# This is simply to define where the koji setup scripts will be run from.
+# generaly you wouldn't need to change this
+SUBDIR=scripts
+
+# Replace with the hostname of the system
+HOSTNAME=`hostname --long`
+
+#domain for email notifications
+EMAILDOMAIN=ascendos.org
+
+#smtp host for email
+SMTPHOST=localhost
+
+# Our externally facing network device is
+DEFAULT_DEV=`netstat -r | grep default | cut -c 74-`
+
+# Firewall/iptables stuff 0=disable 1=enable
+FW_ENABLE=1
+# Firewall options
+FW_OPTIONS=""
+
+# This prevents ssl certs, the postgres db and koji repo's from being deleted
+# This is intended for debugging and shouldn't be changed
+# 0 = preserve existing ssl certs/postgres db/koji repos
+# 1 = remove ssl certs/postgres db/koji repos
+WIPEDATA=1
+
+# where does the httpd.conf file live?
+HTTPDCONF=/etc/httpd/conf/httpd.conf
+
+# Where will the koji(hub/web).conf files live?
+HTTPDIR=/etc/httpd/conf.d
+
+# generate additional default users on the fly (space seperated list)
+# All users wanting to use the build systsem will need 3 files (optionally 4)
+# config, koji_ca_cert.crt <user>.pem and optionally <user_browser_cert>.p12
+# the <user>.pem files can be found in /etc/pki/koji/certs
+# minimally you need to define koji here
+KOJILOCALUSER="kojira ascendos-team dawson"
+KOJIADMINUSER="kojira ascendos-team"
+USERLIST="koji $KOJILOCALUSER"
+
+# Public Key Infrastructure directory for koji certificates
+PKI=/etc/pki/koji
+
+# ssl config file location
+SSLCONF=/etc/httpd/conf.d/ssl.conf
+
+# SSL pieces
+COUNTRY=AU
+STATE=NSW
+LOCALITY=Ultimo
+ORGANIZATION=Ascendos
+UNIT=Devel
+COMMONNAME=koji
+
+# Distribution name to use in RPM headers
+VENDOR="Ascendos"
+DISTRIBUTION="Ascendos"
+
+# DIST name to use for create tags
+DISTBASEVERSION=6
+DIST=ascend6
+
+# WEB LDAP user credential to login as
+# Now for some reason ssl logins to the web interface don't seem to know
+# about /L=XYZ but this may change in the future
+# SSL_SUBJ=/C=$COUNTRY/ST=$STATE/L=$LOCALITY/O=$ORGANIZATION/OU=$UNIT
+SSL_SUBJ=/C=$COUNTRY/ST=$STATE/O=$ORGANIZATION/OU=$UNIT
+
+# Where will email get sent
+#EMAILADDRESS=$COMMONNAME@$HOSTNAME
+EMAILADDRESS=$COMMONNAME@localhost
+
+# Email name identifier
+NOTIFYAS=Koji
+
+# Koji hub certificate name
+HUBCA=kojihub
+
+# The systemwide koji.conf configuration file
+KOJICONF=/etc/koji.conf
+
+# Where will kojihub's config file live
+HUBFILE=/etc/koji-hub/hub.conf
+
+#  koji hub config file name 
+KOJIHUBCONF=kojihub.conf
+
+# Where will kojiweb's config file live
+KOJIWEBFILE=/etc/httpd/conf.d/kojiweb.conf
+
+# Where will kojira's config file live
+KOJIRACONF=/etc/kojira/kojira.conf
+
+# Where will kojid's config file live
+# REMOTEKOJI is defined as a alias in /etc/http/conf.d/kojihub.conf .  i
+# it points to $TOPDIR
+# we are using indirection here so the builders do not have to know the
+# real name.  we let the server do this conversion
+KOJIDCONF=/etc/kojid/kojid.conf
+REMOTEKOJI=remotekoji
+
+# Allowable SCM name that can be passed to koji instead of using a src.rpm
+# This is used in /etc/kojid/kojid.conf but it can be left blank
+#SCM=ca-build32.us.oracle.com/svn/repos/rhel4/*
+
+# Top level Koji certificate name
+CANAME=koji
+
+# User koji's default password,..
+# This also gets copied into the koji database and to change it afterwards
+# you'll need to use this command
+# su koji -c "psql koji --command \"UPDATE users SET password='New_Password' \
+#             WHERE name='koji';\""
+# KOJIPASS=koji
+KOJIPASS=`uuidgen | cut -c -8`

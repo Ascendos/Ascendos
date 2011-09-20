@@ -1,0 +1,77 @@
+#!/bin/sh
+echo "================="
+echo "=== setup-new-builder ==="
+echo "================="
+
+# Pull in default vars
+. `pwd`/defaults
+caname="koji"
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in PKI SSL_SUBJ ; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+# ========================================================================
+# Add the builder as a host before we make the certificates.
+# ------------------------------------------------------------------------
+
+koji add-host $1 x86_64 i386
+
+# ========================================================================
+# Server Authetication nightmare (SSL)
+# ------------------------------------------------------------------------
+#
+
+# DOH! $dir in the text file below will -literally- be translated by bash to "". Lets make sure that doesn't happen
+dir="\$dir"
+cd  $PKI
+
+	echo "Making  users that use emailAddress in the DN"
+
+	for user in  $1 ; do
+		echo
+		echo "=============================================================="
+		echo "Generate rsa key for $user" -- `pwd`/${user}.pem
+		echo "--------------------------------------------------------------"
+
+		openssl genrsa -out certs/${user}.key 2048
+
+		# Common Name -> ${user} (the username)
+		# Mail Address -> admin@example.com
+
+		echo "Generate csr"
+		openssl req		\
+			-config 	$PKI/ssl.cnf \
+			-new		\
+			-nodes		\
+			-subj		$SSL_SUBJ/CN=${user}/emailAddress=${user}@$HOSTNAME \
+			-out		certs/${user}.csr \
+			-key		certs/${user}.key
+
+		echo "Generate certificate"
+		yes | openssl ca	\
+			-config 	$PKI/ssl.cnf \
+			-subj		$SSL_SUBJ/CN=${user}/emailAddress=${user}@$HOSTNAME \
+			-keyfile	private/${caname}_ca_cert.key \
+			-cert		${caname}_ca_cert.crt \
+			-outdir 	certs \
+			-out		certs/${user}.crt \
+			-infiles	certs/${user}.csr
+
+		echo "Generate human readable pem file"
+		cat certs/${user}.crt certs/${user}.key > ${user}.pem
+		echo "Finish"
+	done
+
+# ------------------------------------------------------------------------

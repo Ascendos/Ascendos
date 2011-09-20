@@ -1,0 +1,83 @@
+#!/bin/sh
+echo "============================"
+echo "=== setup-hub-loose-ends ==="
+echo "============================"
+
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in HOSTNAME HTTPDCONF; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+# Find the max number of cpu cores
+CPUS=`grep -c processor /proc/cpuinfo`
+# HT normally means we have 2 threads per cpu core
+LOAD=$((CPUS * 2))
+
+# The apache web server has two places that it sets maximum requests a server
+# will handle before the server restarts. The xmlrpc interface in kojihub is
+# a python application, and mod_python can sometimes grow outrageously large
+# when it doesn't reap memory often enough. As a result, if you let apache
+# handle infinite requests without respawning a new server, you can take a
+# box down under heavy load. It's therefore strongly suggested that you set
+# both instances of MaxRequestsPerChild in httpd.conf to something reasonable
+# (at 100 the httpd processes will grow to about 75MB resident set size 
+# before respawning). 
+FIXUPHTTPD=0
+
+if [ $FIXUPHTTPD == "1" ]; then
+	perl -p -i -e "s/((^.*)MaxRequestsPerChild (.*$))/MaxRequestsPerChild	100/" $HTTPDCONF
+fi
+
+# We need the web server up and running at this point
+service httpd restart
+
+
+# Add the host entry for the koji builder to the database (us)
+# Special note: the order of the archs indicates which arch will be used for
+# noarch building ie in this case the first mentioned arch (x86_64) will be
+# used for noarch builds however thers no guarentee that this will be the case
+# in later sw releases of koji
+koji add-host $HOSTNAME x86_64 i386
+
+# Add the host to the createrepo channel 
+koji add-host-to-channel $HOSTNAME createrepo
+
+# A note on capacity
+# The default capacity of a host added to the host database is 2. This means
+# that once the load average on that machine exceeds 2, kojid will not accept
+# any additional tasks. This is separate from the maxjobs item in the
+# configuration file. Before kojid will accept a job, it must pass both the
+# test to ensure the load average is below capacity and that the current
+# number of jobs it is already processing is less than maxjobs. However, in
+# today's modern age of quad core and higher CPUs, a load average of 2 is
+# generally insufficient to fully utilize hardware. As there is not an option
+# to set the capacity of the host via the command line tools, it must be done
+# manually in psql. 
+
+echo "Updating the capacity of $HOSTNAME to handle a loadavg of $LOAD"
+su -l koji -c "psql koji --command \"update host set capacity = $LOAD where name = '$HOSTNAME';\""
+
+# Start Kojid
+service kojid start
+
+# Check for busted mock
+VER=`rpm -q --queryformat "%{NAME}-%{VERSION}\n" mock`
+for i in 1.1.3 1.1.4; do
+	eval n=\$$i
+	if [ $VER == $n ]; then
+		echo "busted mock found, changing value of cache_topdir in /etc/mock/site-defaults"
+		perl -p -i -e "s/# config_opts['cache_topdir'] = '/var/cache/mock'/# config_opts['cache_topdir'] = '/var/lib/mock'/g" /etc/mock/site-defaults
+	fi
+done

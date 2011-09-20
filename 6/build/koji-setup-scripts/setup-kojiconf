@@ -1,0 +1,94 @@
+#!/bin/sh
+echo "======================"
+echo "=== setup-kojiconf ==="
+echo "======================"
+
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP HOSTNAME PKI CANAME KOJICONF ; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+TOPDIR=$TOP/koji
+
+# Build up config files
+
+# koji.conf
+
+TMP=`mktemp -d /tmp/koji.XXXXXXXX` 
+mkdir -p $TMP/.koji
+ 
+cat > $TMP/.koji/config << EOF
+[koji]
+
+;configuration for koji cli tool
+
+;url of XMLRPC server
+server = http://HOSTNAME/kojihub
+
+;url of web interface
+weburl = http://HOSTNAME/koji
+
+;url of package download site
+pkgurl = http://HOSTNAME/packages
+
+;path to the koji top directory
+topdir = TOPDIR
+
+;configuration for SSL athentication
+
+;client certificate
+cert = ~/.koji/koji.pem
+
+;certificate of the CA that issued the client certificate
+ca = ~/.koji/CANAME_ca_cert.crt
+
+;certificate of the CA that issued the HTTP server certificate
+serverca = ~/.koji/CANAME_ca_cert.crt
+
+EOF
+
+perl -p -i -e "s/HOSTNAME/"$HOSTNAME"/" $TMP/.koji/config
+perl -p -i -e "s/CANAME/"$CANAME"/" $TMP/.koji/config  
+perl -p -i -e "s{TOPDIR}{$TOPDIR}" $TMP/.koji/config  
+
+# Create transportable tarball
+
+install -o koji -g koji -m 644 $PKI/koji.pem $TMP/.koji
+install -o koji -g koji -m 644 $PKI/${CANAME}_ca_cert.crt $TMP/.koji
+
+tar -C $TMP -cvf ~/koji-admin-login.tar .koji > /dev/null 2>&1
+
+# Make a system default if allowed
+if [ -w $KOJICONF ]; then
+	install -o koji -g koji -m 644 $TMP/.koji/config $KOJICONF
+fi
+
+rm -rf $TMP
+
+echo
+echo "Administrative koji SSL ticket and associated config"
+echo "created as ~/koji-admin-login.tar"
+echo "Extract this tarball in your home directory"
+echo
+
+
+
+
+
+
+
+
+
+

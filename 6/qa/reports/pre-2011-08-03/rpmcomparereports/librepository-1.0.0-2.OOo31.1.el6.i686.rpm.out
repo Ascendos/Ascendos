@@ -1,0 +1,8 @@
+Differing file fingerprints:
+--- /tmp/workdir.XbjkGW/CMPDIR-list	2011-07-22 10:45:12.000000000 +1000
++++ /tmp/workdir.XbjkGW/REFDIR-list	2011-07-22 10:45:12.000000000 +1000
+@@ -2,3 +2,3 @@
+ /usr/lib/gcj/librepository/librepository.jar.db mode:0100644 owner:root group:root linkto:X
+-/usr/lib/gcj/librepository/librepository.jar.so mode:0100755 owner:root group:root linkto:X
++/usr/lib/gcj/librepository/librepository.jar.so mode:0100644 owner:root group:root linkto:X
+ /usr/share/doc/librepository-1.0.0 mode:040755 owner:root group:root linkto:X

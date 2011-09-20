@@ -1,0 +1,70 @@
+#!/bin/sh
+echo "========================"
+echo "=== setup-kojiraconf ==="
+echo "========================"
+
+# Attempt to pull in default variable definitions
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP KOJIRACONF HOSTNAME PKI NOTIFYAS; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+# Note the escape chars.. without these, perl and bash do nasty things 
+TOPDIR=$TOP/koji
+
+cat > $KOJIRACONF << EOF
+[kojira]
+; For user/pass authentication
+; user=kojira
+; password=kojira
+
+; For Kerberos authentication
+; the principal to connect with
+; principal=koji/repo@EXAMPLE.COM
+; The location of the keytab for the principal above
+; keytab=/etc/kojira.keytab
+
+; The URL for the koji hub server
+server=http://$HOSTNAME/kojihub
+
+; The directory containing the repos/ directory
+topdir=$TOPDIR
+
+; Logfile
+logfile=/var/log/kojira.log
+
+; Include srpms in repos? (not needed for normal operation)
+with_src=yes
+
+;configuration for SSL athentication
+
+;client certificate
+cert = $PKI/kojira.pem
+
+;certificate of the CA that issued the client certificate
+ca = $PKI/koji_ca_cert.crt
+
+;certificate of the CA that issued the HTTP server certificate
+serverca = $PKI/koji_ca_cert.crt
+EOF
+
+# SSL certs are cached by httpd, force it to reload before koji CLI tries talk to httpd
+service httpd restart
+#service postgresql restart
+koji add-user kojira
+koji grant-permission repo kojira
+
+service kojira start
+

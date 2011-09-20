@@ -1,0 +1,7 @@
+These are output files were left by Troy on build.a.o and 
+should be kept around for reference until we have a more
+final qa script in place that does rpmcompare amongst other
+checks.
+
+the rpmcompare.log here was last modified 2011/08/02
+the rest of the .rpm.out were last modified 2011/07/22

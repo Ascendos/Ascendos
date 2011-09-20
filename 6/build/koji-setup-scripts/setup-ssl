@@ -1,0 +1,302 @@
+#!/bin/sh
+echo "================="
+echo "=== setup-ssl ==="
+echo "================="
+
+# Pull in default vars
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP HOSTNAME HTTPDCONF PKI SSL_SUBJ WIPEDATA; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+
+WEBNAME=`grep ^ServerName $HTTPDCONF | cut -f2 -d ' ' | cut -f1 -d ':'`
+
+if [ -z $WEBNAME ]; then
+	# Damn, web isn't setup, well I guess you know what you're doing then
+	WEBNAME=`hostname --long`
+fi
+
+if [ $HOSTNAME != $WEBNAME ]; then
+	echo "CAUTION: System hostname is NOT the same as the web server ServerName directive"
+	echo "in $HTTPDCONF"
+	echo "ie $HOSTNAME != $WEBNAME"
+	echo "these two should match"
+fi
+
+# REMEMBER CN= is the *username* not a hostname in normal cases
+# and is augmented with emailAddress= username@somehostname.com
+# like so:  CN=fred/emailAddress=fredrick@bedrock.org
+
+
+# ========================================================================
+# Server Authetication nightmare (SSL)
+# ------------------------------------------------------------------------
+#
+
+# First off, clear out the koji certificate dirs if they happen to be populated
+# at the same time make sure the dirs exist.
+
+if [ $WIPEDATA == "1" ]; then
+	mkdir -p $PKI
+	rm -rf $PKI/{certs,private}
+	rm -f $PKI/*{pem,txt,old,crt,cnf,attr,serial}
+fi
+
+# ------------------------------------------------------------------------
+# Create a promptless ssl.cnf file for automatic scriptimg use
+# ------------------------------------------------------------------------
+#
+
+# DOH! $dir in the text file below will -literally- be translated by bash to "". Lets make sure that doesn't happen
+dir="\$dir"
+
+TMP=`mktemp /tmp/ssl.XXXXXXXX`
+
+echo "HOME			= $PKI" > $TMP
+cat >> $TMP << EOF
+RANDFILE		= .rand
+
+[ca]
+default_ca		= ca_default
+
+[ca_default]
+dir			= .
+certs			= $dir/certs
+crl_dir 		= $dir/crl
+database		= $dir/index.txt 
+new_certs_dir		= $dir/newcerts 
+certificate		= $dir/%s_ca_cert.pem
+private_key		= $dir/private/%s_ca_key.pem
+serial			= $dir/serial
+crl			= $dir/crl.pem
+x509_extensions 	= usr_cert
+name_opt		= ca_default
+cert_opt		= ca_default
+default_days		= 3650
+default_crl_days	= 30
+default_md		= md5
+preserve		= no
+policy			= policy_match
+ 
+[policy_match]
+countryName		= match
+stateOrProvinceName	= match
+organizationName	= match
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+[req]
+prompt			= no
+
+default_bits		= 1024
+default_keyfile 	= privkey.pem
+distinguished_name	= req_distinguished_name
+attributes		= req_attributes
+x509_extensions 	= v3_ca # The extentions to add to the self signed cert
+string_mask		= MASK:0x2002
+
+[req_distinguished_name]
+countryName			= $COUNTRY
+stateOrProvinceName		= $STATE
+localityName			= $LOCALITY
+0.organizationName		= $ORGANIZATION
+organizationalUnitName		= $UNIT
+commonName			= $COMMONNAME
+emailAddress			= $EMAILADDRESS
+
+[req_attributes]
+
+[usr_cert]
+basicConstraints		= CA:FALSE
+nsComment			= "OpenSSL Generated Certificate"
+subjectKeyIdentifier		= hash
+authorityKeyIdentifier		= keyid,issuer:always
+
+[v3_ca]
+subjectKeyIdentifier		= hash
+authorityKeyIdentifier		= keyid:always,issuer:always
+basicConstraints		= CA:true
+EOF
+
+# Ignore the /C=/ST=/O=/OU=/CN= stuff, we'll be using openssl's -subj to override those
+
+echo "Installing a promptless ssl configuration template in $PKI/ssl.cnf"
+if [ ! -d  $PKI ]; then
+    mkdir -p $PKI
+fi
+install -o koji -g koji -m 644 $TMP $PKI/ssl.cnf
+
+rm -f $TMP
+
+echo
+echo ------------------------------------------------------------------------
+echo NOTE: $PKI/ssl.cnf template created for promptless script use.
+echo	   please check, in the shell script, that the default params
+echo       are sensible.
+echo ------------------------------------------------------------------------
+echo
+
+if [ $WIPEDATA == "1" ]; then
+	# ------------------------------------------------------------------------
+	# Using the template make the CA
+	# ------------------------------------------------------------------------
+	#
+	caname="koji"
+	pushd . > /dev/null 2>&1
+
+	cd $PKI
+	mkdir {certs,private}
+	touch $PKI/index.txt
+	if [ ! -e  $PKI/serial ]; then
+		echo 01 > $PKI/serial
+	fi
+
+	echo "Making the Certificate Authority used to sign all the other certificates."
+
+	openssl genrsa -out private/${caname}_ca_cert.key 2048
+	openssl req		\
+		-config 	$PKI/ssl.cnf \
+		-subj		$SSL_SUBJ/CN=${caname}/emailAddress=${caname}@$HOSTNAME \
+		-new		\
+		-x509		\
+		-days		3650 \
+		-key		private/${caname}_ca_cert.key \
+		-extensions	v3_ca \
+		-out		${caname}_ca_cert.crt
+
+	echo "CA file is `pwd`/${caname}_ca_cert.crt"
+	echo "Generate human readable pem file from crt file"
+		cat ${caname}_ca_cert.crt  private/${caname}_ca_cert.key > ${caname}_ca_cert.pem
+	echo "CA pem file is `pwd`/${caname}_ca_cert.pem"
+
+
+	# ------------------------------------------------------------------------
+	# Generate the kojira user certificate
+	# ------------------------------------------------------------------------
+	# 
+
+	echo "Making system ssl certs"
+
+	# These two ID's are special in that they are used to authenicate the server to
+	# the client. For this reason, the Common Name (CN) needs to be the FQDN of the web
+	# server they're running on. so that clients don't complain about a mismatch
+	# NOTE: you need to have some sort of differance between them via the emailAddress or ssl
+	# will complain that the second ID can't be built since it's identical to another in the
+	# cert database (ie you'll see a "TXT_DB error number 2" error)
+
+	for user in kojiweb kojihub ; do
+		echo
+		echo "=============================================================="
+		echo "Generate rsa key for $user" -- `pwd`/${user}.pem
+		echo "--------------------------------------------------------------"
+
+		openssl genrsa -out certs/${user}.key 2048
+ 
+		# Common Name -> ${userlogin} (the username eg 'fred')
+		# Mail Address -> fredrick@bedrock.org
+
+		echo "Generate csr"
+		openssl req		\
+			-config 	$PKI/ssl.cnf \
+			-subj		$SSL_SUBJ/CN=$HOSTNAME/emailAddress=${user}@wibble  \
+			-new		\
+			-nodes		\
+			-out		certs/${user}.csr \
+			-key		certs/${user}.key
+   
+		echo "Generate certificate"
+		yes | openssl ca	\
+			-config 	$PKI/ssl.cnf \
+			-subj		$SSL_SUBJ/CN=$HOSTNAME/emailAddress=${user}@$HOSTNAME  \
+			-keyfile	private/${caname}_ca_cert.key \
+			-cert		${caname}_ca_cert.crt \
+			-outdir 	certs \
+			-out		certs/${user}.crt \
+			-infiles	certs/${user}.csr
+
+		echo "Generate human readable pem file"
+		cat certs/${user}.crt certs/${user}.key > ${user}.pem
+		echo "Finish"
+	done
+
+	echo "Making joe pleb users that use emailAddress in the DN"
+
+	for user in kojira $HOSTNAME $USERLIST; do
+		echo
+		echo "=============================================================="
+		echo "Generate rsa key for $user" -- `pwd`/${user}.pem
+		echo "--------------------------------------------------------------"
+
+		openssl genrsa -out certs/${user}.key 2048
+
+		# Common Name -> ${user} (the username)
+		# Mail Address -> admin@example.com
+
+		echo "Generate csr"
+		openssl req		\
+			-config 	$PKI/ssl.cnf \
+			-new		\
+			-nodes		\
+			-subj		$SSL_SUBJ/CN=${user}/emailAddress=${user}@$HOSTNAME \
+			-out		certs/${user}.csr \
+			-key		certs/${user}.key
+
+		echo "Generate certificate"
+		yes | openssl ca	\
+			-config 	$PKI/ssl.cnf \
+			-subj		$SSL_SUBJ/CN=${user}/emailAddress=${user}@$HOSTNAME \
+			-keyfile	private/${caname}_ca_cert.key \
+			-cert		${caname}_ca_cert.crt \
+			-outdir 	certs \
+			-out		certs/${user}.crt \
+			-infiles	certs/${user}.csr
+
+		echo "Generate human readable pem file"
+		cat certs/${user}.crt certs/${user}.key > ${user}.pem
+		echo "Finish"
+	done
+
+	# ------------------------------------------------------------------------
+	# Generate a PKCS12 user certificate (for web browser) This is only
+	# required for user certificates ie the $USERLIST
+	# ------------------------------------------------------------------------
+	#
+
+	echo "Making PKCS12 user certificates (for the web browser)"
+
+	for user in kojiweb $USERLIST; do
+		echo
+		echo "* creating certs/${user}_browser_cert.p12 with NO PASSWORD as"
+		echo "  `pwd`/certs/${user}_browser_cert.p12"
+		echo "* this file should be imported into user ${user}'s web browser"
+		openssl pkcs12		\
+			-export 	\
+			-password	pass: \
+			-inkey		certs/${user}.key \
+			-in		certs/${user}.crt \
+			-CAfile 	${caname}_ca_cert.crt \
+			-out		certs/${user}_browser_cert.p12
+	done
+
+	# restart httpd to take notice of any changed certs
+	# service httpd restart
+
+	# ------------------------------------------------------------------------
+	# End of SSL fiddling
+	# ------------------------------------------------------------------------
+	
+fi

@@ -1,0 +1,15 @@
+Differing rpm requires requirements:
+--- /tmp/workdir.zbSYph/CMPDIR-req	2011-07-21 21:53:37.000000000 +1000
++++ /tmp/workdir.zbSYph/REFDIR-req	2011-07-21 21:53:37.000000000 +1000
+@@ -21,2 +21,3 @@
+ libexpat.so.1  
++libfreebl3.so  
+ libgssapi_krb5.so.2  
+@@ -29,2 +30,3 @@
+ libnss_compat_ossl.so.0  
++libnssdbm3.so  
+ libnssutil3.so  
+@@ -36,2 +38,3 @@
+ libsmime3.so  
++libsoftokn3.so  
+ libssl3.so  

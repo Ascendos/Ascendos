@@ -1,0 +1,8 @@
+Using /srv/test/ascendos as the COMPARE DIR and /srv/test/sl60/ as the REFERENCE DIRS
+automake16-1.6.3-18.el6.1.noarch.rpm: OK-PERFECT() ref:621703 +/-:0 %:0
+lsvpd-1.6.7-3.el6.x86_64.rpm: OK() ref:362167 +/-:56 %:0
+perl-CGI-Session-4.35-5.el6.noarch.rpm: OK() ref:240854 +/-:-15 %:0
+perl-IPC-Run3-0.043-3.el6.noarch.rpm: OK-PERFECT() ref:65147 +/-:0 %:0
+perl-Makefile-Parser-0.211-1.1.el6.noarch.rpm: OK() ref:169755 +/-:-7 %:0
+perl-Test-Memory-Cycle-1.04-7.1.el6.noarch.rpm: OK() ref:11306 +/-:-2 %:0
+perl-Test-MockObject-1.09-3.1.el6.noarch.rpm: OK-PERFECT() ref:52327 +/-:0 %:0

@@ -1,0 +1,34 @@
+#!/bin/sh
+echo "========================="
+echo "=== setup-initialrpms ==="
+echo "========================="
+
+# Download or update koji rpms
+rpm -q koji koji-hub koji-hub-plugins koji-web koji-builder koji-utils > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+	yum -y install koji koji-hub koji-hub-plugins koji-web koji-builder koji-utils 
+else
+	yum -y update koji koji-hub koji-hub-plugins koji-web koji-builder koji-utils 
+fi
+
+
+# Make sure we have enough of postgresql to operate with
+rpm -q postgres postgresql-libs postgresql-python postgresql-docs \
+	postgresql-devel postgresql-server > /dev/null  2>&1
+if [ $? -ne 0 ]; then
+        yum -y install postgresql postgresql-libs postgresql-python postgresql-docs \
+                postgresql-devel postgresql-server
+else
+        yum -y update postgresql postgresql-libs postgresql-python postgresql-docs \
+                postgresql-devel postgresql-server
+fi
+
+# Make sure we've all the pieces for web service
+rpm -q mod_python mod_ssl > /dev/null  2>&1
+if [ $? -ne 0 ]; then
+	yum -y install mod_python mod_ssl
+else
+	yum -y update mod_python mod_ssl
+fi
+
+

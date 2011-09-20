@@ -1,0 +1,23 @@
+#!/bin/sh
+
+echo "========================"
+echo "=== setup-filesystem ==="
+echo "========================"
+
+# Pull in default vars
+. `pwd`/defaults
+
+if [ ! $TOP ]; then
+	echo "conf error: TOP is NOT defined/set in the defaults file. exiting."
+	exit 1
+fi
+
+mkdir -p $TOP/koji
+cd $TOP/koji 
+mkdir -p {packages,repos,work,scratch,images}
+chown -R apache.apache {packages,repos,work,scratch,images}
+chown koji.apache $TOP/koji
+
+
+# First start of httpd should really be here
+service httpd restart

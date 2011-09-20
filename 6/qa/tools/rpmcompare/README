@@ -1,0 +1,10 @@
+rpmcompare.sh
+This compares two similarly named rpms.  This is good to make sure they are compatable.
+
+To find out all the options, use the -h option
+
+The most common options are -c and -r.  These are used for the directories to compare.
+Examples:
+  sh rpmcompare.sh -c /tmp/original/ -r /tmp/rebuilt/
+
+The results will show up in the directory rpmcompareresults unless to change that option.

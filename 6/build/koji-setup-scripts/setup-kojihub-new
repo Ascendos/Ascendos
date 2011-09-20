@@ -1,0 +1,193 @@
+#!/bin/sh
+echo "====================="
+echo "=== setup-kojihub ==="
+echo "====================="
+
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP HTTPDIR HOSTNAME HUBFILE KOJIHUBCONF SSL_SUBJ KOJIPASS HTTPDIR REMOTEKOJI EMAILDOMAIN; do
+        if [ \$$i ]; then
+                echo -n "$i "
+                eval n=\$$i
+                if [ ! $n ]; then
+                        echo
+                        echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+                        exit 1
+                fi
+        fi
+done
+echo " (OK)"
+
+TOPDIR=$TOP/koji
+
+# ------------------------------------------------------------------------
+# kojihub.conf
+    
+cat > $HTTPDIR/$KOJIHUBCONF << EOF
+#
+# koji-hub is an xmlrpc interface to the Koji database
+#
+
+Alias /kojihub "/usr/share/koji-hub/XMLRPC"
+
+<Directory /usr/share/koji-hub>
+        SetHandler mod_python
+        PythonHandler kojixmlrpc
+
+        PythonOption ConfigFile HUBFILE
+
+        PythonDebug Off
+        # autoreload is mostly useless to us (it would only reload kojixmlrpc.py)
+        PythonAutoReload Off
+</Directory>
+
+Alias /packages "TOP/koji/packages/"
+<Directory "TOP/koji/packages">
+    Options Indexes MultiViews FollowSymLinks
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory>
+
+Alias /REMOTEKOJI "TOPDIR"
+<Directory "TOPDIR">
+    Options Indexes MultiViews FollowSymLinks
+    AllowOverride None
+    Order allow,deny
+    Allow from all
+</Directory>
+
+# uncomment this to enable authentication via SSL client certificates
+<Location /kojihub>
+        SSLOptions +StdEnvVars
+</Location>
+
+
+# these options *must* be enabled globally (in ssl.conf)
+# SSLVerifyClient require
+# SSLVerifyDepth  10
+EOF
+
+perl -p -i -e "s{HUBFILE}{$HUBFILE}" $HTTPDIR/$KOJIHUBCONF
+perl -p -i -e "s{TOPDIR}{$TOPDIR}" $HTTPDIR/$KOJIHUBCONF
+perl -p -i -e "s{REMOTEKOJI}{$REMOTEKOJI}" $HTTPDIR/$KOJIHUBCONF
+#the line below has to be after the TOPDIR one above otherwise TOP in TOPDIR
+#Gets replaced
+perl -p -i -e "s{TOP}{$TOP}" $HTTPDIR/$KOJIHUBCONF
+
+
+# ------------------------------------------------------------------------
+# hub.conf
+
+cat > $HUBFILE << EOF
+[hub]
+
+## Basic options ##
+DBName = koji
+DBUser = koji
+DBHost = HOSTNAME
+DBPass = KOJIPASS
+KojiDir = TOPDIR
+
+##  Kerberos authentication options  ##
+# AuthPrincipal = kojihub@EXAMPLE.COM
+# AuthKeytab = /etc/koji.keytab
+# ProxyPrincipals = kojihub@EXAMPLE.COM
+## format string for host principals (%s = hostname)
+# HostPrincipalFormat = compile/%s@EXAMPLE.COM
+## end Kerberos auth configuration
+
+##  SSL client certificate auth configuration  ##
+##  note: ssl auth may also require editing the httpd config (conf.d/kojihub.conf)
+##  the client username is the common name of the subject of their client certificate
+DNUsernameComponent = CN
+
+##  separate multiple DNs with |
+## eg
+## ProxyDNs = SSL_SUBJ/CN=koji/emailAddress=kojiweb@HOSTNAME |
+## 	SSL_SUBJ/CN=fred/emailAddress=fred@HOSTNAME |
+## 	SSL_SUBJ/CN=joe/emailAddress=joe@HOSTNAME 
+
+ProxyDNs = SSL_SUBJ/CN=HOSTNAME/emailAddress=kojiweb@HOSTNAME
+
+## end SSL client certificate auth configuration
+
+##  Other options  ##
+LoginCreatesUser = On
+KojiWebURL = http://HOSTNAME/koji
+
+# The domain name that will be appended to Koji usernames
+# when creating email notifications
+EmailDomain = EMAILDOMAIN
+# whether to send the task owner and package owner email or not on success.  this still goes to watchers
+NotifyOnSuccess = True
+
+## Disables all notifications
+# DisableNotifications = False
+
+## Koji hub plugins
+## The path where plugins are found
+# PluginPath = /usr/lib/koji-hub-plugins
+## A space-separated list of plugins to load
+# Plugins = echo
+
+## If KojiDebug is on, the hub will be /very/ verbose and will report exception
+## details to clients for anticipated errors (i.e. koji's own exceptions --
+## subclasses of koji.GenericError).
+# KojiDebug = On
+
+## Determines how much detail about exceptions is reported to the client (via faults)
+## Meaningful values:
+##   normal - a basic traceback (format_exception)
+##   extended - an extended traceback (format_exc_plus)
+##   anything else - no traceback, just the error message
+## The extended traceback is intended for debugging only and should NOT be
+## used in production, since it may contain sensitive information.
+# KojiTraceback = normal
+
+## These options are intended for planned outages
+ServerOffline = False
+# OfflineMessage = temporary outage
+LockOut = False
+## If ServerOffline is True, the server will always report a ServerOffline fault (with
+## OfflineMessage as the fault string).
+## If LockOut is True, the server will report a ServerOffline fault for all non-admin
+## requests.
+EOF
+
+
+perl -p -i -e "s/HOSTNAME/"$HOSTNAME"/g" $HUBFILE
+perl -p -i -e "s/KOJIPASS/"$KOJIPASS"/" $HUBFILE
+perl -p -i -e "s{SSL_SUBJ}{$SSL_SUBJ}" $HUBFILE
+perl -p -i -e "s{TOPDIR}{$TOPDIR}" $HUBFILE
+perl -p -i -e "s{EMAILDOMAIN}{$EMAILDOMAIN}" $HUBFILE
+
+# cat $HUBFILE
+
+# ------------------------------------------------------------------------
+# httpd welcome.conf file annoyance
+
+RESULT=`rpm -qVf --nomtime  $HTTPDIR/welcome.conf | grep  welcome.conf`
+# if welcome.conf is a listed file then we need not do anything
+# if it IS listed then it's in the default state which must be changed
+# in which case comment out ALL lines (which ar't already commented out
+if [ -z "${RESULT}" ]; then
+	perl -p -i -e 's/^(?!\s*#)/#/' $HTTPDIR/welcome.conf
+fi
+
+
+# ------------------------------------------------------------------------
+# httpd httpd.conf
+
+# sometimes the /etc/hosts file is written in such a way that ::1 (IPv6 localhost)
+# gets assigned the hostname but 127.0.0.1 doesn't
+# Make surethat ServerName is set as the machines honstname and not 'localhost*'
+# which would smash the SSL setup
+
+#RESULT=`grep $HOSTNAME /etc/hosts | grep ::`
+#if [ -z "${RESULT}" ]; then
+#	perl -p -i -e '
+	perl -p -i -e 's/(^.*)#ServerName/ServerName '$HOSTNAME':80\n#ServerName/g' $HTTPDCONF
+#fi

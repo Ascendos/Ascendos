@@ -1,0 +1,198 @@
+#!/bin/sh
+echo "======================"
+echo "=== setup-postgres ==="
+echo "======================"
+
+# The Fedora docs say to make these accounts passwordless but I think
+# thats a terrible idea. For script purposes the passwords are defined here
+# but should be reset to something a bit more secure afterwards
+
+. `pwd`/defaults
+
+# Check that all the externally defined variables we use in this script are initailized
+echo -n "Checking the defaults of the following: "
+for i in TOP CANAME KOJIPASS DEFAULT_DEV WIPEDATA; do
+	if [ \$$i ]; then
+		echo -n "$i "
+		eval n=\$$i
+		if [ ! $n ]; then
+			echo
+			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
+			exit 1
+		fi
+	fi
+done
+echo " (OK)"
+
+# (debugging) be quiet
+QUIET=0
+
+if [ $QUIET == "1" ]; then
+	PGQUIET=--quiet
+fi
+
+# Postgres server and koji user setup		     
+# Turn off all services (these may not even be running but it's better to be safe)
+if [ ! -x /usr/sbin/kojid ]; then
+	/sbin/service kojid stop
+fi
+
+if [ ! -x /usr/sbin/kojira ]; then
+	/sbin/service kojira stop
+fi
+
+if [ ! -x /usr/sbin/httpd ]; then
+	/sbin/service httpd stop
+fi
+
+if [ ! -x /usr/bin/postmaster ]; then
+	/sbin/service postgresql stop
+fi
+
+# Enable httpd/postgresq/kojira/kojid even is they are already or not
+/sbin/chkconfig --add postgresql
+/sbin/chkconfig --add httpd
+/sbin/chkconfig --add kojira
+/sbin/chkconfig --add kojid
+
+# ========================================================================
+# No way around it, we gotta be root to do all this stuff
+# ------------------------------------------------------------------------
+#   
+
+if [ `id -u` != "0" ]; then   
+	echo "Buzzt! sorry, you got to be root to run this script successfully"
+	exit 1
+fi
+
+# Damned selinux ALWAYS stabs you in the back. <mutter>
+if [ selinuxenabled ]; then
+	setsebool -P httpd_can_network_connect_db 1
+fi
+
+# ========================================================================
+# Setup the postgress database
+# ------------------------------------------------------------------------ 
+# 
+
+if [ $WIPEDATA == "1" ]; then
+	echo "Trashing everything (configs/data) in postgres directories"
+	service postgresql stop
+	rm -rf /var/lib/pgsql
+
+	# umm postgres has never been setup,  or the whole dir structure
+	# and databases have been nuked. we'd better create it through
+	# calling initdb  
+	/sbin/service postgresql initdb
+	echo
+	grep -c koji /var/lib/pgsql/data/pg_hba.conf > /dev/null 2>&1
+	RESULT=$?
+	if [ "$RESULT" != "0" ] ; then
+		echo "Fixing up pg_hba.conf"
+
+		perl -p -i -e "s/((^.*)local(.*$))/#\1/" /var/lib/pgsql/data/pg_hba.conf
+		perl -p -i -e "s/((^.*)host    all(.*$))/#\1/" /var/lib/pgsql/data/pg_hba.conf
+
+		echo "" >> /var/lib/pgsql/data/pg_hba.conf
+		echo "# Modifications made for koji build system"	>> /var/lib/pgsql/data/pg_hba.conf
+		echo "# if using UNIX socket access, DBHost defined"	>> /var/lib/pgsql/data/pg_hba.conf
+		echo "# in /etc/koji-hub/hub.conf should be blanked"	>> /var/lib/pgsql/data/pg_hba.conf
+		echo "local	all	all			trust"	>> /var/lib/pgsql/data/pg_hba.conf
+		echo "" >> /var/lib/pgsql/data/pg_hba.conf
+		echo "host	koji	koji	127.0.0.1/32	trust"	>> /var/lib/pgsql/data/pg_hba.conf
+		echo "host	koji	koji	::1/128		trust"	>> /var/lib/pgsql/data/pg_hba.conf
+
+
+		# I'd have prefered to use "hostname -i" but standalone systems will claim to be localhost
+		# even with an eth0 connection
+
+		TEST=`ifconfig | grep $DEFAULT_DEV`
+		if [ $? ] ; then
+			IP=`ifconfig $DEFAULT_DEV | grep "inet addr" | cut -f 2 -d':' | cut -f 1 -d" "`
+			echo "host	koji	koji	$IP/32	trust"	>> /var/lib/pgsql/data/pg_hba.conf
+		fi
+
+		perl -p -i -e "s/((^.*)listen_addresses =(.*$))/listen_addresses = '*'/g" /var/lib/pgsql/data/postgresql.conf
+	fi
+
+	/sbin/service postgresql start
+	echo
+
+	# We also need to recreate the koji role
+	echo "Removing any preexisting role for koji in the database"
+	su -l postgres -c "psql --command \"DROP ROLE IF EXISTS koji;\" " > /dev/null 2>&1
+	echo "Setting up koji's role in database"
+	su -l postgres -c "createuser --no-superuser --createdb --no-createrole koji"
+fi
+
+# Selinux moans if this isn't exactly the way it wants it
+# Personally I'd abandon selinux usage altogether, it's nothing but trouble
+restorecon -v /var/lib/pgsql/pgstartup.log
+
+echo "Initialize postgres database indexes"
+echo "	(this may already have been done in which case"
+echo "	 it will 'fail' with 'Data directory is not empty!/FAILED'"
+echo "	 which is perfectly fine)"
+echo
+
+/sbin/service postgresql start
+
+# Just make sure that the database has used the pg_hba.conf settings
+# in case the above failed (ie postgresql was already running)
+su -l postgres -c "pg_ctl -D /var/lib/pgsql/data reload"
+
+if [ $WIPEDATA == "1" ]; then 
+	echo "You may see some ERROR messages,.. you can safely ignore"
+	echo "them as they relate to dropping tables that may not exist"
+	echo
+
+	# If the koji db already exists,.. blow it away
+	# ignore error message is the db doesn't exist
+	su -l koji -c "dropdb koji" > /dev/null 2>&1  
+	su -l koji -c "createdb koji ; psql $PGQUIET koji < /usr/share/doc/koji*/docs/schema.sql" > /dev/null 2>&1
+
+	# There is the possibility of sql upgrade scripts that need to be installed
+	if [ -e /usr/share/doc/koji*/docs/schema-upgrade-1.2-1.3.sql ]; then
+		su -l koji -c "psql $PGQUIET koji < /usr/share/doc/koji*/docs/schema-upgrade-1.2-1.3.sql" > /dev/null 2>&1
+		echo "SQL 1.2-1.3 table upgrade for database installed"
+		UPGRADED_SQL=1
+	fi
+	if [ -e /usr/share/doc/koji*/docs/schema-upgrade-1.3-1.4.sql ]; then
+		su -l koji -c "psql $PGQUIET koji < /usr/share/doc/koji*/docs/schema-upgrade-1.3-1.4.sql" > /dev/null 2>&1
+		echo "SQL 1.3-1.4 table upgrade for database installed"
+	fi
+
+	if [ ! -e  /var/lib/pgsql/data/pg_hba.conf ] ; then   
+		echo "Umm /var/lib/pgsql/data/pg_hba.conf seems to be missing"
+		echo "Something went wrong with either the"
+		echo "/sbin/service postgresql initdb or start directives"
+		exit 1
+	fi
+
+	echo "The database role of koji may have already been setup"
+	echo "previously so don't panic if the createuser command fails here."
+	su -l postgres -c "createuser --no-superuser --createdb --no-createrole koji"
+	echo
+	su -l postgres -c "psql $PGQUIET --command \"GRANT ALL ON DATABASE koji TO koji;\" "
+
+
+	# Lets just add a default user (koji itself)
+	# NOTE: the password is held in plain text!
+	# Subnote: psql -t turns off headers
+	# ------------------------------------------------------------------------
+	#
+	# Make sure user koji can actually write to it's own dir (for the .pg_history)
+	chown koji.apache ~koji
+
+	# For an SSL connection setup the default user (koji) doesn't actually require a password
+	#su -l koji -c "psql $PGQUIET koji --command \"insert into users (name, password, status, usertype) values ('${CANAME}', '${KOJIPASS}', 0, 0);\""
+	su -l koji -c "psql $PGQUIET koji --command \"insert into users (name, status, usertype) values ('${CANAME}', 0, 0);\""
+
+	NID=`su -l koji -c "psql $PGQUIET -t -c \"select users.id from users where users.name = '${CANAME}';\""`
+
+	if [ UPGRADED_SQL ]; then
+		su -l koji -c "psql $PGQUIET koji --command \"insert into user_perms (user_id, perm_id, creator_id) values ($NID, 1, 1);\""
+	else
+		su -l koji -c "psql $PGQUIET koji --command \"insert into user_perms (user_id, perm_id) values ($NID, 1);\""
+	fi
+fi
