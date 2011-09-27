@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+
+# bugzilla-basic-setup-el6 will set up an el6 installation to run an el6
+#                          supporting bugzilla instance.
+
+# note: this script is not actually well tested, but will be eventually, i.e.
+#       it is currently built up as a long of things done more and less manually.
+
+# start with a minimal EL6 standard install
+
+# basic simple sane firewall, only allow ssh/http/https incoming
+# (presuming simplest standard networking, i.e. adjust for your env)
+# lokkit -f --enabled --port=22:tcp --port=80:tcp --port=443:tcp
+
+# configured and enabled sshd is presumed (and theoretically optional)
+
+yum -y install emacs
+yum -y install epel-release
+
+# install bugzilla
+# note: /usr/share/doc/bugzilla-3.4.5/README.fedora 
+yum -y install bugzilla
+
+# install optional things useful for bugzilla
+yum -y install perl-GD
+yum -y install perl-Chart
+yum -y install perl-Template-GD
+yum -y install ImageMagick-perl
+yum -y install perl-HTML-Scrubber.noarch
+yum -y install mysql-server
+# note, also got perl-PatchReader from repoforge
+# never got the perl Authen::Radius from repos
+#  - and we aren't using radius for auth
+# yum -y install freeradius-perl
+
+# workaround for/from rhbz6XXXXX
+# perhaps adding another optional bugzilla pkg from repos would also work
+mkdir /usr/share/bugzilla/contrib
+
+# set up sql server
+
+# bz wants this to be more than specifically 3276750, and in fact a bit more than that
+sed -i -e 's/\[mysqld\]/\[mysqld\]\nmax_allowed_packet=4321234/' /etc/my.cnf
+cat /dev/urandom | hexdump -n 4 -e '"%02x\n"' > /root/mysql.root.password
+cat /dev/urandom | hexdump -n 4 -e '"%02x\n"' > /root/mysql.bugs.password
+chkconfig mysqld on
+service mysqld start
+/usr/bin/mysqladmin -u root password "$( < /root/mysql.root.password )"
+/usr/bin/mysqladmin -u root -h $( hostname ) password "$( < /root/mysql.root.password )"
+# not yet scripted, BUT DO THIS, accepting defaults at the prompts
+# /usr/bin/mysql_secure_installation
+
+# sanity test/inspection if you like
+#mysql -u root --password="$( < /root/mysql.root.password )" -e 'show databases;'
+
+mysql -u root --password=$( < /root/mysql.root.password ) -e "CREATE USER 'bugs'@'localhost' IDENTIFIED BY '$( < /root/mysql.bugs.password )';"
+mysql -u root --password=$( < /root/mysql.root.password ) -e "CREATE DATABASE bugs;"
+mysql -u root --password=$( < /root/mysql.root.password ) -e "GRANT ALL ON bugs.* TO 'bugs'@'localhost';;"
+
+# run first time, to generate /etc/bugzilla/localconfig
+/usr/share/bugzilla/checksetup.pl
+
+# bugzilla had a problem with the one it found, which didn't seem to come from /usr/share/zoneinfo
+cp /usr/share/zoneinfo/America/Chicago /etc/localtime
+
+# edit bugzilla's localconfig
+sed -i -e \
+    "s/\$db_pass = '';/\$db_pass '$( < /root/mysql.bugs.password )';/" \
+    /etc/bugzilla/localconfig
+
+cat <<EOF > /etc/httpd/conf.d/bugzilla.conf
+Alias /bugzilla/var/lib/bugzilla/data/webdot /var/lib/bugzilla/data/webdot
+Alias /bugzilla /usr/share/bugzilla
+# add an alias since this is bugzilla.example.com, and no need for /bugzilla/ uri
+Alias / /usr/share/bugzilla/
+
+<Directory /usr/share/bugzilla>
+  AddHandler cgi-script .cgi
+  Options +Indexes +ExecCGI +FollowSymLinks
+  DirectoryIndex index.cgi
+  AllowOverride Limit Options FileInfo
+</Directory>
+EOF
+
+
+chkconfig httpd on
+service httpd restart
+
+/usr/share/bugzilla/checksetup.pl
+
+# presumption (for now) is postfix is installed and running, sendmail is not
+
+##
+## NOTES
+##
+
+# example dumping, though backups would be via shutting down, and copying /var/lib/mysql (and?? /usr/share/bugzilla??)
+#mysqldump -u root --password=$( < /root/mysql.root.password ) bugs products
+#mysqldump -u root --password=$( < /root/mysql.root.password ) bugs components
+#mysqldump -u root --password=$( < /root/mysql.root.password ) 
+# educational, example of listing components, etc
+#mysql -u root --password=$( < /root/mysql.root.password ) --database='bugs' -e 'select * from components;'
+#mysql -u root --password=$( < /root/mysql.root.password ) --database='bugs' -e 'select * from profiles;'
+#mysql -u root --password=$( < /root/mysql.root.password ) --database='bugs' -e 'select * from products;'
+
+# importing initial package/component list
+#
+#./gen-pkg-list-el6 > /tmp/el6.list.txt
+## note, the 2 and 3 were gleamed from above dumping of products and profiles tables
+#for pkg in $( < /tmp/el6.list.txt ); do echo "${pkg},,,2,,,3,,,The ${pkg} component of Ascendos"; done > /tmp/el6.list.bzimport.txt
+#mysql -u root --password=$( < /root/mysql.root.password ) -e 'LOAD DATA LOCAL INFILE "/tmp/new-bz-components.b.txt" INTO TABLE bugs.components FIELDS TERMINATED BY ",,," ENCLOSED BY "" LINES TERMINATED BY "\n" IGNORE 0 LINES (name,product_id,initialowner,description);'
+
+# note: /usr/share/doc/bugzilla-3.4.5/README.fedora 
