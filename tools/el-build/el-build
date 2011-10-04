@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# el-build: an enterprise linux distro building tool 
+#
+#############################################################################
+#
+# Copyright 2007-2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## el-build
+##
+##
+## DESCRIPTION
+##
+## el-build takes as input network or offline access to a bootstrapping
+## enterprise linux distro (e.g. SL60/F13) and recently built set of distro
+## packages (e.g. from koji), and outputs a new installable distro repotree
+## (e.g. ASC60) suitable for mirroring to the masses.
+##
+##
+## LONG TERM ROADMAP
+##
+## the input pipeline will be expanded to include:
+## - generating the 'recently built set of distro packages' from access to
+##   the new input of just the .src.rpms for the new distro (i.e. koji)
+## - then another addition to the input pipeline of generating those input
+##   .src.rpms from just the minimal git tree of deltas between that set of
+##   .src.rpms and a pristine set of .src.rpms from the upstream vendor.
+##
+##
+## NOTES
+##
+## - output reproducibility is ensured by the fact that a disposable VM
+##   is generated and used for the major processing phases (e.g. pungi,
+##   and later koji).
+##
+#############################################################################
+
+
+## TODO
+# - factor main into several large independent functions
+# - ...
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+distroname_def="Ascendos"
+distrover_def="6.0"
+offline_def="no"
+distrorelname_def="nameless"
+# presumption is to first check in ./, then devroot/6/distrover/
+config_x64_def="pungi-x64.ks"
+config_x32_def="pungi-x32.ks"
+outputdir_def="${rundir}/${progname}-output"
+cachedir_def="${HOME}/.${progname}/cache"
+builtrepo_def="http://build.ascendos.org/linux/ascendos/${distrover}"
+
+# a rather internally hardcoded list for the first pass
+# TODO: add a method for specifying a mirror to use if desired for any entry
+mirror_dirs="\
+ftp://ftp.scientificlinux.org/linux/scientific/6x/SRPMS
+ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os
+ftp://ftp.scientificlinux.org/linux/scientific/6.0/i386/os
+http://build.ascendos.org/linux/ascendos/SRPMS
+http://build.ascendos.org/linux/ascendos/6.0
+"
+
+# dev/debug
+#done::http://build.ascendos.org/linux/ascendos/SRPMS
+#done::ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os
+#done::ftp://ftp.scientificlinux.org/linux/scientific/6.0/i386/os
+#ftp://ftp.scientificlinux.org/linux/scientific/6x/SRPMS
+mirror_dirs="\
+http://build.ascendos.org/linux/ascendos/6.0
+"
+
+# to suppress debug messages
+debug=0
+# to suppress status messages
+quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo "    [distroname=${distroname_def}] \\"
+    echo "    [distrover=${distrover_def}] \\"
+    echo "    [offline=${offline_def}] \\"
+    echo "    [distrorelname=${distrorelname_def}] \\"
+    echo "    [config_x64=${config_x64_def}] \\"
+    echo "    [config_x32=${config_x32_def}] \\"
+    echo "    [outputdir=${outputdir_def}] \\"
+    echo "    [cachedir=${cachedir_def}] \\"
+    echo "    [builtrepo=${builtrepo_def}]"
+    echo ""
+    echo "All arguments are optional, with default valuess shown as above."
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+#############################################################################
+### calculate tree root and set up environment
+elbuild_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 )
+debug "devroot is ${elbuild_devroot}"
+
+# note: presumption is that el-build is run from within it's own
+#       developtment tree, e.g. 
+# $ ./relative/path/to/Ascendos/tools/el-build/el-build or $ ./el-build
+
+# note: ${progdir}/user-httpd or ${elbuild_devroot}/tools/el-build/user-httpd
+
+#############################################################################
+#
+## set option value defaults
+#
+distroname="${distroname_def}"
+distrover="${distrover_def}"
+offline="${offline_def}"
+distrorelname="${distrorelname_def}"
+config_x64="${config_x64_def}"
+config_x32="${config_x32_def}"
+outputdir="${outputdir_def}"
+cachedir="${cachedir_def}"
+builtrepo="${builtrepo_def}"
+
+
+#############################################################################
+#
+## process command line arguments / options
+#
+status "processing options..."
+# this is a simple enough method for a first pass.  I'd have brought in
+# viros's libvopt.sh if it wasn't so complex.
+for option in "$@"; do
+    if $( echo "${option}" | grep -q "=" ); then
+	# simplest
+#	eval "${option}"
+	# a bit better, allows e.g. distroname="Two Words"
+	# (though a two word distroname is as yet untested and may not work anyway)
+	opt_name=$( echo "${option}" | sed -e 's/=.*//' )
+	opt_val=$( echo "${option}" | sed -e 's/[^=]*=//' )
+	eval "${opt_name}='${opt_val}'"
+    else
+	die "option '${option}' is invalid, options must be of the form 'option_name=option_value'"
+    fi
+    debug "opt is $option"
+done
+
+
+# todo: fill out list or get more abstract (ala viros' libvopt.sh)
+#status "outputdir is ${outputdir}"
+#status "distroname is ${distroname}"
+
+#############################################################################
+#
+## update mirrors / cache
+#
+status "updating cache / mirrors..."
+
+# TODO: build.a.o needs to be mirrored, and thus de-referenced here
+#       (due to bandwidth use, etc...)
+
+# TODO: the bootstrapping OS needn't be full mirrored
+#       (a script to mirror the needed parts of a repo from a .ks
+#        would be very appreciated.  hint hint)
+
+# use lftp for mirroring
+
+# note: perhaps? pull instead  from koji, or ascendos/everything 
+#       (based on binary rpm name list generated from tuv srpm list)
+
+
+if ( ! mkdir -p "${cachedir}" > /dev/null 2>&1 ); then
+    die "cache directory (mirror root) - ${cachedir} - could not be used/made"
+    exit 1
+fi
+
+cd "${cachedir}"
+
+# TODO: support rsync as an option
+
+if [ ${offline} == "yes" ]; then
+    status "offline mode: not updating cache / mirrors..."
+else
+    for mirror_dir in ${mirror_dirs}; do
+	status "updating mirror: ${mirror_dir}"
+
+	mirror_hostpath=$( echo "${mirror_dir}" | sed -e 's/[^\/]*\/\///' )
+	debug "mirror_hostpath is ${mirror_hostpath}"
+	mirror_urltype=$( echo "${mirror_dir}" | sed -e 's/:\/\/.*//' )
+	debug "mirror_urltype is ${mirror_urltype}"
+	mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
+	debug "mirror_host is ${mirror_host}"
+	mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
+	debug "mirror_path is ${mirror_path}"
+	mirror_path_parent=$( dirname "${mirror_path}" )
+	debug "mirror_path_parent is ${mirror_path_parent}"
+	mirror_path_child=$( basename "${mirror_path}" )
+	debug "mirror_path_child is ${mirror_path_child}"
+	mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
+	mirror_dir_xmog="${mirror_host}___${mirror_path_xmog}"
+	debug "mirror_dir_xmog is ${mirror_dir_xmog}"
+
+	mirror_dest_path="${cachedir}/${mirror_dir_xmog}"
+	if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
+	    die "could not mkdir ${mirror_dest_path}"
+	fi
+
+	lftp -e "cd ${mirror_path_parent} ; mirror --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
+
+    done
+fi
+
+#############################################################################
+#
+## launch user-httpd on port 8421
+#
+
+# TODO: use random port between some range instead of static port
+
+
+## put mirror in docroot
+
+### create throwaway vm's .ks from template, placed in docroot
+
+### create throwaway vm disk image
+
+### run netinst(all) on/to throwaway vm disk image
+
+### create pungi .ks from template, placed in docroot
+
+### run throwaway vm for main/inner processing/build phase
+
+### arrange output for user, clean up, and exit
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#
+#
+
