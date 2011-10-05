@@ -55,14 +55,3 @@ wget
 /sbin/chkconfig --level=3 NetworkManager
 %end
 
-# TODO: have xbuild add this section instead of maintaining here
-%post --log=/root/x-run.log
-cat << EOF >> /etc/rc.d/rc.local
-
-# script instead of kept in here
-wget -O /tmp/x-run http://10.0.2.2:2112/x-run
-chmod +x /tmp/x-run
-/tmp/x-run
-EOF
-
-%end

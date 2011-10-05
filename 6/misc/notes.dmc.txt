@@ -11,31 +11,24 @@ first installable release
 -------------------------
 a 6.0/dogfood1/rc1 tree is complete with netinst and DVD installable
 isos generated with f13 pungi on an sl60 base.  see notes in the
-makeAscendos-6.0 script/outline.  For right now we need a first alpha
-or prealpha release criteria/qa-script for the release to pass before
-we make it public.
+makeAscendos-6.0 script/outline.  Once the necessary bugs have been
+closed, we'll build an alpha suitable for announcement.
 
 bugzilla
 --------
-we need a bugzilla instance.  known bugs-
-
-- SL ref in redhat logos COPYING file
-- SL ref in yum repo config
-- gnome menubar logo needs some padding
-- need a better index.html ff-startpage
-- Andrew and I have both noticed on my dogfood1rc1 release that
-  the wired network started offline, requiring a single initial
-  click to get it online.  (theoretically TUV behaviour? bug?)
+bugzilla is running smoothly
 
 git
 ---
-getting a more unified and long term structured git repo in place
+new git tree is shaping up, will pull to github.com/Ascendos by
+the time we release alpha.  The idea being that at that point its
+el-build script to build the release isos/tree will be testable.
 
 wiki
 ----
-getting all needed information onto the wiki.  Notes on an initial
-proposed structure are in an email to ascendos-dev and just need to
-be implemented as a first pass
+the wiki looks pretty good lately, though clearly a long term 
+constantly progressing thing. 
+
 
 build2
 ------
@@ -62,14 +55,15 @@ into the public repos
 
 mirrors
 -------
-Andrew is really handling this right now, but I may hit up my alma
-matter for another mirror.  I could probably even do a mirror myself
-on my $10/mo 1and1.com account.  Might be worthwhile.
+the mirrors seem to be running smoothly.  Need to push raw koji
+packages to mirrors under ascendos/testing/6.0/Alpha/, and update
+the repo metadata with comps files as they are in git, pulling
+in updates to the ascendos-release package as well
 
 other stuff
 -----------
-I'm sure I've left some stuff out, I've got a lot of notes, many posted
-to -dev that I need to get put into the right structure in git/wiki.
+we've got bugzilla now, so that is where the multitude of tasks
+are really getting gathered and prioritized
 
 ========================================================================
 ========================================================================

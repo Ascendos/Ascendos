@@ -65,6 +65,7 @@
 
 ## TODO
 # - factor main into several large independent functions
+# - ? add option bootstrap_distro_tree=...sl60x64
 # - ...
 
 
@@ -95,7 +96,13 @@ distrorelname_def="nameless"
 config_x64_def="pungi-x64.ks"
 config_x32_def="pungi-x32.ks"
 outputdir_def="${rundir}/${progname}-output"
-cachedir_def="${HOME}/.${progname}/cache"
+homedotdir_def="${HOME}/.${progname}"
+cachedir_def="${homedotdir_def}/cache"
+if [ "${TMPDIR}" != "" ]; then
+    tmpdir_def="${TMPDIR}"
+else
+    tmpdir_def="${homedotdir_def}/tmp"
+fi
 builtrepo_def="http://build.ascendos.org/linux/ascendos/${distrover}"
 
 # a rather internally hardcoded list for the first pass
@@ -109,16 +116,12 @@ http://build.ascendos.org/linux/ascendos/6.0
 "
 
 # dev/debug
-#done::http://build.ascendos.org/linux/ascendos/SRPMS
-#done::ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os
-#done::ftp://ftp.scientificlinux.org/linux/scientific/6.0/i386/os
-#ftp://ftp.scientificlinux.org/linux/scientific/6x/SRPMS
-mirror_dirs="\
-http://build.ascendos.org/linux/ascendos/6.0
-"
+#mirror_dirs="\
+#"
 
-# to suppress debug messages
-debug=0
+# to enable debug messages
+debug=1
+
 # to suppress status messages
 quiet=0
 
@@ -141,9 +144,10 @@ function usage {
     echo "    [config_x32=${config_x32_def}] \\"
     echo "    [outputdir=${outputdir_def}] \\"
     echo "    [cachedir=${cachedir_def}] \\"
+    echo "    [tmpdir=${tmpdir_def}] \\"
     echo "    [builtrepo=${builtrepo_def}]"
     echo ""
-    echo "All arguments are optional, with default valuess shown as above."
+    echo "All arguments are optional, with default values shown as above."
     echo ""
     echo ""
     exit 1
@@ -230,7 +234,9 @@ distrorelname="${distrorelname_def}"
 config_x64="${config_x64_def}"
 config_x32="${config_x32_def}"
 outputdir="${outputdir_def}"
+homedotdir="${homedotdir_def}"
 cachedir="${cachedir_def}"
+tmpdir="${tmpdir_def}"
 builtrepo="${builtrepo_def}"
 
 
@@ -276,7 +282,7 @@ status "updating cache / mirrors..."
 
 # use lftp for mirroring
 
-# note: perhaps? pull instead  from koji, or ascendos/everything 
+# note: perhaps? pull instead from koji, or ascendos/everything 
 #       (based on binary rpm name list generated from tuv srpm list)
 
 
@@ -328,14 +334,87 @@ fi
 
 # TODO: use random port between some range instead of static port
 
+# create directory for config/logs, and one for docroot
+mkdir -p "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc"
+mkdir -p "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot"
 
-## put mirror in docroot
+# expose the mirrors / cache inside the docroot
+ln -s ../../cache \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/cache"
+
+# this could no doubt be narrowed, lazy big hammer for the first pass
+killall httpd > /dev/null 2>&1
+sleep 2
+killall -KILL httpd > /dev/null 2>&1
+sleep 2
+# launch the httpd daemon
+"${elbuild_devroot}/tools/el-build/user-httpd" \
+    8421 \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot" \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc" \
+    start
+
+
+#############################################################################
+#
+## prepare network environment for the throwaway vm
+#
+
+
+# TODO: this is currently not correct, as x-run is a post install script
+#       that should retrieve isobuild, and configure it to be run via rc.local
+## expose inner processing script (x-run/isobuild) in the docroot
+cp "${elbuild_devroot}/tools/el-build/isobuild" \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
+
 
 ### create throwaway vm's .ks from template, placed in docroot
+cp "${elbuild_devroot}/tools/el-build/min-el60-x64.ks" \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
-### create throwaway vm disk image
+cat <<EOF >> "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks"
+%post --log=/root/x-run.log
+cat << FOO >> /etc/rc.d/rc.local
 
-### run netinst(all) on/to throwaway vm disk image
+# hook that should probably be added by the calling virt-installing 
+# script instead of kept in here
+wget -O /tmp/x-run http://10.0.2.2:8421/x-run
+chmod +x /tmp/x-run
+/tmp/x-run
+FOO
+
+%end
+EOF
+
+# TODO perhaps improve with definable/option for bootstrap_repotree
+# TODO more general/flexible mirror support ala viros' vmirmog etc...  (too complex for now)
+sed -i \
+    -e 's|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os|' \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks"
+
+
+#############################################################################
+#
+## create throwaway vm disk image
+#
+mkdir -p "${tmpdir}/${starttime}.${mypid}.vm"
+qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 42G
+
+
+0#############################################################################
+#
+## run netinst(all) on/to throwaway vm disk image
+#
+virsh destroy "${progname}-${starttime}-${mypid}"
+virsh undefine "${progname}-${starttime}-${mypid}"
+virt-install \
+    --name="${progname}-${starttime}-${mypid}" \
+    --location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
+    --disk "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+    --ram=768 \
+    --noreboot \
+    -x "ks=http://10.0.2.2:8421/min-sl60-x64.ks"
+
 
 ### create pungi .ks from template, placed in docroot
 
