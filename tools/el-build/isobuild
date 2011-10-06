@@ -235,10 +235,7 @@ pungi \
     --fulltree \
     --selfhosting \
     --nosplitmedia \
-    --nosource \
     --config=http://10.0.2.2:8421/pungi-x86_64.ks
-
-#TODO undo nosource, once e.g. libxml2 src.rpm is in SRPMS and not only koji
 
 # prepare output for the external user
 cd /root/pungi-workarea
