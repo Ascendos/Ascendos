@@ -12,10 +12,8 @@
 #part iso --size=4998
 
 # Add the repos you wish to use to compose here.  At least one of them needs group data.
-#repo --name=rawhide --mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=rawhide&arch=$basearch
-repo --name=ascendos60 --baseurl=file:///somewhere/ascendos/6.0/$basearch/os
-#repo --name=rawhide-source  --mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=rawhide-source&arch=$basearch
-repo --name=ascendos60-source  --baseurl=file:///somewhere/ascendos/SRPMS
+repo --name=ascendos60 --baseurl=http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__6.0/os/x86_64
+repo --name=ascendos60-source --baseurl=http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS
 
 
 # Package manifest for the compose.  Uses repo group metadata to translate groups.

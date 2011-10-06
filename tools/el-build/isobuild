@@ -130,6 +130,7 @@ yum -y install rpm-build
 
 # for rebuilding pigz
 yum -y install gcc
+yum -y install zlib-devel
 
 # for rpmdev-setuptree (not used) 
 #yum -y install rpm-build
@@ -142,6 +143,9 @@ yum -y install wget
 
 # for rebuilding python-kid
 yum -y install python-docutils
+
+# for mock
+yum -y install python-decoratortools
 
 # for rebuilding pungi
 yum -y install python-devel
@@ -170,7 +174,7 @@ if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild python-kid-0.9.6-6.fc13.src.rpm
-rpm -Uvh /root/rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
+rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 
 ## get repoview installed, needed by pungi
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
@@ -180,7 +184,7 @@ if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild repoview-0.6.5-1.fc13.src.rpm 
-rpm -Uvh /root/rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
+rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 
 
 ## get pungi
@@ -193,7 +197,7 @@ if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
-rpm -Uvh /root/rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
+rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 
 ## get pigz installed, needed by mock
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
@@ -203,7 +207,7 @@ if ( ! rpm --checksig pigz-2.1.6-1.el6.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild pigz-2.1.6-1.el6.src.rpm
-rpm -Uvh /root/rpmbuild/RPMS/x86_64/pigz-2.1.6.el6.x86_64.rpm
+rpm -Uvh /rpmbuild/RPMS/x86_64/pigz-2.1.6-1.el6.x86_64.rpm
 
 ## get mock installed, needed by pungi-x32(i386 output)
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
@@ -213,7 +217,7 @@ if ( ! rpm --checksig mock-1.1.12-1.el6.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild mock-1.1.12-1.el6.src.rpm
-rpm -Uvh /root/rpmbuild/RPMS/noarch/mock-1.1.12-1.el6.noarch.rpm
+rpm -Uvh /rpmbuild/RPMS/noarch/mock-1.1.12-1.el6.noarch.rpm
 
 
 ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
@@ -231,14 +235,18 @@ pungi \
     --fulltree \
     --selfhosting \
     --nosplitmedia \
+    --nosource \
     --config=http://10.0.2.2:8421/pungi-x86_64.ks
 
+#TODO undo nosource, once e.g. libxml2 src.rpm is in SRPMS and not only koji
+
 # prepare output for the external user
-cd /root/pingi-workarea
+cd /root/pungi-workarea
 tar cvf /dev/sdb ./output
 
 # done, goodbye
-init 0
+# debug: do manually until first decently working run completes without manual intervention
+#init 0
 
 
 ###

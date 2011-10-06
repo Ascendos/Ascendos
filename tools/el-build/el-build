@@ -375,6 +375,17 @@ fi
 cp "${elbuild_devroot}/security/keys/RPM-GPG-KEY-"* \
     "${cachedir}/one-off-files/"
 
+# note: ugly(?) temporary workaround that will be obsolete no later than the 
+#       time when koji/makeworld show up in el-build
+createrepo \
+    "${cachedir}/ftp.scientificlinux.org___linux__scientific__SRPMS" 
+createrepo \
+    -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-x86_64.xml" \
+    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" 
+createrepo \
+    -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-i386.xml" \
+    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__i386__os" 
+
 
 #############################################################################
 #
