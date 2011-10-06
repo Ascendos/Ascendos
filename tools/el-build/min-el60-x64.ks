@@ -41,17 +41,8 @@ poweroff
 %packages --default
 @core
 kernel
-wget
 %end
 
 ## post install script
 %post
-
-## boot eye candy 
-# e.g. from fedora, may be needed
-#/usr/sbin/plymouth-set-default-plugin text
-
-## services
-/sbin/chkconfig --level=3 NetworkManager
 %end
-

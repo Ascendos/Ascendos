@@ -1,8 +1,96 @@
 #!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# isobuild: a complete and deterministic environment and wrapper for pungi
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
 
+
+#############################################################################
+#############################################################################
+##
+## isobuild
+##
+##
+## DESCRIPTION
+##
+## isobuild presumes it is run on standard pungi capable platform, e.g.
+## SL60/F13/, and proceeds to generate pungi output in a thusly more easily
+## reproducible fashion
+## enterprise linux distro (e.g. SL60/F13) and recently built set of distro
+## packages (e.g. from koji), and outputs a new installable distro repotree
+## (e.g. ASC60) suitable for mirroring to the masses.
+##
+##
+## LONG TERM ROADMAP
+##
+## -
+##
+## NOTES
+##
+## - 
+##
+#############################################################################
+
+
+## TODO
+# -
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+# less confusing output messages when run as embedded /tmp/x-run
+progname="isobuild"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
 
 ### presumption, this is run as root from /etc/rc.d/rc.local on a system that
-### has just had a min-sl60-x64 kickstart installation (basic 'minimal' sl60 install)
+### has just had a min-sl60 kickstart installation (basic 'minimal' sl60 install)
 
 # gotta start somewhere
 cd /root
@@ -10,8 +98,38 @@ cd /root
 # pungi requires selinux not be enforcing
 setenforce 0
 
+mv /etc/yum.repos.d /etc/yum.repos.d.orig
+mkdir /etc/yum.repos.d
+cat <<EOF > /etc/yum.repos.d/sl.repo
+[sl]
+name=Scientific Linux \$releasever - \$basearch
+# yumvars seem pretty stupid, needing to be full directory entries, i.e. this doesn't work,
+# nor does \${releasever} work...
+#baseurl=http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os/
+baseurl=http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/
+#mirrorlist=http://ftp.scientificlinux.org/linux/scientific/mirrorlist/sl-base-6.txt
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
+EOF
+
+#cp /etc/yum.repos.d/sl.repo /etc/yum.repos.d/sl.repo.orig
+# no need for updates (until an os bug requiring one hits us)
+#mv /etc/yum.repos.d/sl-updates.repo /etc/yum.repos.d/sl-updates.repo.orig
+#
+#sed -i \
+#    -e 's|http://ftp.scientificlinux.org|ftp://ftp.scientificlinux.org|g' \
+#    /etc/yum.repos.d/sl.repo
+#
+#sed -i \
+#    -e 's|ftp://ftp.scientificlinux.org/linux/scientific/$releasever/$basearch/os|http://10.0.2.2:8421/cache/ftp.scientificlinux.org___l#inux__scientific__$releasever__$basearch__os|g' \
+#    /etc/yum.repos.d/sl.repo
+
 # for rpmbuild(--rebuild)
 yum -y install rpm-build
+
+# for rebuilding pigz
+yum -y install gcc
 
 # for rpmdev-setuptree (not used) 
 #yum -y install rpm-build
@@ -32,59 +150,33 @@ yum -y install python-devel
 yum -y install anaconda-runtime
 
 # for running pungi to yield i386 media on x86_64 host
-yum -y install epel-release
-yum -y install mock
+#yum -y install epel-release
+#yum -y install mock
+# or alternately without bringing 'all' of epel into things-
 
-# trust the f13 key, to verify pungi/repoview/...
-cat <<EOF > RPM-GPG-KEY-fedora-13-primary
------BEGIN PGP PUBLIC KEY BLOCK-----                                                  
-Version: GnuPG v1.4.5 (GNU/Linux)
-
-mQINBEtWPNwBEADjDowYLqGZJevWtPil9jpwrN2gUE5YdKSpdN+FmeS4PaBjM293
-O56WY1vElOFbD/wO0+UsYsSU3J+Wfz/6hNnC953mNN4d6luT2tMs0Qc5LZ4Xmsod
-a5BWlr1tASUBA/DPiS1mtdKm3n6WuW3fZYydRK2EBskv9tuA3LKgmm9e9OcbTJjC
-lUdtw7868WqR2aU383l9G9HPoN6aR4EKgNgSefdNPTsxD04xbLo/aSHAG85fvXmg
-2z2sVOw3v2oEALCIaL0QPWZ3gcCyY+FUmF8fWofSEqnHWhdrmbqvsitX+BGWte5o
-F0M5m1JIDIBu7JxEeB0t0ZNoeZnWBWsXTY50qUSZjLRSsgkiSNaaaEAOvu4TJe79
-B6xfv8zn2P98lnBEuuAH5GtFsAAf/7htchKbQ72ePGLjIow4BSAr2ZTIhaRnrd6v
-fKSZsL0lKp8rutUTYncm/EM6xB+fApf+BlDtsw2HWZqi14ADGM8pVOwq4rwhWWFd
-em9pGosy4fW8Oug0T+WIXmYx3TRh1o2U7kBDrKUqZu6Gm57YFAAARPjgeg0Pu5+P
-JEtRinhfm57s6YieefzBY/rha48sWk5jbXFKqbOCNInE9rerWnpscvSVaIhGQZYW
-Za3FGhjAHU5ZEDVHT+du5X+aKqj2NZmi+5G/DBg2322d0++exyRHIU//6QARAQAB
-tCZGZWRvcmEgKDEzKSA8ZmVkb3JhQGZlZG9yYXByb2plY3Qub3JnPokCNgQTAQIA
-IAUCS1Y83AIbDwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEH7catbo5A/egacP
-/1rDtOD5YhVhxJr2rcVyMF0yFERtRVP+nb4vb5HGxms6C4nI8b0jYwLe/OAkdS5g
-xdw+MVKVx1RcnN83N5YBwcCJiNiaN/SXUb+SbIWNCbfZq0s7jm9OWtZLE+WRkY8F
-NKfogR+rd27YfkdI+Y/5at4e9J0c6HyiczNMfUaahZhl+XeodZwaGdjhNpiKD/LC
-V/Ouhq46HUEuos5bHtk2Pz+1EUhsCuih/eeIHU2bRtRGjYF9jGffs4O9b+G/QfI2
-42IDoNqVotyLndiJBiR67iUGG8NLYARi9sDeD+B7pQ1b+LptYq1ltn4/3gbngKza
-SqXFdcjx2SOjpRPOGRc/pPchoAOZS2dYr8aSVkwc6A0VRLb8FGLaVkQa3o0eAq/N
-95wCE9XSFtGWIiCLjsygrTaXjOKdLzOAhaShk4KOdD2phHQ+cwz/Z9fDvtAozPvQ
-o36uB0d6Y1mdDjCmtfNfYTumL1z40/evLOlLXadQjY/+GoidBh+BotSCAeQLAMMH
-+yDaTBFhUIER76OVfpMTja2D2s5YmcD01LhLF4Q3DsfNCSiwe8vhiN1KzyVnrwJi
-T6HwcX68lc0zXhIOADUohs950Drm3btOJP0vZTc0KT8Bvxy/ru+vkdFoqUL3Cw54
-g9fxqLowt3WXdBXuTdM9wlrBXXrSLpGFuuiv4Yzo2u3Q
-=0lqj
------END PGP PUBLIC KEY BLOCK-----
-EOF
-
-# ... instead of trusting there is no MITM between us and the source
+## install pubkeys for verifying .src.rpm signatures
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
+wget http://10.0.2.2:8421/cache/one-off-files/RPM-GPG-KEY-fedora-13-primary
 rpm --import RPM-GPG-KEY-fedora-13-primary
+#wget wget ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
+wget http://10.0.2.2:8421/cache/one-off-files/RPM-GPG-KEY-EPEL-6
+rpm --import RPM-GPG-KEY-EPEL-6
 
-## get python-kid installed, needed by repoview (needed by pungi)
-wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
+## get python-kid installed, needed by repoview
+#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/python-kid-0.9.6-6.fc13.src.rpm
 if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
-    echo "asc-isobuild: fatal error, python-kid signature could not be verified as correct"
+    echo "${progname}: fatal error, python-kid signature could not be verified as correct"
     exit 1
 fi
 rpmbuild --rebuild python-kid-0.9.6-6.fc13.src.rpm
 rpm -Uvh /root/rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 
 ## get repoview installed, needed by pungi
-wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
+#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/repoview-0.6.5-1.fc13.src.rpm
 if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
-    echo "asc-isobuild: fatal error, repoview signature could not be verified as correct"
+    echo "${progname}: fatal error, repoview signature could not be verified as correct"
     exit 1
 fi
 rpmbuild --rebuild repoview-0.6.5-1.fc13.src.rpm 
@@ -92,13 +184,37 @@ rpm -Uvh /root/rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 
 
 ## get pungi
-wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
+#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
+# note: fixing a bug by adding 'cache' here is what I was doing 
+#       when I discovered on slashdot that Steve Jobs died.  R.I.P.
+wget http://10.0.2.2:8421/cache/one-off-files/pungi-2.0.21-1.fc13.src.rpm
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
-    echo "asc-isobuild: fatal error, pungi signature could not be verified as correct"
+    echo "${progname}: fatal error, pungi signature could not be verified as correct"
     exit 1
 fi
 rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /root/rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
+
+## get pigz installed, needed by mock
+#wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/pigz-2.1.6-1.el6.src.rpm
+if ( ! rpm --checksig pigz-2.1.6-1.el6.src.rpm ); then
+    echo "${progname}: fatal error, pigz signature could not be verified as correct"
+    exit 1
+fi
+rpmbuild --rebuild pigz-2.1.6-1.el6.src.rpm
+rpm -Uvh /root/rpmbuild/RPMS/x86_64/pigz-2.1.6.el6.x86_64.rpm
+
+## get mock installed, needed by pungi-x32(i386 output)
+#wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/mock-1.1.12-1.el6.src.rpm
+if ( ! rpm --checksig mock-1.1.12-1.el6.src.rpm ); then
+    echo "${progname}: fatal error, mock signature could not be verified as correct"
+    exit 1
+fi
+rpmbuild --rebuild mock-1.1.12-1.el6.src.rpm
+rpm -Uvh /root/rpmbuild/RPMS/noarch/mock-1.1.12-1.el6.noarch.rpm
+
 
 ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
 mkdir /root/pungi-workarea
@@ -115,4 +231,23 @@ pungi \
     --fulltree \
     --selfhosting \
     --nosplitmedia \
-    --config=/root/pungi-workarea/pungi-x86_64.ks
+    --config=http://10.0.2.2:8421/pungi-x86_64.ks
+
+# prepare output for the external user
+cd /root/pingi-workarea
+tar cvf /dev/sdb ./output
+
+# done, goodbye
+init 0
+
+
+###
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#
+# TODO: share pungi arch kickstarts with %include and ksflatten
+
+

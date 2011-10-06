@@ -93,8 +93,8 @@ distrover_def="6.0"
 offline_def="no"
 distrorelname_def="nameless"
 # presumption is to first check in ./, then devroot/6/distrover/
-config_x64_def="pungi-x64.ks"
-config_x32_def="pungi-x32.ks"
+config_x64_def="pungi-x86_64.ks"
+config_x32_def="pungi-i386.ks"
 outputdir_def="${rundir}/${progname}-output"
 homedotdir_def="${HOME}/.${progname}"
 cachedir_def="${homedotdir_def}/cache"
@@ -118,6 +118,17 @@ http://build.ascendos.org/linux/ascendos/6.0
 # dev/debug
 #mirror_dirs="\
 #"
+
+# another hardcoded internal list
+mirror_files="\
+ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
+ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
+ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
+"
 
 # to enable debug messages
 debug=1
@@ -221,8 +232,6 @@ debug "devroot is ${elbuild_devroot}"
 #       developtment tree, e.g. 
 # $ ./relative/path/to/Ascendos/tools/el-build/el-build or $ ./el-build
 
-# note: ${progdir}/user-httpd or ${elbuild_devroot}/tools/el-build/user-httpd
-
 #############################################################################
 #
 ## set option value defaults
@@ -325,7 +334,47 @@ else
 	lftp -e "cd ${mirror_path_parent} ; mirror --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
 
     done
+
+    mkdir -p "${cachedir}/one-off-files"
+    for mirror_file in ${mirror_files}; do
+	status "caching file: ${mirror_file}"
+
+	mirror_hostpath=$( echo "${mirror_file}" | sed -e 's/[^\/]*\/\///' )
+	debug "mirror_hostpath is ${mirror_hostpath}"
+	mirror_urltype=$( echo "${mirror_file}" | sed -e 's/:\/\/.*//' )
+	debug "mirror_urltype is ${mirror_urltype}"
+	mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
+	debug "mirror_host is ${mirror_host}"
+	mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
+	debug "mirror_path is ${mirror_path}"
+	mirror_path_parent=$( dirname "${mirror_path}" )
+	debug "mirror_path_parent is ${mirror_path_parent}"
+	mirror_path_child=$( basename "${mirror_path}" )
+	debug "mirror_path_child is ${mirror_path_child}"
+	mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
+	mirror_file_xmog="${mirror_host}___${mirror_path_xmog}"
+	debug "mirror_file_xmog is ${mirror_file_xmog}"
+
+	mirror_dest_path="${cachedir}/${mirror_file_xmog}"
+	if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
+	    die "could not mkdir ${mirror_dest_path}"
+	fi
+
+	# for now, just clobber
+	# TODO: have finer grained actual caching behavior
+	rm -f "${cachedir}/one-off-files/${mirror_path_child}"
+	wget -q -O "${cachedir}/one-off-files/${mirror_path_child}" \
+	    "${mirror_file}"
+
+    done
+
 fi
+
+# trust our own copies of the keys, instead of theoretical mitm 
+# during the download of the src.rpms from the same server
+cp "${elbuild_devroot}/security/keys/RPM-GPG-KEY-"* \
+    "${cachedir}/one-off-files/"
+
 
 #############################################################################
 #
@@ -361,30 +410,80 @@ sleep 2
 #
 
 
-# TODO: this is currently not correct, as x-run is a post install script
-#       that should retrieve isobuild, and configure it to be run via rc.local
 ## expose inner processing script (x-run/isobuild) in the docroot
 cp "${elbuild_devroot}/tools/el-build/isobuild" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
+
+## expose pungi kickstarts in the docroot
+cp "${elbuild_devroot}/6/6.0/configs/pungi-"*.ks \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
 
 ### create throwaway vm's .ks from template, placed in docroot
 cp "${elbuild_devroot}/tools/el-build/min-el60-x64.ks" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
+#############################################################################
+#
+## processing container/vm kickstart additions (to a minimal kickstart)
+#
 cat <<EOF >> "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks"
-%post --log=/root/x-run.log
+%packages --default
+# for retrieving files from the host httpd server and/or the internet
+wget
+%end
+
+%post --log=/root/min-ks.post.log.log
+## services
+/sbin/chkconfig --level=3 NetworkManager
+
+
+#############################################################################
+#
+## rc.local appending: executed _AFTER_ install, on first boot
+#
 cat << FOO >> /etc/rc.d/rc.local
 
-# hook that should probably be added by the calling virt-installing 
-# script instead of kept in here
+# experiment
+rhgb-client --quit
+
 wget -O /tmp/x-run http://10.0.2.2:8421/x-run
 chmod +x /tmp/x-run
-/tmp/x-run
+# TODO: x-run uses the installed yum.repos.d, which do not yet utilize
+#       available mirrors (cough, vmirmog, cough)
+/tmp/x-run 2>&1 | tee -a /root/x-run.log
+
 FOO
+#
+## end post-install rc.local appendage
+#
+#############################################################################
 
 %end
 EOF
+
+#
+## end processing container/vm kickstart additions
+#
+#############################################################################
+
+#############################################################################
+#
+## processing target distro output kickstart (for pungi)
+#
+
+# nothing dynamic yet, put probably sooner or later
+sed -i \
+    -e 's/example/example/g' \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/${config_x64}" 
+sed -i \
+    -e 's/example/example/g' \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/${config_x32}" 
+
+#
+## end processing target distro output kickstart (for pungi)
+#
+#############################################################################
 
 # TODO perhaps improve with definable/option for bootstrap_repotree
 # TODO more general/flexible mirror support ala viros' vmirmog etc...  (too complex for now)
@@ -399,28 +498,57 @@ sed -i \
 #
 mkdir -p "${tmpdir}/${starttime}.${mypid}.vm"
 qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 42G
+qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 42G
 
 
-0#############################################################################
+#############################################################################
 #
 ## run netinst(all) on/to throwaway vm disk image
 #
 virsh destroy "${progname}-${starttime}-${mypid}"
 virsh undefine "${progname}-${starttime}-${mypid}"
+# TODO: add standard qemu (not provided by tuv's repos) as fallback for
+#       an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
+# TODO: is the root of security/pristineness here that the locally cached
+#       copy of the pungi-bootstrap os was not corrupt?  I.e. perhaps add
+#       some sort of check against our copy of hashes for the files used
+#       for the netinst here (just boot.iso? or does virt-install pull the
+#       kernel and initrd from PXE/pxeboot directories?)
 virt-install \
     --name="${progname}-${starttime}-${mypid}" \
     --location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
-    --disk "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+    --disk="${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+    --disk="${tmpdir}/${starttime}.${mypid}.vm/output.img" \
     --ram=768 \
     --noreboot \
-    -x "ks=http://10.0.2.2:8421/min-sl60-x64.ks"
+    -x "ks=http://10.0.2.2:8421/min-el60-x64.ks"
+
+mv \
+    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" 
+
+qemu-img create -f qcow2 \
+    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
+    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+
+qemu-img create -f qcow2 \
+    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
+    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+
+#############################################################################
+#
+## run throwaway vm for main/inner processing/build phase
+#
+virsh start "${progname}-${starttime}-${mypid}"
 
 
-### create pungi .ks from template, placed in docroot
-
-### run throwaway vm for main/inner processing/build phase
-
-### arrange output for user, clean up, and exit
+#############################################################################
+#
+## arrange output for user, clean up, and exit
+#
+pushd "${outputdir}" > /dev/null 2>&1
+tar xvf "${tmpdir}/${starttime}.${mypid}.vm/output.img"
+popd > /dev/null 2>&1
 
 #############################################################################
 ## end script - only notes below
