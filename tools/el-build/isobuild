@@ -196,16 +196,6 @@ fi
 rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 
-## get livecd-tools
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/livecd-tools-033-3.fc13.src.rpm
-if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
-    echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
-    exit 1
-fi
-rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
-rpm -Uvh /rpmbuild/RPMS/noarch/livecd-tools-033-3.el6.x86_64.rpm
-
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
 wget http://10.0.2.2:8421/cache/one-off-files/livecd-tools-033-3.fc13.src.rpm
