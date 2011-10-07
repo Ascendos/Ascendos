@@ -26,7 +26,11 @@ echo " (OK)"
 # Add the builder as a host before we make the certificates.
 # ------------------------------------------------------------------------
 
-koji add-host $1 x86_64 i386
+if [ "$( uname -m )" == "x86_64" ]; then
+   koji add-host $1 x86_64 i386
+else
+   koji add-host $1 i386
+fi
 
 # ========================================================================
 # Server Authetication nightmare (SSL)

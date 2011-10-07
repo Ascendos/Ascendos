@@ -24,7 +24,14 @@ echo " (OK)"
 koji add-tag dist-$DIST
 koji add-tag --parent "dist-$DIST" dist-$DIST-updates
 koji add-tag --parent "dist-$DIST-updates" dist-$DIST-updates-candidate
-koji add-tag --parent "dist-$DIST-updates" --arches "i686,x86_64" dist-$DIST-build
+### Catch for arch
+
+if [ /bin/arch == x86_64 ]; then
+  koji add-tag --parent "dist-$DIST-updates" --arches "i686,x86_64" dist-$DIST-build
+else
+   koji add-tag --parent "dist-$DIST-updates" --arches "i686" dist-$DIST-build
+fi
+
 koji add-target dist-$DIST dist-$DIST-build dist-$DIST
 koji add-target dist-$DIST-updates-candidate dist-$DIST-build dist-$DIST
 koji add-group dist-$DIST-build build
