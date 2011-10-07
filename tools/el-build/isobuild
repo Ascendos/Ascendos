@@ -234,6 +234,9 @@ pungi \
     --nosplitmedia \
     --config=http://10.0.2.2:8421/pungi-x86_64.ks
 
+# save space for now (same thing theoretically made later for i386 run)
+rm -rvf /root/pungi-workarea/output/*/source/SRPMS > /root/pungi-workarea/output/deleted.SRPMS.list.txt
+
 adduser xmock
 usermod -a -G mock xmock
 wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \

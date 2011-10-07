@@ -276,6 +276,10 @@ done
 #status "outputdir is ${outputdir}"
 #status "distroname is ${distroname}"
 
+if ( ! mkdir -p "${outputdir}" > /dev/null 2>&1 ); then
+    die "output directory - ${outputdir} - could not be used/made"
+fi
+
 #############################################################################
 #
 ## update mirrors / cache
@@ -297,7 +301,6 @@ status "updating cache / mirrors..."
 
 if ( ! mkdir -p "${cachedir}" > /dev/null 2>&1 ); then
     die "cache directory (mirror root) - ${cachedir} - could not be used/made"
-    exit 1
 fi
 
 cd "${cachedir}"
@@ -510,8 +513,8 @@ sed -i \
 ## create throwaway vm disk image
 #
 mkdir -p "${tmpdir}/${starttime}.${mypid}.vm"
-qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 42G
-qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 42G
+qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 77G
+qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
 
 
 #############################################################################
