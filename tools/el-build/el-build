@@ -125,6 +125,8 @@ ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
 ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
@@ -384,13 +386,14 @@ createrepo \
     -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-i386.xml" \
     "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
 
-# sigh...
-createrepo \
-    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-x86_64.xml" \
-    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os"
-createrepo \
-    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-i386.xml" \
-    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__i386__os"
+# perhaps this never was needed if I had not been using offline=yes before recovering
+# from a prior bug
+#createrepo \
+#    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-x86_64.xml" \
+#    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os"
+#createrepo \
+#    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-i386.xml" \
+#    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__i386__os"
 
 
 
@@ -400,6 +403,10 @@ createrepo \
 #
 
 # TODO: use random port between some range instead of static port
+
+# note: one could also tar up the docroot into a new qemu disk image, and
+#       use that to expose the data to the VM (or probably several other
+#       ways, including non-userstack networking that may be faster)
 
 # create directory for config/logs, and one for docroot
 mkdir -p "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc"
@@ -476,7 +483,7 @@ wget -O /tmp/x-run http://10.0.2.2:8421/x-run
 chmod +x /tmp/x-run
 # TODO: x-run uses the installed yum.repos.d, which do not yet utilize
 #       available mirrors (cough, vmirmog, cough)
-/tmp/x-run 2>&1 | tee -a /root/x-run.log
+( /tmp/x-run 2>&1 | tee -a /root/x-run.log ) &
 
 FOO
 #

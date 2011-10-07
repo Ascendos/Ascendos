@@ -163,6 +163,8 @@ rpm --import RPM-GPG-KEY-fedora-13-primary
 wget http://10.0.2.2:8421/cache/one-off-files/RPM-GPG-KEY-EPEL-6
 rpm --import RPM-GPG-KEY-EPEL-6
 
+## TODO: make the following an loop over a list (necessarily ordered)
+
 ## get python-kid installed, needed by repoview
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
 wget http://10.0.2.2:8421/cache/one-off-files/python-kid-0.9.6-6.fc13.src.rpm
@@ -186,8 +188,6 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 
 ## get pungi
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
-# note: fixing a bug by adding 'cache' here is what I was doing 
-#       when I discovered on slashdot that Steve Jobs died.  R.I.P.
 wget http://10.0.2.2:8421/cache/one-off-files/pungi-2.0.21-1.fc13.src.rpm
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, pungi signature could not be verified as correct"
@@ -195,6 +195,38 @@ if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
 fi
 rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
+
+## get livecd-tools
+#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/livecd-tools-033-3.fc13.src.rpm
+if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
+    echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
+    exit 1
+fi
+rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
+rpm -Uvh /rpmbuild/RPMS/noarch/livecd-tools-033-3.el6.x86_64.rpm
+
+## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
+#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/livecd-tools-033-3.fc13.src.rpm
+if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
+    echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
+    exit 1
+fi
+rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
+rpm -Uvh /rpmbuild/RPMS/x86_64/noarch/{livecd-tools,python-imgcreate}*.rpm
+
+## get zyx-liveinstaller to support rebootless live media installation
+#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
+wget http://10.0.2.2:8421/cache/one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
+if ( ! rpm --checksig zyx-liveinstaller-0.2.4-1.fc13.src.rpm ); then
+    echo "${progname}: fatal error, zyx-liveinstaller signature could not be verified as correct"
+    exit 1
+fi
+rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
+# TODO: use result when invoking livecd-tools 
+#       /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+
 
 ## get pigz installed, needed by mock
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
@@ -221,8 +253,6 @@ rpm -Uvh /rpmbuild/RPMS/noarch/mock-1.1.12-1.el6.noarch.rpm
 mkdir /root/pungi-workarea
 mkdir /root/pungi-workarea/cache
 mkdir /root/pungi-workarea/output
-
-# TODO: yuminst git, and git clone Asc tree, to get 
 
 pungi \
     --cachedir=/root/pungi-workarea/cache \
@@ -251,16 +281,18 @@ mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
 cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/python-kid-\*'" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/python-kid-\*.rpm'" xmock
 cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/repoview-\*'" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/repoview-\*.rpm'" xmock
 cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/pungi-\*'" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/pungi-\*.rpm'" xmock
 
 # note sure about what works for multilinebreaking here, too tired to care
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot 'pungi --cachedir=/root/pungi-workarea/cache --destdir=/root/pungi-workarea/output --name Ascendos --bugurl=http://bugzilla.ascendos.org --fulltree --selfhosting --nosplitmedia --config=http://10.0.2.2:8421/pungi-i386.ks" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot 'pungi --cachedir=/root/pungi-workarea/cache --destdir=/root/pungi-workarea/output --name Ascendos --bugurl=http://bugzilla.ascendos.org --fulltree --selfhosting --nosplitmedia --config=http://10.0.2.2:8421/pungi-i386.ks'" xmock
+
+## TODO: add livecd-tools/creator invocations to generate livedvd, etc.
 
 # prepare output for the external user
 if [ -f /tmp/disk-sdb-is-going-to-get-overwritten ]; then
