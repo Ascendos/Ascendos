@@ -65,6 +65,8 @@
 #  - summary check at end
 #  - optionally skip debuginfo RPMs from comparison (since they need explicit mirroring from ftp.redhat.com)
 
+# Ascendos modifications;
+   - Add pattern for .asc
 
 STARTDIR=`pwd`
 
@@ -471,10 +473,10 @@ do
     # end of invidiual test, rest is comparisons only
     ##################################################################
 
-	
+
 	# try with the original-non-distro name
 	REFRPM="$CMPRPM"
-	for pat in .el4.centos .el5.centos .centos4 .centos .c4 .SL4 .cern .slc4 .slc .sl6 ; do
+	for pat in .el4.centos .el5.centos .centos4 .centos .c4 .SL4 .cern .slc4 .slc .sl6 .el6.asc .asc ; do
 	   # should be able to use {,pattern,pattern,..} but doesn't work with bash-2
 	   REFRPM="${REFRPM//${pat}/}"
 	done
