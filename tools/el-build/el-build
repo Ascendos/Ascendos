@@ -376,13 +376,13 @@ cp "${elbuild_devroot}/security/keys/RPM-GPG-KEY-"* \
 # note: ugly(?) temporary workaround that will be obsolete no later than the 
 #       time when koji/makeworld show up in el-build
 createrepo \
-    "${cachedir}/ftp.scientificlinux.org___linux__scientific__SRPMS" 
+    "${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
 createrepo \
     -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-x86_64.xml" \
-    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" 
+    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/x86_64" 
 createrepo \
     -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-i386.xml" \
-    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__i386__os" 
+    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/i386" 
 
 
 #############################################################################
@@ -521,8 +521,11 @@ qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
 #
 ## run netinst(all) on/to throwaway vm disk image
 #
-virsh destroy "${progname}-${starttime}-${mypid}"
-virsh undefine "${progname}-${starttime}-${mypid}"
+
+# TODO: worry about cleaning up tmp files from current or past invocations
+#virsh destroy "${progname}-${starttime}-${mypid}"
+#virsh undefine "${progname}-${starttime}-${mypid}"
+
 # TODO: add standard qemu (not provided by tuv's repos) as fallback for
 #       an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
 # TODO: is the root of security/pristineness here that the locally cached

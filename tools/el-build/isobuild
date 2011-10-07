@@ -245,6 +245,10 @@ wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
 su - -c "mock -r mock-for-pungi-el6-i386 --init" xmock
 su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget" xmock
 su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime" xmock
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
 cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
 su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/python-kid-\*'" xmock
@@ -254,9 +258,6 @@ su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/repo
 cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
 su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/pungi-\*'" xmock
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'mkdir /root/pungi-workarea'" xmock
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'mkdir /root/pungi-workarea/cache'" xmock
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'mkdir /root/pungi-workarea/output'" xmock
 
 # note sure about what works for multilinebreaking here, too tired to care
 su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot 'pungi --cachedir=/root/pungi-workarea/cache --destdir=/root/pungi-workarea/output --name Ascendos --bugurl=http://bugzilla.ascendos.org --fulltree --selfhosting --nosplitmedia --config=http://10.0.2.2:8421/pungi-i386.ks" xmock
