@@ -429,6 +429,10 @@ cp "${elbuild_devroot}/tools/el-build/isobuild" \
 cp "${elbuild_devroot}/6/6.0/configs/pungi-"*.ks \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
+## expose pungi i386 mock config in the docroot
+cp "${elbuild_devroot}/6/6.0/configs/mock-"*.cfg \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
+
 
 ### create throwaway vm's .ks from template, placed in docroot
 cp "${elbuild_devroot}/tools/el-build/min-el60-x64.ks" \
@@ -455,8 +459,11 @@ wget
 #
 cat << FOO >> /etc/rc.d/rc.local
 
-# experiment
+# let the user see terminal output if they happen to be watching a console
 rhgb-client --quit
+
+# tell x-run that it is OK to overwrite /dev/sdb with its output
+touch /tmp/disk-sdb-is-going-to-get-overwritten
 
 wget -O /tmp/x-run http://10.0.2.2:8421/x-run
 chmod +x /tmp/x-run
@@ -534,17 +541,13 @@ virt-install \
     --noreboot \
     -x "ks=http://10.0.2.2:8421/min-el60-x64.ks"
 
-mv \
-    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" 
-
-qemu-img create -f qcow2 \
-    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
-    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
-
-qemu-img create -f qcow2 \
-    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
-    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+# this doesn't seem to work at all
+#mv \
+#    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+#    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" 
+#qemu-img create -f qcow2 \
+#    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
+#    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
 
 #############################################################################
 #
@@ -552,6 +555,14 @@ qemu-img create -f qcow2 \
 #
 virsh start "${progname}-${starttime}-${mypid}"
 
+# wait until processing is complete
+xdone=0
+while ((! $xdone)); do
+    sleep 10
+    if $( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
+	xdone=1
+    fi
+done
 
 #############################################################################
 #

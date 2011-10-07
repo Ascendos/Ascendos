@@ -41,9 +41,6 @@
 ## isobuild presumes it is run on standard pungi capable platform, e.g.
 ## SL60/F13/, and proceeds to generate pungi output in a thusly more easily
 ## reproducible fashion
-## enterprise linux distro (e.g. SL60/F13) and recently built set of distro
-## packages (e.g. from koji), and outputs a new installable distro repotree
-## (e.g. ASC60) suitable for mirroring to the masses.
 ##
 ##
 ## LONG TERM ROADMAP
@@ -237,13 +234,37 @@ pungi \
     --nosplitmedia \
     --config=http://10.0.2.2:8421/pungi-x86_64.ks
 
+adduser xmock
+usermod -a -G mock xmock
+wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
+    http://10.0.2.2:8421/mock-for-pungi-el6-i386.cfg
+
+su - -c "mock -r mock-for-pungi-el6-i386 --init" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime" xmock
+cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
+    /var/lib/mock/mock-for-pungi-el6-i386/root/root/
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/python-kid-\*'" xmock
+cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
+    /var/lib/mock/mock-for-pungi-el6-i386/root/root/
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/repoview-\*'" xmock
+cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
+    /var/lib/mock/mock-for-pungi-el6-i386/root/root/
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/pungi-\*'" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'mkdir /root/pungi-workarea'" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'mkdir /root/pungi-workarea/cache'" xmock
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'mkdir /root/pungi-workarea/output'" xmock
+
+# note sure about what works for multilinebreaking here, too tired to care
+su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot 'pungi --cachedir=/root/pungi-workarea/cache --destdir=/root/pungi-workarea/output --name Ascendos --bugurl=http://bugzilla.ascendos.org --fulltree --selfhosting --nosplitmedia --config=http://10.0.2.2:8421/pungi-i386.ks" xmock
+
 # prepare output for the external user
-cd /root/pungi-workarea
-tar cvf /dev/sdb ./output
+if [ -f /tmp/disk-sdb-is-going-to-get-overwritten ]; then
+    tar cvf /dev/sdb /root/pungi-workarea/output /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
+fi
 
 # done, goodbye
-# debug: do manually until first decently working run completes without manual intervention
-#init 0
+init 0
 
 
 ###
