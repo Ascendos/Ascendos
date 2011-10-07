@@ -379,10 +379,10 @@ createrepo \
     "${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
 createrepo \
     -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-x86_64.xml" \
-    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/x86_64" 
+    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
 createrepo \
     -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-i386.xml" \
-    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/i386" 
+    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
 
 
 #############################################################################
@@ -522,17 +522,19 @@ qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
 ## run netinst(all) on/to throwaway vm disk image
 #
 
-# TODO: worry about cleaning up tmp files from current or past invocations
+# TODO: not actually cleaning anything up yet
 #virsh destroy "${progname}-${starttime}-${mypid}"
 #virsh undefine "${progname}-${starttime}-${mypid}"
 
 # TODO: add standard qemu (not provided by tuv's repos) as fallback for
 #       an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
+
 # TODO: is the root of security/pristineness here that the locally cached
 #       copy of the pungi-bootstrap os was not corrupt?  I.e. perhaps add
 #       some sort of check against our copy of hashes for the files used
 #       for the netinst here (just boot.iso? or does virt-install pull the
 #       kernel and initrd from PXE/pxeboot directories?)
+
 virt-install \
     --name="${progname}-${starttime}-${mypid}" \
     --location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
@@ -542,7 +544,8 @@ virt-install \
     --noreboot \
     -x "ks=http://10.0.2.2:8421/min-el60-x64.ks"
 
-# this doesn't seem to work at all
+# note: this doesn't seem to work at all (due to virt-install signatures? 
+#       qemu-img qcow2 requirements?
 #mv \
 #    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
 #    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" 
@@ -559,7 +562,7 @@ virsh start "${progname}-${starttime}-${mypid}"
 # wait until processing is complete
 xdone=0
 while ((! $xdone)); do
-    sleep 10
+    sleep 30
     if $( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
 	xdone=1
     fi
