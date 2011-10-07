@@ -384,6 +384,15 @@ createrepo \
     -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-i386.xml" \
     "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
 
+# sigh...
+createrepo \
+    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-x86_64.xml" \
+    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os"
+createrepo \
+    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-i386.xml" \
+    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__i386__os"
+
+
 
 #############################################################################
 #
@@ -552,6 +561,9 @@ virt-install \
 #qemu-img create -f qcow2 \
 #    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
 #    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+# TODO: above is indicating a desire/intent to be able to cache the
+#       freshinstall img for use in subsequent run. 
+
 
 #############################################################################
 #
