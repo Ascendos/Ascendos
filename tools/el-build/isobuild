@@ -92,6 +92,9 @@ mypid=$$
 # gotta start somewhere
 cd /root
 
+# keep screen from blanking (perhaps this should be in el-build only)
+setterm -blank 0
+
 # pungi requires selinux not be enforcing
 setenforce 0
 
@@ -204,7 +207,7 @@ if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
-rpm -Uvh /rpmbuild/RPMS/x86_64/noarch/{livecd-tools,python-imgcreate}*.rpm
+rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 ## get zyx-liveinstaller to support rebootless live media installation
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
