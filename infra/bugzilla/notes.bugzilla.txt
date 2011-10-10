@@ -1,0 +1,14 @@
+
+- added Ascendos Product
+ - added versions
+ - batch imported entire el pkg list as components
+
+- 2011/10/07 
+ - added timetrackinggroup
+  - removed admin group from its membership
+  - on prefs/parameters -> group security, changed timetracking visibility to timetrackinggroup (thus disabling basically)
+ - added milestones, ---, 6x-Alpha, 6x-Beta, 6.0, 6.1, 5x-Alpha
+ - yum -y install cronie
+ - copied 15m cd /usr/share/bugzilla;./whine.pl to /etc/crond.d/bugzilla
+ - added a first whine for dmc@ascendos.org, weekly summary of bugs changed in last 8 days
+
