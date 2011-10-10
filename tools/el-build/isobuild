@@ -124,7 +124,7 @@ EOF
 #    /etc/yum.repos.d/sl.repo
 #
 #sed -i \
-#    -e 's|ftp://ftp.scientificlinux.org/linux/scientific/$releasever/$basearch/os|${cache_root}ftp.scientificlinux.org___l#inux__scientific__$releasever__$basearch__os|g' \
+#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os|g" \
 #    /etc/yum.repos.d/sl.repo
 
 # for rpmbuild(--rebuild)
@@ -162,17 +162,17 @@ yum -y install anaconda-runtime
 
 ## install pubkeys for verifying .src.rpm signatures
 #wget ${fedora_mirror_root}/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
-wget ${cache_root}one-off-files/RPM-GPG-KEY-fedora-13-primary
+wget "${cache_root}one-off-files/RPM-GPG-KEY-fedora-13-primary"
 rpm --import RPM-GPG-KEY-fedora-13-primary
 #wget wget ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
-wget ${cache_root}one-off-files/RPM-GPG-KEY-EPEL-6
+wget "${cache_root}one-off-files/RPM-GPG-KEY-EPEL-6"
 rpm --import RPM-GPG-KEY-EPEL-6
 
 ## TODO: make the following an loop over a list (necessarily ordered)
 
 ## get python-kid installed, needed by repoview
-#wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
-wget ${cache_root}one-off-files/python-kid-0.9.6-6.fc13.src.rpm
+#wget "${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
+wget "${cache_root}one-off-files/python-kid-0.9.6-6.fc13.src.rpm"
 if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
     echo "${progname}: fatal error, python-kid signature could not be verified as correct"
     exit 1
@@ -182,7 +182,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 
 ## get repoview installed, needed by pungi
 #wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
-wget ${cache_root}one-off-files/repoview-0.6.5-1.fc13.src.rpm
+wget "${cache_root}one-off-files/repoview-0.6.5-1.fc13.src.rpm"
 if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, repoview signature could not be verified as correct"
     exit 1
@@ -199,7 +199,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 # todo: check to see if f14/++ versions of pungi work without modification and/or have important
 #       enhancements or bugfixes.  It's reasonable to start with f13 as that is likely what
 #       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
-wget ${cache_root}one-off-files/pungi-2.0.21-1.fc13.src.rpm
+wget "${cache_root}one-off-files/pungi-2.0.21-1.fc13.src.rpm"
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, pungi signature could not be verified as correct"
     exit 1
@@ -209,7 +209,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
 #wget ${fedora_mirror_root}/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
-wget ${cache_root}one-off-files/livecd-tools-033-3.fc13.src.rpm
+wget "${cache_root}one-off-files/livecd-tools-033-3.fc13.src.rpm"
 if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
     echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
     exit 1
@@ -218,8 +218,8 @@ rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 ## get zyx-liveinstaller to support rebootless live media installation
-#wget ${fedora_mirror_root}/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
-wget ${cache_root}one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
+#wget "${fedora_mirror_root}/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm"
+wget "${cache_root}one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm"
 if ( ! rpm --checksig zyx-liveinstaller-0.2.4-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, zyx-liveinstaller signature could not be verified as correct"
     exit 1
@@ -231,7 +231,7 @@ rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 
 ## get pigz installed, needed by mock
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
-wget ${cache_root}one-off-files/pigz-2.1.6-1.el6.src.rpm
+wget "${cache_root}one-off-files/pigz-2.1.6-1.el6.src.rpm"
 if ( ! rpm --checksig pigz-2.1.6-1.el6.src.rpm ); then
     echo "${progname}: fatal error, pigz signature could not be verified as correct"
     exit 1
@@ -241,7 +241,7 @@ rpm -Uvh /rpmbuild/RPMS/x86_64/pigz-2.1.6-1.el6.x86_64.rpm
 
 ## get mock installed, needed by pungi-x32(i386 output)
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
-wget ${cache_root}one-off-files/mock-1.1.12-1.el6.src.rpm
+wget "${cache_root}one-off-files/mock-1.1.12-1.el6.src.rpm"
 if ( ! rpm --checksig mock-1.1.12-1.el6.src.rpm ); then
     echo "${progname}: fatal error, mock signature could not be verified as correct"
     exit 1
