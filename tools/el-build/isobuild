@@ -54,9 +54,6 @@
 #############################################################################
 
 
-## TODO
-# -
-
 
 #############################################################################
 #############################################################################
@@ -78,7 +75,11 @@ mypid=$$
 ##
 ## constant and option default definitions
 ##
-
+fedora_mirror_root="ftp://ftp.linux.ncsu.edu/pub/fedora"
+# 10.0.2.2 is the ip address the containing qemu-kvm uses to expose the
+# host, which in this case is running apache on port 8421 as non-root
+elbuild_docroot="http://10.0.2.2:8421/"
+cache_root="${elbuild_docroot}/cache/"
 
 #############################################################################
 #############################################################################
@@ -98,6 +99,7 @@ setterm -blank 0
 # pungi requires selinux not be enforcing
 setenforce 0
 
+
 mv /etc/yum.repos.d /etc/yum.repos.d.orig
 mkdir /etc/yum.repos.d
 cat <<EOF > /etc/yum.repos.d/sl.repo
@@ -105,8 +107,8 @@ cat <<EOF > /etc/yum.repos.d/sl.repo
 name=Scientific Linux \$releasever - \$basearch
 # yumvars seem pretty stupid, needing to be full directory entries, i.e. this doesn't work,
 # nor does \${releasever} work...
-#baseurl=http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os/
-baseurl=http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/
+#baseurl=${cache_root}ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os/
+baseurl=${cache_root}ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/
 #mirrorlist=http://ftp.scientificlinux.org/linux/scientific/mirrorlist/sl-base-6.txt
 enabled=1
 gpgcheck=1
@@ -122,7 +124,7 @@ EOF
 #    /etc/yum.repos.d/sl.repo
 #
 #sed -i \
-#    -e 's|ftp://ftp.scientificlinux.org/linux/scientific/$releasever/$basearch/os|http://10.0.2.2:8421/cache/ftp.scientificlinux.org___l#inux__scientific__$releasever__$basearch__os|g' \
+#    -e 's|ftp://ftp.scientificlinux.org/linux/scientific/$releasever/$basearch/os|${cache_root}ftp.scientificlinux.org___l#inux__scientific__$releasever__$basearch__os|g' \
 #    /etc/yum.repos.d/sl.repo
 
 # for rpmbuild(--rebuild)
@@ -159,18 +161,18 @@ yum -y install anaconda-runtime
 # or alternately without bringing 'all' of epel into things-
 
 ## install pubkeys for verifying .src.rpm signatures
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
-wget http://10.0.2.2:8421/cache/one-off-files/RPM-GPG-KEY-fedora-13-primary
+#wget ${fedora_mirror_root}/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
+wget ${cache_root}one-off-files/RPM-GPG-KEY-fedora-13-primary
 rpm --import RPM-GPG-KEY-fedora-13-primary
 #wget wget ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
-wget http://10.0.2.2:8421/cache/one-off-files/RPM-GPG-KEY-EPEL-6
+wget ${cache_root}one-off-files/RPM-GPG-KEY-EPEL-6
 rpm --import RPM-GPG-KEY-EPEL-6
 
 ## TODO: make the following an loop over a list (necessarily ordered)
 
 ## get python-kid installed, needed by repoview
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/python-kid-0.9.6-6.fc13.src.rpm
+#wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
+wget ${cache_root}one-off-files/python-kid-0.9.6-6.fc13.src.rpm
 if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
     echo "${progname}: fatal error, python-kid signature could not be verified as correct"
     exit 1
@@ -179,8 +181,8 @@ rpmbuild --rebuild python-kid-0.9.6-6.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 
 ## get repoview installed, needed by pungi
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/repoview-0.6.5-1.fc13.src.rpm
+#wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
+wget ${cache_root}one-off-files/repoview-0.6.5-1.fc13.src.rpm
 if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, repoview signature could not be verified as correct"
     exit 1
@@ -190,14 +192,14 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 
 
 ## get pungi
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
+#wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
 # note: the f13-updates version of pungi seems to only include a single esoteric one line change
 #       which seems needed if and only if some python update has also been applied (e.g. using
 #       SL60__+updates__ for the bootstrap repo, which is not currently the default here)
 # todo: check to see if f14/++ versions of pungi work without modification and/or have important
 #       enhancements or bugfixes.  It's reasonable to start with f13 as that is likely what
 #       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
-wget http://10.0.2.2:8421/cache/one-off-files/pungi-2.0.21-1.fc13.src.rpm
+wget ${cache_root}one-off-files/pungi-2.0.21-1.fc13.src.rpm
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, pungi signature could not be verified as correct"
     exit 1
@@ -206,8 +208,8 @@ rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/livecd-tools-033-3.fc13.src.rpm
+#wget ${fedora_mirror_root}/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
+wget ${cache_root}one-off-files/livecd-tools-033-3.fc13.src.rpm
 if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
     echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
     exit 1
@@ -216,8 +218,8 @@ rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 ## get zyx-liveinstaller to support rebootless live media installation
-#wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
+#wget ${fedora_mirror_root}/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
+wget ${cache_root}one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 if ( ! rpm --checksig zyx-liveinstaller-0.2.4-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, zyx-liveinstaller signature could not be verified as correct"
     exit 1
@@ -229,7 +231,7 @@ rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 
 ## get pigz installed, needed by mock
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/pigz-2.1.6-1.el6.src.rpm
+wget ${cache_root}one-off-files/pigz-2.1.6-1.el6.src.rpm
 if ( ! rpm --checksig pigz-2.1.6-1.el6.src.rpm ); then
     echo "${progname}: fatal error, pigz signature could not be verified as correct"
     exit 1
@@ -239,7 +241,7 @@ rpm -Uvh /rpmbuild/RPMS/x86_64/pigz-2.1.6-1.el6.x86_64.rpm
 
 ## get mock installed, needed by pungi-x32(i386 output)
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
-wget http://10.0.2.2:8421/cache/one-off-files/mock-1.1.12-1.el6.src.rpm
+wget ${cache_root}one-off-files/mock-1.1.12-1.el6.src.rpm
 if ( ! rpm --checksig mock-1.1.12-1.el6.src.rpm ); then
     echo "${progname}: fatal error, mock signature could not be verified as correct"
     exit 1
@@ -256,6 +258,8 @@ mkdir /root/pungi-workarea/output
 # TODO: see if there is a better pungi kickstart to start from in the spin-kickstarts
 #       package, versus the one currently being based on from the pungi package itself.
 
+# TODO: share pungi arch kickstarts with %include and ksflatten 
+
 pungi \
     --cachedir=/root/pungi-workarea/cache \
     --destdir=/root/pungi-workarea/output \
@@ -265,7 +269,7 @@ pungi \
     --fulltree \
     --selfhosting \
     --nosplitmedia \
-    --config=http://10.0.2.2:8421/pungi-x86_64.ks
+    --config="${elbuild_docroot}pungi-x86_64.ks"
 
 # save space for now (same thing theoretically made later for i386 run)
 rm -rvf /root/pungi-workarea/output/*/source/SRPMS \
@@ -274,7 +278,7 @@ rm -rvf /root/pungi-workarea/output/*/source/SRPMS \
 adduser xmock
 usermod -a -G mock xmock
 wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
-    http://10.0.2.2:8421/mock-for-pungi-el6-i386.cfg
+    "${elbuild_docroot}mock-for-pungi-el6-i386.cfg"
 
 su - xmock -c "mock -r mock-for-pungi-el6-i386 --init"
 su - xmock \
@@ -313,11 +317,11 @@ pungi \
   --fulltree \
   --selfhosting \
   --nosplitmedia \
-  --config=http://10.0.2.2:8421/pungi-i386.ks'" 
+  --config=${elbuild_docroot}pungi-i386.ks'" 
 
 ## first livecd invocation, just minimal test for now
 pushd /root/pungi-workarea/ouput
-wget http://10.0.2.2:8421/livecd-minimal.ks
+wget "${elbuild_docroot}livecd-minimal.ks"
 cat livecd-minimal.ks | \
     sed -e 's/\$basearch/i386/g' \
     > ascendos6-livecd-minimal-i386.ks
@@ -333,18 +337,13 @@ if [ -f /tmp/disk-sdb-is-going-to-get-overwritten ]; then
 	/var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
 fi
 
-# done, goodbye
-# TODO: this should be outside in the wrapper (rc.local appendage)
-init 0
-
-
-###
+# done
 
 #############################################################################
 ## end script - only notes below
 #############################################################################
 #
 #
-# TODO: share pungi arch kickstarts with %include and ksflatten
+
 
 

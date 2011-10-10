@@ -74,7 +74,6 @@
 ##         at the end (but you'll probably want to keep your mirrorcache,
 ##         and el-build developers will often want to keep their sysroot for
 ##         subsequent inspection and debugging).
-##  - now if only I had $1k to blow on a nice smokin fast 160G ssd in a 8GB tri/quad core laptop.... (and $2+k to pay bills/rent/healthcare for the next couple months...  hint hint...)
 ##
 #############################################################################
 
@@ -508,14 +507,18 @@ cat << FOO >> /etc/rc.d/rc.local
 # let the user see terminal output if they happen to be watching a console
 rhgb-client --quit
 
-# tell x-run that it is OK to overwrite /dev/sdb with its output
-touch /tmp/disk-sdb-is-going-to-get-overwritten
+# only do x-run once, not every boot
+if [ ! -f /tmp/x-run ]; then
 
-wget -O /tmp/x-run http://10.0.2.2:8421/x-run
-chmod +x /tmp/x-run
-# TODO: x-run uses the installed yum.repos.d, which do not yet utilize
-#       available mirrors (cough, vmirmog, cough)
-( /tmp/x-run 2>&1 | tee -a /root/x-run.log ) &
+    # tell x-run that it is OK to overwrite /dev/sdb with its output
+    touch /tmp/disk-sdb-is-going-to-get-overwritten
+
+    wget -O /tmp/x-run http://10.0.2.2:8421/x-run
+    chmod +x /tmp/x-run
+    # TODO: x-run uses the installed yum.repos.d, which do not yet utilize
+    #       available mirrors (cough, vmirmog, cough)
+    ( ( /tmp/x-run ; init 0 ) 2>&1 | tee -a /root/x-run.log ) &
+fi
 
 FOO
 #
