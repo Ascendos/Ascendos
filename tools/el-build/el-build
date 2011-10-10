@@ -60,6 +60,22 @@
 ##   is generated and used for the major processing phases (e.g. pungi,
 ##   and later koji).
 ##
+## - el-build host requirements (or, what the devoloper has)
+##  - x86_64 2 core system, 2G of ram
+##  - the first quasi-dogfood2 (32&64bit pungi) run required 
+##   - 18 hours build time (yeah, yeah, patches welcome, but aint no shame 
+##        in taking your time doing it right/automated/deterministic
+##        (more time will be taken with 2 added livecd-creator invocations)
+##   - 36G for mirrors/cache
+##   - 36G for vm sysroot at max, 23G is first output
+##   - 23G for vm output disk (temporary, but only deletable at max/end)
+##   - 23G for final user output
+##  - i.e. about 120G, for 23G of output, the rest being trashable
+##         at the end (but you'll probably want to keep your mirrorcache,
+##         and el-build developers will often want to keep their sysroot for
+##         subsequent inspection and debugging).
+##  - now if only I had $1k to blow on a nice smokin fast 160G ssd in a 8GB tri/quad core laptop.... (and $2+k to pay bills/rent/healthcare for the next couple months...  hint hint...)
+##
 #############################################################################
 
 
@@ -67,6 +83,7 @@
 # - factor main into several large independent functions
 # - ? add option bootstrap_distro_tree=...sl60x64
 # - ...
+#
 
 
 #############################################################################
@@ -88,6 +105,7 @@ mypid=$$
 ## constant and option default definitions
 ##
 
+builtrepo_def="http://build.ascendos.org/linux/ascendos/${distrover}"
 distroname_def="Ascendos"
 distrover_def="6.0"
 offline_def="no"
@@ -103,7 +121,7 @@ if [ "${TMPDIR}" != "" ]; then
 else
     tmpdir_def="${homedotdir_def}/tmp"
 fi
-builtrepo_def="http://build.ascendos.org/linux/ascendos/${distrover}"
+clear_bootstrapos_repodata_def="no"
 
 # a rather internally hardcoded list for the first pass
 # TODO: add a method for specifying a mirror to use if desired for any entry
@@ -161,6 +179,9 @@ function usage {
     echo "    [builtrepo=${builtrepo_def}]"
     echo ""
     echo "All arguments are optional, with default values shown as above."
+    echo ""
+    echo "some development/debug options are-"
+    echo "    [clear_bootstrapos_repodata=${clear_bootstrapos_repodata_def}]"
     echo ""
     echo ""
     exit 1
@@ -241,6 +262,7 @@ debug "devroot is ${elbuild_devroot}"
 distroname="${distroname_def}"
 distrover="${distrover_def}"
 offline="${offline_def}"
+clear_bootstrapos_repodata="${clear_bootstrapos_repodata}"
 distrorelname="${distrorelname_def}"
 config_x64="${config_x64_def}"
 config_x32="${config_x32_def}"
@@ -309,7 +331,17 @@ cd "${cachedir}"
 
 # TODO: support rsync as an option
 
-if [ ${offline} == "yes" ]; then
+if [ "${clear_bootstrapos_repodata}" == "yes" ]; then
+    status "clearing out cached bootstrap OSs repodata"
+    # pretty ugly workaround for some issue probably resolved by a prior bugfix, but
+    # just in case it happens again, a reminder option.
+    rm -rf ./ftp.scientificlinux.org___linux__scientific__6.0__i386__os/repo{data,view}
+    rm -rf ./ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repo{data,view}
+    rm -rf ./ftp.scientificlinux.org___linux__scientific__6x__SRPMS/repo{data,view}
+fi
+
+
+if [ "${offline}" == "yes" ]; then
     status "offline mode: not updating cache / mirrors..."
 else
     for mirror_dir in ${mirror_dirs}; do
@@ -336,7 +368,7 @@ else
 	    die "could not mkdir ${mirror_dest_path}"
 	fi
 
-	lftp -e "cd ${mirror_path_parent} ; mirror --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
+	lftp -e "cd ${mirror_path_parent} ; mirror --parallel=2 --use-cache --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
 
     done
 
@@ -439,8 +471,8 @@ sleep 2
 cp "${elbuild_devroot}/tools/el-build/isobuild" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
 
-## expose pungi kickstarts in the docroot
-cp "${elbuild_devroot}/6/6.0/configs/pungi-"*.ks \
+## expose kickstarts for pungi and livecd-creator in the docroot
+cp "${elbuild_devroot}/6/6.0/configs/"*.ks \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
 ## expose pungi i386 mock config in the docroot

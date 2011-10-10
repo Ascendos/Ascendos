@@ -191,6 +191,12 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 
 ## get pungi
 #wget ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
+# note: the f13-updates version of pungi seems to only include a single esoteric one line change
+#       which seems needed if and only if some python update has also been applied (e.g. using
+#       SL60__+updates__ for the bootstrap repo, which is not currently the default here)
+# todo: check to see if f14/++ versions of pungi work without modification and/or have important
+#       enhancements or bugfixes.  It's reasonable to start with f13 as that is likely what
+#       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
 wget http://10.0.2.2:8421/cache/one-off-files/pungi-2.0.21-1.fc13.src.rpm
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     echo "${progname}: fatal error, pungi signature could not be verified as correct"
@@ -247,10 +253,14 @@ mkdir /root/pungi-workarea
 mkdir /root/pungi-workarea/cache
 mkdir /root/pungi-workarea/output
 
+# TODO: see if there is a better pungi kickstart to start from in the spin-kickstarts
+#       package, versus the one currently being based on from the pungi package itself.
+
 pungi \
     --cachedir=/root/pungi-workarea/cache \
     --destdir=/root/pungi-workarea/output \
-    --name Ascendos \
+    --name=Ascendos \
+    --ver=6.0 \
     --bugurl=http://bugzilla.ascendos.org \
     --fulltree \
     --selfhosting \
@@ -258,41 +268,73 @@ pungi \
     --config=http://10.0.2.2:8421/pungi-x86_64.ks
 
 # save space for now (same thing theoretically made later for i386 run)
-rm -rvf /root/pungi-workarea/output/*/source/SRPMS > /root/pungi-workarea/output/deleted.SRPMS.list.txt
+rm -rvf /root/pungi-workarea/output/*/source/SRPMS \
+    > /root/pungi-workarea/output/deleted.SRPMS.list.txt
 
 adduser xmock
 usermod -a -G mock xmock
 wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
     http://10.0.2.2:8421/mock-for-pungi-el6-i386.cfg
 
-su - -c "mock -r mock-for-pungi-el6-i386 --init" xmock
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget" xmock
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime" xmock
+su - xmock -c "mock -r mock-for-pungi-el6-i386 --init"
+su - xmock \
+    -c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget"
+su - xmock \
+    -c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
 cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/python-kid-\*.rpm'" xmock
+su - xmock \
+    -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
+rpm -Uvh /root/python-kid-\*.rpm'"
 cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/repoview-\*.rpm'" xmock
+su - xmock \
+    -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
+rpm -Uvh /root/repoview-\*.rpm'"
 cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell 'rpm -Uvh /root/pungi-\*.rpm'" xmock
+su - xmock \
+    -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
+rpm -Uvh /root/pungi-\*.rpm'"
 
 # note sure about what works for multilinebreaking here, too tired to care
-su - -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot 'pungi --cachedir=/root/pungi-workarea/cache --destdir=/root/pungi-workarea/output --name Ascendos --bugurl=http://bugzilla.ascendos.org --fulltree --selfhosting --nosplitmedia --config=http://10.0.2.2:8421/pungi-i386.ks'" xmock
+su - xmock \
+    -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot '\
+pungi \
+  --cachedir=/root/pungi-workarea/cache \
+  --destdir=/root/pungi-workarea/output \
+  --name=Ascendos \
+  --ver=6.0 \
+  --bugurl=http://bugzilla.ascendos.org \
+  --fulltree \
+  --selfhosting \
+  --nosplitmedia \
+  --config=http://10.0.2.2:8421/pungi-i386.ks'" 
 
-## TODO: add livecd-tools/creator invocations to generate livedvd, etc.
+## first livecd invocation, just minimal test for now
+pushd /root/pungi-workarea/ouput
+wget http://10.0.2.2:8421/livecd-minimal.ks
+cat livecd-minimal.ks | \
+    sed -e 's/\$basearch/i386/g' \
+    > ascendos6-livecd-minimal-i386.ks
+livecd-creator \
+    --fslabel="asc6livemin32bit" \
+    --config=ascendos6-livecd-minimal-i386.ks
+popd
 
 # prepare output for the external user
 if [ -f /tmp/disk-sdb-is-going-to-get-overwritten ]; then
-    tar cvf /dev/sdb /root/pungi-workarea/output /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
+    tar -cvf /dev/sdb \
+	/root/pungi-workarea/output \
+	/var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
 fi
 
 # done, goodbye
+# TODO: this should be outside in the wrapper (rc.local appendage)
 init 0
 
 
