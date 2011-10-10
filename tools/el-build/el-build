@@ -280,6 +280,13 @@ status "processing options..."
 # this is a simple enough method for a first pass.  I'd have brought in
 # viros's libvopt.sh if it wasn't so complex.
 for option in "$@"; do
+    if [ "${option}" == "usage" ]; then
+	usage
+    elif [ "${option}" == "--usage" ]; then
+	usage
+    elif [ "${option}" == "help" ]; then
+	usage
+    fi
     if $( echo "${option}" | grep -q "=" ); then
 	# simplest
 #	eval "${option}"
@@ -289,7 +296,8 @@ for option in "$@"; do
 	opt_val=$( echo "${option}" | sed -e 's/[^=]*=//' )
 	eval "${opt_name}='${opt_val}'"
     else
-	die "option '${option}' is invalid, options must be of the form 'option_name=option_value'"
+	status "option '${option}' is invalid, options must be of the form 'option_name=option_value'"
+	usage
     fi
     debug "opt is $option"
 done
