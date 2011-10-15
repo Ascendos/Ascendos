@@ -288,6 +288,16 @@ su - xmock \
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
+# share the prior x86_64 cache with the i386 under mock run
+#  - should save a few hours time.  Probably a few more can be
+#    saved by using non-usermode qemu/kvm networking if available,
+#    or alternately just transferring the cache once as a tar file 
+#    image attached as disk.  And then also using any available free
+#    lvm space for disks instead of qemu-img ones.  But like I said,
+#    for 6x-alpha, not yet a high priority.
+mount --bind \
+    /root/pungi-workarea/cache \
+    /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
 cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
@@ -305,6 +315,8 @@ su - xmock \
     -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/pungi-\*.rpm'"
 
+
+
 # note sure about what works for multilinebreaking here, too tired to care
 su - xmock \
     -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot '\
@@ -318,6 +330,9 @@ pungi \
   --selfhosting \
   --nosplitmedia \
   --config=${elbuild_docroot}pungi-i386.ks'" 
+
+# undo the bind mount
+umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
 
 ## first livecd invocation, just minimal test for now
 pushd /root/pungi-workarea/ouput
