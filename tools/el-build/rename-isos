@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# rename-isos: script to rename distro isos
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## rename-isos
+##
+##
+## DESCRIPTION
+##
+##
+##
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+
+inver="${1}"
+outver="${2}"
+isodir="${3}"
+
+cd "${isodir}"
+for isofile in $( ls -1A *.iso ); do
+    new_isofilename=$( echo "${isofile}" | sed -e "s/${inver}/${outver}/g" )
+    mv "${isofile}" "${new_isofilename}"
+done
