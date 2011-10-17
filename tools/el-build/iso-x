@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# iso-x: script to extract a .iso into a directory using isoinfo
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## iso-x
+##
+##
+## DESCRIPTION
+##
+##
+##
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+
+isofile="${1}"
+outdir="${2}"
+
+if [ ! -f "${isofile}" ]; then
+    echo "${progname}: error: could not read input file ${isofile}"
+    exit 1
+fi
+
+if [ -e "${outdir}" ]; then
+    echo "${progname}: error: output directory ${outdir} already exists"
+    exit 1
+fi
+
+for filepath in $( isoinfo -J -R -f -i "${isofile}" ); do
+    mkdir -p "${outdir}"/$( dirname "${filepath}" )
+done 
+
+for filepath in $( isoinfo -J -R -f -i "${isofile}" ); do 
+    if [ ! -d "${outdir}/${filepath}" ]; then 
+	isoinfo \
+	    -J -R \
+	    -i "${isofile}" \
+	    -x "${filepath}" \
+	    > "${outdir}/${filepath}"
+    fi
+done 
