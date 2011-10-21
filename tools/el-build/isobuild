@@ -81,6 +81,10 @@ fedora_mirror_root="ftp://ftp.linux.ncsu.edu/pub/fedora"
 elbuild_docroot="http://10.0.2.2:8421/"
 cache_root="${elbuild_docroot}/cache/"
 
+x64outroot=/root/pungi-workarea/output
+x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
+outroot=/root/output
+
 #############################################################################
 #############################################################################
 ##
@@ -208,13 +212,13 @@ rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
-#wget ${fedora_mirror_root}/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
-wget "${cache_root}one-off-files/livecd-tools-033-3.fc13.src.rpm"
-if ( ! rpm --checksig livecd-tools-033-3.fc13.src.rpm ); then
+#wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-13.4-1.el6.src.rpm
+wget "${cache_root}one-off-files/livecd-tools-13.4-1.el6.src.rpm"
+if ( ! rpm --checksig livecd-tools-13.4-1.el6.src.rpm ); then
     echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
     exit 1
 fi
-rpmbuild --rebuild livecd-tools-033-3.fc13.src.rpm
+rpmbuild --rebuild livecd-tools-13.4-1.el6.src.rpm
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 ## get zyx-liveinstaller to support rebootless live media installation
@@ -273,7 +277,7 @@ pungi \
 
 # save space for now (same thing theoretically made later for i386 run)
 rm -rvf /root/pungi-workarea/output/*/source/SRPMS \
-    > /root/pungi-workarea/output/deleted.SRPMS.list.txt
+    > /root/pungi-workarea/output/deleted.x86_64.SRPMS.txt
 
 adduser xmock
 usermod -a -G mock xmock
@@ -319,7 +323,7 @@ rpm -Uvh /root/pungi-\*.rpm'"
 
 # note sure about what works for multilinebreaking here, too tired to care
 su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --no-clean --chroot '\
+    -c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
 pungi \
   --cachedir=/root/pungi-workarea/cache \
   --destdir=/root/pungi-workarea/output \
@@ -334,22 +338,102 @@ pungi \
 # undo the bind mount
 umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
 
+mkdir /root/livecd-workarea
+mkdir /root/livecd-workarea/cache
+mkdir /root/livecd-workarea/tmp
 ## first livecd invocation, just minimal test for now
-pushd /root/pungi-workarea/ouput
-wget "${elbuild_docroot}livecd-minimal.ks"
-cat livecd-minimal.ks | \
-    sed -e 's/\$basearch/i386/g' \
-    > ascendos6-livecd-minimal-i386.ks
+pushd /root/livecd-workarea
+wget "${elbuild_docroot}livecd-desktop-i386.ks"
+## install rebootless installation goodness
+cat <<EOF >> "livecd-desktop-i386.ks"
+%post --nochroot
+rpm --root \$INSTALL_ROOT -Uvh /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+EOF
 livecd-creator \
-    --fslabel="asc6livemin32bit" \
-    --config=ascendos6-livecd-minimal-i386.ks
+    --verbose \
+    --cache=/root/livecd-workarea/cache \
+    --tmpdir=/root/livecd-workarea/tmp \
+    --logfile=/root/livecd-workarea/livecd-desktop-x32.log \
+    --fslabel="asc60_livecd_desktop_x32" \
+    --config=livecd-desktop-i386.ks
+mv asc60_livecd_desktop_x32.iso \
+    "${x32outroot}/6.0/i386/iso/Ascendos-6.0-i386-LiveCD-Desktop.iso"
+mv /root/livecd-workarea/livecd-desktop-x32.log \
+    "${outroot}/logs/"
+mv /root/livecd-workarea/livecd-desktop-i386.ks \
+    "${outroot}/logs/"
+
+wget "${elbuild_docroot}livecd-desktop-x86_64.ks"
+## install rebootless installation goodness
+cat <<EOF >> "livecd-desktop-x86_64.ks"
+%post --nochroot
+rpm --root \$INSTALL_ROOT -Uvh /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+EOF
+livecd-creator \
+    --verbose \
+    --cache=/root/livecd-workarea/cache \
+    --tmpdir=/root/livecd-workarea/tmp \
+    --logfile=/root/livecd-workarea/livecd-desktop-x64.log \
+    --fslabel="asc60_livecd_desktop_x64" \
+    --config=livecd-desktop-x86_64.ks
+mv asc60_livecd_desktop_x64.iso \
+    "${x64outroot}/6.0/x86_64/iso/Ascendos-6.0-x86_64-LiveCD-Desktop.iso"
+mv /root/livecd-workarea/livecd-desktop-x64.log \
+    "${outroot}/logs/"
+mv /root/livecd-workarea/livecd-desktop-x86_64.ks \
+    "${outroot}/logs/"
 popd
+
+
+
+mkdir -p "${outroot}"
+mkdir "${outroot}/6.0"
+
+# .composeinfo
+mv "${x64outroot}/6.0/.composeinfo" \
+    "${outroot}/6.0/.composeinfo.x86_64"
+mv "${x32outroot}/6.0/.composeinfo" \
+    "${outroot}/6.0/.composeinfo.i386"
+
+# logs
+mkdir "${outroot}/logs"
+mv "${x64outroot}/logs/"* \
+    "${outroot}/logs/"
+mv "${x32outroot}/logs/"* \
+    "${outroot}/logs/"
+mv "${x64outroot}/deleted.x86_64.SRPMS.txt" \
+    "${outroot}/logs/"
+mv /root/anaconda-ks.cfg \
+    "${outroot}/logs/build-host.anaconda-ks.cfg"
+mv /root/install.log \
+    "${outroot}/logs/build-host.install.log"
+mv /root/install.log.syslog \
+    "${outroot}/logs/build-host.install.log.syslog"
+cp /root/x-run.log \
+    "${outroot}/logs/x-run.partial.log"
+
+# work
+mkdir "${outroot}/work"
+mv "${x64outroot}/work/"* \
+    "${outroot}/work/"
+mv "${x32outroot}/work/"* \
+    "${outroot}/work/"
+
+# main stuffs
+mv "${x64outroot}/6.0/x86_64" \
+    "${outroot}/6.0/"
+mv "${x32outroot}/6.0/i386" \
+    "${outroot}/6.0/"
+
+# sources
+mv "${x32outroot}/6.0/source" \
+    "${outroot}/6.0/"
+
 
 # prepare output for the external user
 if [ -f /tmp/disk-sdb-is-going-to-get-overwritten ]; then
-    tar -cvf /dev/sdb \
-	/root/pungi-workarea/output \
-	/var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
+    cd "${outroot}"
+    tar -cvf /dev/sdb . 
 fi
 
 # done
