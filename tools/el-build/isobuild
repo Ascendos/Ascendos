@@ -81,8 +81,8 @@ fedora_mirror_root="ftp://ftp.linux.ncsu.edu/pub/fedora"
 elbuild_docroot="http://10.0.2.2:8421/"
 cache_root="${elbuild_docroot}/cache/"
 
-x64outroot=/root/pungi-workarea/output
-x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
+x64outroot=/root/el-build-workarea/output
+x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
 outroot=/root/output
 
 #############################################################################
@@ -255,9 +255,9 @@ rpm -Uvh /rpmbuild/RPMS/noarch/mock-1.1.12-1.el6.noarch.rpm
 
 
 ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
-mkdir /root/pungi-workarea
-mkdir /root/pungi-workarea/cache
-mkdir /root/pungi-workarea/output
+mkdir /root/el-build-workarea
+mkdir /root/el-build-workarea/cache
+mkdir /root/el-build-workarea/output
 
 # TODO: see if there is a better pungi kickstart to start from in the spin-kickstarts
 #       package, versus the one currently being based on from the pungi package itself.
@@ -265,8 +265,8 @@ mkdir /root/pungi-workarea/output
 # TODO: share pungi arch kickstarts with %include and ksflatten 
 
 pungi \
-    --cachedir=/root/pungi-workarea/cache \
-    --destdir=/root/pungi-workarea/output \
+    --cachedir=/root/el-build-workarea/cache \
+    --destdir=/root/el-build-workarea/output \
     --name=Ascendos \
     --ver=6.0 \
     --bugurl=http://bugzilla.ascendos.org \
@@ -276,8 +276,8 @@ pungi \
     --config="${elbuild_docroot}pungi-x86_64.ks"
 
 # save space for now (same thing theoretically made later for i386 run)
-rm -rvf /root/pungi-workarea/output/*/source/SRPMS \
-    > /root/pungi-workarea/output/deleted.x86_64.SRPMS.txt
+rm -rvf /root/el-build-workarea/output/*/source/SRPMS \
+    > /root/el-build-workarea/output/deleted.x86_64.SRPMS.txt
 
 adduser xmock
 usermod -a -G mock xmock
@@ -290,8 +290,8 @@ su - xmock \
 su - xmock \
     -c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
 mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
 # share the prior x86_64 cache with the i386 under mock run
 #  - should save a few hours time.  Probably a few more can be
 #    saved by using non-usermode qemu/kvm networking if available,
@@ -300,9 +300,9 @@ mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
 #    lvm space for disks instead of qemu-img ones.  But like I said,
 #    for 6x-alpha, not yet a high priority.
 mount --bind \
-    /root/pungi-workarea/cache \
-    /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output
+    /root/el-build-workarea/cache \
+    /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
+mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
 cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
     /var/lib/mock/mock-for-pungi-el6-i386/root/root/
 su - xmock \
@@ -325,8 +325,8 @@ rpm -Uvh /root/pungi-\*.rpm'"
 su - xmock \
     -c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
 pungi \
-  --cachedir=/root/pungi-workarea/cache \
-  --destdir=/root/pungi-workarea/output \
+  --cachedir=/root/el-build-workarea/cache \
+  --destdir=/root/el-build-workarea/output \
   --name=Ascendos \
   --ver=6.0 \
   --bugurl=http://bugzilla.ascendos.org \
@@ -336,13 +336,13 @@ pungi \
   --config=${elbuild_docroot}pungi-i386.ks'" 
 
 # undo the bind mount
-umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/cache
+umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
 
-mkdir /root/livecd-workarea
-mkdir /root/livecd-workarea/cache
-mkdir /root/livecd-workarea/tmp
+mkdir /root/el-build-workarea
+mkdir /root/el-build-workarea/cache
+mkdir /root/el-build-workarea/tmp
 ## first livecd invocation, just minimal test for now
-pushd /root/livecd-workarea
+pushd /root/el-build-workarea
 wget "${elbuild_docroot}livecd-desktop-i386.ks"
 ## install rebootless installation goodness
 cat <<EOF >> "livecd-desktop-i386.ks"
@@ -351,16 +351,16 @@ rpm --root \$INSTALL_ROOT -Uvh /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.e
 EOF
 livecd-creator \
     --verbose \
-    --cache=/root/livecd-workarea/cache \
-    --tmpdir=/root/livecd-workarea/tmp \
-    --logfile=/root/livecd-workarea/livecd-desktop-x32.log \
+    --cache=/root/el-build-workarea/cache \
+    --tmpdir=/root/el-build-workarea/tmp \
+    --logfile=/root/el-build-workarea/livecd-desktop-x32.log \
     --fslabel="asc60_livecd_desktop_x32" \
     --config=livecd-desktop-i386.ks
 mv asc60_livecd_desktop_x32.iso \
     "${x32outroot}/6.0/i386/iso/Ascendos-6.0-i386-LiveCD-Desktop.iso"
-mv /root/livecd-workarea/livecd-desktop-x32.log \
+mv /root/el-build-workarea/livecd-desktop-x32.log \
     "${outroot}/logs/"
-mv /root/livecd-workarea/livecd-desktop-i386.ks \
+mv /root/el-build-workarea/livecd-desktop-i386.ks \
     "${outroot}/logs/"
 
 wget "${elbuild_docroot}livecd-desktop-x86_64.ks"
@@ -371,16 +371,16 @@ rpm --root \$INSTALL_ROOT -Uvh /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.e
 EOF
 livecd-creator \
     --verbose \
-    --cache=/root/livecd-workarea/cache \
-    --tmpdir=/root/livecd-workarea/tmp \
-    --logfile=/root/livecd-workarea/livecd-desktop-x64.log \
+    --cache=/root/el-build-workarea/cache \
+    --tmpdir=/root/el-build-workarea/tmp \
+    --logfile=/root/el-build-workarea/livecd-desktop-x64.log \
     --fslabel="asc60_livecd_desktop_x64" \
     --config=livecd-desktop-x86_64.ks
 mv asc60_livecd_desktop_x64.iso \
     "${x64outroot}/6.0/x86_64/iso/Ascendos-6.0-x86_64-LiveCD-Desktop.iso"
-mv /root/livecd-workarea/livecd-desktop-x64.log \
+mv /root/el-build-workarea/livecd-desktop-x64.log \
     "${outroot}/logs/"
-mv /root/livecd-workarea/livecd-desktop-x86_64.ks \
+mv /root/el-build-workarea/livecd-desktop-x86_64.ks \
     "${outroot}/logs/"
 popd
 
