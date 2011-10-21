@@ -142,11 +142,11 @@ ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/livecd-tools-033-3.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
 ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-13.4-1.el6.src.rpm
 "
 
 # to enable debug messages
@@ -514,6 +514,8 @@ cat << FOO >> /etc/rc.d/rc.local
 
 # let the user see terminal output if they happen to be watching a console
 rhgb-client --quit
+# disable console blanking since this will be a VM, not a real monitor
+setterm -blank 0
 
 # only do x-run once, not every boot
 if [ ! -f /tmp/x-run ]; then
