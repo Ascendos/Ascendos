@@ -1,0 +1,36 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/pilot-link-0.12.4-6.tuv/./pilot-link.spec	2011-10-28 07:55:06.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/pilot-link-0.12.4-6.tdv/./pilot-link.spec	2011-10-28 07:55:06.000000000 +0000
+@@ -2,7 +2,7 @@
+ 
+ Name: pilot-link
+ Version: 0.12.4
+-Release: 6%{?dist}
++Release: 6%{?dist}.0.asc
+ Epoch: 2
+ # libpisock/blob.c	LGPLv2+
+ # libpisock/contact.c	GPLv2
+@@ -88,7 +88,8 @@
+ mv NEWS.aux NEWS
+ 
+ %build
+-autoreconf -is
++##SL removed autoreconf -is
++##autoreconf -is
+ CFLAGS="%{optflags}" %configure \
+   --with-python=no \
+   --with-itcl=no \
+@@ -191,7 +192,13 @@
+ 
+ 
+ %changelog
+-* Thu Feb 25 2010 Ivana Hutarova Varekova <varekova@redhat.com> - 2:0.12.4-6
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 2:0.12.4-6.0.asc
++- when "autoreconf -is" is called this causes libtool to run from
++- /usr/bin/libtool which is version 2.2.6b but the source ships its own
++- libtool in pilot-link-0.12.4/libtool which is version 2.2.6 and called
++- from the make files. This version mix does not work.
++
++* Thu Feb 25 2010 Ivana Hut3arova Varekova <varekova@redhat.com> - 2:0.12.4-6
+ - Resolves: #543948
+   spec file changes
+ 

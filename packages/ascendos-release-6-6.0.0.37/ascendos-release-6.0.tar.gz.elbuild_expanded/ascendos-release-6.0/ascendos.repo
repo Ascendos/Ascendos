@@ -1,0 +1,17 @@
+[ascendos]
+name=Ascendos $releasever Alpha - $basearch
+mirrorlist=http://bugzilla.ascendos.org/misc/yum/mirrorlist?release=$releasever&arch=$basearch&repo=os&test=alpha
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
+
+
+[ascendos-source]
+name=Ascendos $releasever Alpha - Source
+#baseurl=http://mirror.ascendos.org/$releasever/source/SRPMS/
+#baseurl=http://eu1.mirror.ascendos.org/$releasever/source/SRPMS/
+#baseurl=http://us1.mirror.ascendos.org/distributions/ascendos/$releasever/source/SRPMS/
+mirrorlist=http://bugzilla.ascendos.org/misc/yum/mirrorlist?release=$releasever&arch=src&repo=os&test=alpha
+enabled=0
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc

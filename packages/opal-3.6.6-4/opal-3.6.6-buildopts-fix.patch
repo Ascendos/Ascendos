@@ -1,0 +1,12 @@
+--- opal-3.6.6/include/opal/buildopts.h.in.orig	2010-12-23 08:29:29.857205637 -0600
++++ opal-3.6.6/include/opal/buildopts.h.in	2010-12-23 08:35:23.576769376 -0600
+@@ -32,6 +32,9 @@
+ #define OPAL_BUILDOPTS_H
+ 
+ #include <ptbuildopts.h>
++/* This only works on Fedora/RHEL
++ * It is required to avoid multilib conflicts */
++#include <sys/types.h>
+ 
+ /////////////////////////////////////////////////
+ //

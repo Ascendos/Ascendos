@@ -1,0 +1,8 @@
+diff -up kdepim-runtime-4.3.4/clients/CMakeLists.txt.me kdepim-runtime-4.3.4/clients/CMakeLists.txt
+--- kdepim-runtime-4.3.4/clients/CMakeLists.txt.me	2010-12-08 16:18:27.000000000 +0100
++++ kdepim-runtime-4.3.4/clients/CMakeLists.txt	2010-12-08 16:18:33.000000000 +0100
+@@ -2,4 +2,3 @@ add_subdirectory(akonadi)
+ add_subdirectory(kabc)
+ add_subdirectory(akonamail)
+ add_subdirectory(akonalendar)
+-add_subdirectory(akonablog)

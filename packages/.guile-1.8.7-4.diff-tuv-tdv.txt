@@ -1,0 +1,13 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/guile-1.8.7-4.tuv/guile.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/guile-1.8.7-4.tdv/guile.spec
+7c7
+< Release: 4%{?dist}
+---
+> Release: 4%{?dist}.0.asc
+105c105
+< make %{?_smp_mflags} check
+---
+> #make %{?_smp_mflags} check
+190a191,193
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 5:1.8.7-4.0.asc
+> - Commented out the final check
+> 

@@ -1,0 +1,39 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/perl-Sys-Virt-0.2.4-1.tuv/./perl-Sys-Virt.spec	2011-10-28 07:55:05.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/perl-Sys-Virt-0.2.4-1.tdv/./perl-Sys-Virt.spec	2011-10-28 07:55:05.000000000 +0000
+@@ -1,6 +1,6 @@
+ Name:           perl-Sys-Virt
+ Version:        0.2.4
+-Release:        1%{?dist}
++Release:        1%{?dist}.asc
+ Summary:        Represent and manage a libvirt hypervisor connection
+ License:        GPLv2+ or Artistic
+ Group:          Development/Libraries
+@@ -11,6 +11,8 @@
+ BuildRequires:  perl(Test::Pod)
+ BuildRequires:  perl(Test::Pod::Coverage)
+ BuildRequires:  perl(XML::XPath)
++# Ascendos: upstream bug fixed in subsequent versions
++BuildRequires:  perl(Time::HiRes)
+ BuildRequires:  libvirt-devel >= 0.8.1
+ Requires:       perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
+ 
+@@ -25,6 +27,8 @@
+ sed -i -e '/Sys-Virt\.spec/d' Makefile.PL
+ sed -i -e '/\.spec\.PL$/d' MANIFEST
+ rm -f *.spec.PL
++# Ascendos: hostname test fails in our koji environment, see bug#24
++rm -f t/100-connect.t
+ 
+ %build
+ %{__perl} Makefile.PL INSTALLDIRS=vendor OPTIMIZE="$RPM_OPT_FLAGS"
+@@ -55,6 +59,10 @@
+ %{_mandir}/man3/*
+ 
+ %changelog
++* Fri Oct 14 2011 Douglas G. McClendon <dmc@ascendos.org> - 0.2.4-1.asc
++- add missing BuildRequires perl(Time::HiRes)
++- Disable 100-connect test.
++
+ * Wed May 19 2010 Daniel P. Berrange <berrange@redhat.com> - 0.2.4-1
+ - Update to 0.2.4 release (rhbz #553291)
+ 

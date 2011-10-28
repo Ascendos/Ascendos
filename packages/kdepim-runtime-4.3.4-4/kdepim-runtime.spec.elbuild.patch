@@ -1,0 +1,41 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/kdepim-runtime-4.3.4-4.tuv/./kdepim-runtime.spec	2011-10-28 07:55:01.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/kdepim-runtime-4.3.4-4.tdv/./kdepim-runtime.spec	2011-10-28 07:55:02.000000000 +0000
+@@ -3,7 +3,7 @@
+ Name: kdepim-runtime
+ Summary: KDE PIM Runtime Environment
+ Version: 4.3.4
+-Release: 4%{?dist}
++Release: 4%{?dist}.0.asc
+ 
+ License: GPLv2
+ Group: Applications/Productivity
+@@ -15,6 +15,10 @@
+ # 4.3 branch fixes
+ Patch100: kdepim-runtime-4.3.5.patch
+ 
++# fix build issue without webkit 
++Patch200: kdepim-runtime-4.3.4-nowebkit.patch
++
++
+ Requires: %{name}-libs = %{version}-%{release}
+ 
+ BuildRequires: akonadi-devel >= %{akonadi_version}
+@@ -56,6 +60,8 @@
+ 
+ # 4.3 branch
+ %patch100 -p1 -b .kde435
++# fix build issue without webkit 
++%patch200 -p1 -b .nowebkit
+ 
+ %build
+ mkdir -p %{_target_platform}
+@@ -136,6 +142,9 @@
+ 
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 4.3.4-4.0.asc
++- Added patch required to build with the webkit (bz#660581)
++
+ * Wed Mar 31 2010 Than Ngo <than@redhat.com> - 4.3.4-4
+ - rebuilt against qt 4.6.2
+ 

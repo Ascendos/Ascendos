@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# Autorun script for Red Hat Linux
+# Copyright (c) 1999-2002 Red Hat, Inc.
+
+dir=$(echo $0 |sed 's/autorun//')
+cd "$dir"
+tree=$(pwd)
+
+# Change directories so we can unmount the CD-ROM Drive
+cd /
+exec /usr/bin/system-cdinstall-helper $tree

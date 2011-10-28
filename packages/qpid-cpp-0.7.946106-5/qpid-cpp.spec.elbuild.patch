@@ -1,0 +1,21 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/qpid-cpp-0.7.946106-5.tuv/./qpid-cpp.spec	2011-10-28 07:55:08.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/qpid-cpp-0.7.946106-5.tdv/./qpid-cpp.spec	2011-10-28 07:55:09.000000000 +0000
+@@ -87,7 +87,7 @@
+ 
+ Name:           qpid-cpp
+ Version:        %{qpid_release}.%{qpid_svnrev}
+-Release:        %{release_num}%{?dist}
++Release:        %{release_num}%{?dist}.asc
+ Summary:        Libraries for Qpid C++ client applications
+ Group:          System Environment/Libraries
+ License:        ASL 2.0
+@@ -913,6 +913,9 @@
+ /sbin/ldconfig
+ 
+ %changelog
++* Fri Oct 14 2011 Douglas McClendon <dmc@ascendos.org> - 0.7.946106-5.asc
++- comment out hardcoded Vendor from spec
++
+ * Wed Jul 14 2010 Kim van der Riet<kim.vdriet@redhat.com> - 0.7.946106-5
+ - Related: rhbz#609298 - ruby QMF bindings can't query agents
+   Fix in undelying c++ code for ruby QMF bindings.

@@ -1,0 +1,13 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/zsh-4.3.10-4.1.tuv/zsh.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/zsh-4.3.10-4.1.tdv/zsh.spec
+6c6
+< Release: 4.1%{?dist}
+---
+> Release: 4.1%{?dist}.asc
+90a91,93
+>     # Ascendos: this fails in our current environment
+>     # ASCBZ: 22
+>     mv E01options.ztst skipped
+177a181,183
+> * Mon Oct 10 2011 Douglas McClendon <dmc@ascendos.org> - 4.3.10-4.1.asc
+> - disabled EO1options test: see bug#22
+> 

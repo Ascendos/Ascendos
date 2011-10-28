@@ -1,0 +1,16 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/perl-Sys-Virt-0.2.4-1.tuv/perl-Sys-Virt.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/perl-Sys-Virt-0.2.4-1.tdv/perl-Sys-Virt.spec
+3c3
+< Release:        1%{?dist}
+---
+> Release:        1%{?dist}.asc
+13a14,15
+> # Ascendos: upstream bug fixed in subsequent versions
+> BuildRequires:  perl(Time::HiRes)
+27a30,31
+> # Ascendos: hostname test fails in our koji environment, see bug#24
+> rm -f t/100-connect.t
+57a62,65
+> * Fri Oct 14 2011 Douglas G. McClendon <dmc@ascendos.org> - 0.2.4-1.asc
+> - add missing BuildRequires perl(Time::HiRes)
+> - Disable 100-connect test.
+> 

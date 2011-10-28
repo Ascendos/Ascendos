@@ -1,0 +1,18 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/httpd-2.2.15-5.tuv/./httpd.spec	2011-10-28 07:54:59.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/httpd-2.2.15-5.tdv/./httpd.spec	2011-10-28 07:55:00.000000000 +0000
+@@ -1,13 +1,13 @@
+ %define contentdir /var/www
+ %define suexec_caller apache
+ %define mmn 20051115
+-%define vstring Red Hat
++%define vstring Ascendos
+ %define mpms worker event
+ 
+ Summary: Apache HTTP Server
+ Name: httpd
+ Version: 2.2.15
+-Release: 5%{?dist}
++Release: 5.asc
+ URL: http://httpd.apache.org/
+ Source0: http://www.apache.org/dist/httpd/httpd-%{version}.tar.gz
+ Source1: index.html

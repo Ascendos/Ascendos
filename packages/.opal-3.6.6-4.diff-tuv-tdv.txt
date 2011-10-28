@@ -1,0 +1,16 @@
+Only in /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/opal-3.6.6-4.tdv: opal-3.6.6-buildopts-fix.patch
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/opal-3.6.6-4.tuv/opal.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/opal-3.6.6-4.tdv/opal.spec
+4c4
+< Release:	4%{?dist}
+---
+> Release:	4%{?dist}.0.asc
+16a17,18
+> # Fix the buildopts patch which needed an include
+> Patch3:         opal-3.6.6-buildopts-fix.patch
+50a53
+> %patch3 -p1 -b .buildoptsfix
+84a88,91
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 3.6.6-4.0.asc
+> - Add patch to make the multilib patch really work
+> Resolves: rhbz#661769
+> 

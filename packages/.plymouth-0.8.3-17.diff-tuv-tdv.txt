@@ -1,0 +1,14 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/plymouth-0.8.3-17.tuv/plymouth.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/plymouth-0.8.3-17.tdv/plymouth.spec
+9c9
+< Release: 17%{?dist}
+---
+> Release: 17.asc
+287c287,288
+< %patch99 -p1 -b .red
+---
+> # TJD Not everything is better in red
+> #%patch99 -p1 -b .red
+478a480,482
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> 0.8.3-17.asc
+> - Removed the red colors for text mode
+> 

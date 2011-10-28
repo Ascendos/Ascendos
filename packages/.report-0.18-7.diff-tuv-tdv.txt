@@ -1,0 +1,19 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/report-0.18-7.tuv/report.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/report-0.18-7.tdv/report.spec
+21c21
+< %define build_as_for_rhel 1
+---
+> %define build_as_for_rhel 0
+70c70
+< %define bugzilla 1
+---
+> %define bugzilla 0
+81c81
+< Release:        7%{?dist}
+---
+> Release:        7.asc
+433a434,438
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> 0.18-7.asc
+> - Removed options to send reports to RedHat or Bugzilla
+> -- set "%define build_as_for_rhel" to 0
+> -- set "%define bugzilla" to 0
+> 

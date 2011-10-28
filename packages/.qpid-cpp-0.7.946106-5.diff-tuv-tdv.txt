@@ -1,0 +1,9 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/qpid-cpp-0.7.946106-5.tuv/qpid-cpp.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/qpid-cpp-0.7.946106-5.tdv/qpid-cpp.spec
+90c90
+< Release:        %{release_num}%{?dist}
+---
+> Release:        %{release_num}%{?dist}.asc
+915a916,918
+> * Fri Oct 14 2011 Douglas McClendon <dmc@ascendos.org> - 0.7.946106-5.asc
+> - comment out hardcoded Vendor from spec
+> 

@@ -1,0 +1,17 @@
+These files are used by anaconda during the installation process.  A
+basic description/specification for them is as follows:
+
+* anaconda_header.png:  This is strip header at the top of
+  the screen during the install. 800x58.
+* progress_first.png: First graphic displayed during package
+  installation.  If there are no rnotes, this is displayed the entire
+  time.  500x325
+* progress_first-lowres.png: Lowres version of progress_first.png. 350x225
+* splash.png: Splash screen shown on the "Welcome to ..." screen.
+  400x420
+* syslinux-splash.png: Splash screen used at the boot prompt with
+  syslinux/isolinux.  This gets transformed into the syslinux specific
+  format.  640x300.  This uses a 16 color palette (should be an indexed png).
+  You should ensure that the colors #000000, #ffffff, #cdcfd5, #5b6c93
+  are present in your palette.
+  Alternately, you can use 12 colors and have them be any that you want.

@@ -1,0 +1,18 @@
+Only in /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/kdepim-runtime-4.3.4-4.tdv: kdepim-runtime-4.3.4-nowebkit.patch
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/kdepim-runtime-4.3.4-4.tuv/kdepim-runtime.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/kdepim-runtime-4.3.4-4.tdv/kdepim-runtime.spec
+6c6
+< Release: 4%{?dist}
+---
+> Release: 4%{?dist}.0.asc
+17a18,21
+> # fix build issue without webkit 
+> Patch200: kdepim-runtime-4.3.4-nowebkit.patch
+> 
+> 
+58a63,64
+> # fix build issue without webkit 
+> %patch200 -p1 -b .nowebkit
+138a145,147
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 4.3.4-4.0.asc
+> - Added patch required to build with the webkit (bz#660581)
+> 

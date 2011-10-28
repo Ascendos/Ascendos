@@ -1,0 +1,11 @@
+--- ruby-1.8.7/mkconfig.rb.orig	2010-12-07 13:20:50.079188969 -0600
++++ ruby-1.8.7/mkconfig.rb	2010-12-07 13:21:42.342885684 -0600
+@@ -56,7 +56,7 @@
+       continued_name = name
+       next
+     end
+-  when /^"(.+)"\s*(\\)?$/
++  when /^"(.*)"\s*(\\)?$/
+     if continued_line
+       continued_line <<  $1
+       unless $2

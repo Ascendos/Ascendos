@@ -1,0 +1,21 @@
+Binary files /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-indexhtml-6-1.tuv/redhat-indexhtml-6.tar.gz and /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-indexhtml-6-1.tdv/redhat-indexhtml-6.tar.gz differ
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-indexhtml-6-1.tuv/redhat-indexhtml.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-indexhtml-6-1.tdv/redhat-indexhtml.spec
+1c1
+< Summary: Browser default start page for Red Hat Enterprise Linux
+---
+> Summary: Browser default start page for Ascendos
+4c4
+< Release: 1%{?dist}
+---
+> Release: 1%{?dist}.asc
+14,17c14
+< which you'll see after you've successfully installed Red Hat Enterprise Linux.
+< 
+< The Web page provided by indexhtml tells you how to register your Red
+< Hat software and how to get any support that you might need.
+---
+> which you'll see after you've successfully installed Ascendos.
+36a34,36
+> * Sat Jul 30 2011 Troy Dawson <dawson@ascendos.rog> - 6-1.asc
+> - Put in a generic index page with just the Ascendos logo
+> 

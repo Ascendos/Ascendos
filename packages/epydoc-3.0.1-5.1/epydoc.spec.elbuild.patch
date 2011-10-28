@@ -1,0 +1,44 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/epydoc-3.0.1-5.1.tuv/./epydoc.spec	2011-10-28 07:54:57.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/epydoc-3.0.1-5.1.tdv/./epydoc.spec	2011-10-28 07:54:57.000000000 +0000
+@@ -3,7 +3,7 @@
+ Summary: Automatic API documentation generation tool for Python
+ Name: epydoc
+ Version: 3.0.1
+-Release: 5.1%{?dist}
++Release: 5.1%{?dist}.0.asc
+ Group: Development/Tools
+ License: MIT
+ URL: http://epydoc.sourceforge.net/
+@@ -11,7 +11,11 @@
+ Source1: epydocgui.desktop
+ Patch0: epydoc-3.0.1-nohashbang.patch
+ Patch1: epydoc-3.0.1-giftopng.patch
++Patch2: epydoc-3.0.1-new-docutils.patch
+ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
++# Needed for some outputs, like --pdf (#522249)
++Requires: texlive-dvips
++Requires: texlive-latex
+ Requires: tkinter
+ BuildRequires: python-devel
+ BuildRequires: desktop-file-utils
+@@ -31,7 +35,7 @@
+ %setup -q
+ %patch0 -p1 -b .nohashbang
+ %patch1 -p1 -b .giftopng
+-
++%patch2 -p1 -b .new-docutils
+ 
+ %build
+ %{__python} setup.py build
+@@ -72,6 +76,11 @@
+ 
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 3.0.1-5.1.0.asc
++- Put in patches from Fedora 13 - but left the numbering the same as RHEL6
++- Fix crash with newer docutils (#578920) - Lubomir Rintel
++- Add texlive-dvips and texlive-latex requirements (#522249) - Matthias Saou
++
+ * Mon Nov 30 2009 Dennis Gregorovic <dgregor@redhat.com> - 3.0.1-5.1
+ - Rebuilt for RHEL 6
+ 

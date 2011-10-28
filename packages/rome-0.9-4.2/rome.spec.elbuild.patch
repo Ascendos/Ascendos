@@ -1,0 +1,30 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/rome-0.9-4.2.tuv/./rome.spec	2011-10-28 07:56:11.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/rome-0.9-4.2.tdv/./rome.spec	2011-10-28 07:56:11.000000000 +0000
+@@ -1,6 +1,6 @@
+ Name:		rome
+ Version:	0.9
+-Release:	4.2%{?dist}
++Release:	4.2%{?dist}.0.asc
+ Summary:	RSS and Atom Utilities
+ 
+ Group:		Development/Libraries
+@@ -44,7 +44,8 @@
+ %setup -q
+ find -name '*.jar' -o -name '*.class' -exec rm -f '{}' \;
+ mkdir -p target/lib
+-ln -s %{_javadir}/jdom-1.0.jar target/lib
++#ln -s %{_javadir}/jdom-1.0.jar target/lib
++ln -s %{_javadir}/jdom-1.1.1.jar target/lib
+ cp -p %{SOURCE1} .
+ %patch0
+ 
+@@ -74,6 +75,9 @@
+ %{_javadocdir}/%{name}
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> 0.9-4.2.0.asc
++- RHEL 6 provides jdom-1.1.1 and not jdom-1.0 so changing to 1.1.1 
++
+ * Mon Jan 11 2010 Andrew Overholt <overholt@redhat.com> 0.9-4.2
+ - Update URL in instructions for getting MANIFEST.
+ 

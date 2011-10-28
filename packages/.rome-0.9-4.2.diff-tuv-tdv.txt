@@ -1,0 +1,14 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/rome-0.9-4.2.tuv/rome.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/rome-0.9-4.2.tdv/rome.spec
+3c3
+< Release:	4.2%{?dist}
+---
+> Release:	4.2%{?dist}.0.asc
+47c47,48
+< ln -s %{_javadir}/jdom-1.0.jar target/lib
+---
+> #ln -s %{_javadir}/jdom-1.0.jar target/lib
+> ln -s %{_javadir}/jdom-1.1.1.jar target/lib
+76a78,80
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> 0.9-4.2.0.asc
+> - RHEL 6 provides jdom-1.1.1 and not jdom-1.0 so changing to 1.1.1 
+> 

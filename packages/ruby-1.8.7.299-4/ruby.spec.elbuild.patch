@@ -1,0 +1,38 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/ruby-1.8.7.299-4.tuv/./ruby.spec	2011-10-28 07:56:12.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/ruby-1.8.7.299-4.tdv/./ruby.spec	2011-10-28 07:56:13.000000000 +0000
+@@ -16,7 +16,7 @@
+ 
+ Name:		ruby
+ Version:	%{rubyver}%{?dotpatchlevel}
+-Release:	4%{?dist}
++Release:	4%{?dist}.0.asc
+ License:	Ruby or GPLv2
+ URL:		http://www.ruby-lang.org/
+ BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+@@ -62,6 +62,7 @@
+ 
+ Patch100:	ruby-1.8.7-lib-paths.patch
+ Patch200:	ruby-1.8.7-webrick-CVE.patch
++Patch300:	ruby-1.8.7-shellwords-arguments.patch
+ 
+ Summary:	An interpreter of object-oriented scripting language
+ Group:		Development/Languages
+@@ -185,6 +186,7 @@
+ %patch33 -p1
+ %patch100 -p1
+ %patch200 -p1
++%patch300 -p1
+ popd
+ 
+ %build
+@@ -559,6 +561,10 @@
+ %doc tmp-ruby-docs/ruby-libs/*
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 1.8.7.299-4.0.asc
++- Fix the shellwords arguments building bug with Patch300
++  http://bugs.gentoo.org/show_bug.cgi?id=234877
++  
+ * Mon Aug 16 2010 Jim Meyering <meyering@redhat.com> - 1.8.7.299-4
+ - Address CVE-2010-0541 "Ruby WEBrick javascript injection flaw"
+   by applying the patch from Apple as included in

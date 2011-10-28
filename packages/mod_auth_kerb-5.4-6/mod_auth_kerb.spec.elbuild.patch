@@ -1,0 +1,32 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/mod_auth_kerb-5.4-6.tuv/./mod_auth_kerb.spec	2011-10-28 07:55:02.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/mod_auth_kerb-5.4-6.tdv/./mod_auth_kerb.spec	2011-10-28 07:55:02.000000000 +0000
+@@ -1,8 +1,7 @@
+-
+ Summary: Kerberos authentication module for HTTP
+ Name: mod_auth_kerb
+ Version: 5.4
+-Release: 6%{?dist}
++Release: 6%{?dist}.0.asc
+ License: BSD and MIT
+ Group: System Environment/Daemons
+ URL: http://modauthkerb.sourceforge.net/
+@@ -26,7 +25,7 @@
+ %patch2 -p1 -b .fixes
+ 
+ %build
+-%configure --without-krb4 --with-krb5=/usr/kerberos \
++%configure --without-krb4 --with-krb5=/usr \
+         --with-apache=%{_prefix}
+ make %{?_smp_mflags} 
+ 
+@@ -49,6 +48,10 @@
+ %{_libdir}/httpd/modules/*.so
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 5.4-6.0.asc
++- Change "--with-krb5=/usr/kerberos" to "--with-krb5=/usr" because the krb
++- location changed on RHEL 6 
++
+ * Mon Mar 29 2010 Joe Orton <jorton@redhat.com> - 5.4-6
+ - package LICENSE file
+ 

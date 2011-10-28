@@ -1,0 +1,31 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/plymouth-0.8.3-17.tuv/./plymouth.spec	2011-10-28 07:55:07.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/plymouth-0.8.3-17.tdv/./plymouth.spec	2011-10-28 07:55:07.000000000 +0000
+@@ -6,7 +6,7 @@
+ Summary: Graphical Boot Animation and Logger
+ Name: plymouth
+ Version: 0.8.3
+-Release: 17%{?dist}
++Release: 17.asc
+ License: GPLv2+
+ Group: System Environment/Base
+ Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2
+@@ -284,7 +284,8 @@
+ %patch10 -p1 -b .fix-exit-crash-with-details
+ %patch11 -p1 -b .build-details-in
+ %patch12 -p1 -b .filter-out-duplicate-consoles
+-%patch99 -p1 -b .red
++# TJD Not everything is better in red
++#%patch99 -p1 -b .red
+ 
+ # Change the default theme
+ sed -i -e 's/fade-in/rings/g' src/plymouthd.defaults
+@@ -476,6 +477,9 @@
+ %defattr(-, root, root)
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> 0.8.3-17.asc
++- Removed the red colors for text mode
++
+ * Mon Aug 09 2010 Ray Strode <rstrode@redhat.com> 0.8.3-17
+ - Rebuild plymouthd with -rdynamic so the changes introduced
+   in 0.8.3-13 work

@@ -1,0 +1,44 @@
+style "window"
+{
+	engine "pixmap" {
+		image {
+			file = "lock-dialog-system.png"
+			function = FLAT_BOX
+			stretch = TRUE
+			border = { 2, 397, 0, 0 } 
+		}
+	}
+}
+
+style "label"
+{
+	fg[NORMAL] = "White"
+	fg[PRELIGHT] = "White"
+	fg[ACTIVE] = "White"
+}
+
+style "bluelabel"
+{
+	fg[NORMAL] = "White"
+}
+
+style "button"
+{
+	bg[NORMAL] = "#336081"
+	bg[PRELIGHT] = "#6f97bc"
+	bg[ACTIVE] = "#6f97bc"
+	bg[INSENSITIVE] = "#74848f"
+	engine "clearlooks1" {
+		radius = 4.0
+		style = GLOSSY 
+	}
+}
+
+widget "*.capslock-label" style "bluelabel"
+widget "*.status-label" style "bluelabel"
+class "GtkWindow" style "window"
+class "GtkLabel" style "label"
+class "GtkButton" style "button"
+widget "*.auth-prompt-kbd-layout-indicator.*" style "button"
+
+

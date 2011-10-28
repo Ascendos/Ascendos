@@ -1,0 +1,8 @@
+[KSplash Theme: RHEL6]
+Name = Ascendos
+Description = Default KDE splash for Ascendos
+Version = 6.0
+Author = Upstream
+Homepage = http://www.ascendos.org
+
+Engine = KSplashX

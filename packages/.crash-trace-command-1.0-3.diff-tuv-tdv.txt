@@ -1,0 +1,14 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/crash-trace-command-1.0-3.tuv/crash-trace-command.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/crash-trace-command-1.0-3.tdv/crash-trace-command.spec
+7c7
+< Release: 3%{?dist}
+---
+> Release: 3%{?dist}.asc
+12c12,13
+< Vendor: Fujitsu Limited
+---
+> # Ascendos: this should not be hard coded, no other modifications
+> #Vendor: Fujitsu Limited
+44a46,48
+> * Fri Oct 14 2011 Douglas McClendon <dmc@ascendos.org> - 1.0-3.asc
+> - comment out hardcoded Vendor in spec
+> 

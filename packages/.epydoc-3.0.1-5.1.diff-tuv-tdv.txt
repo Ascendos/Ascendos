@@ -1,0 +1,22 @@
+Only in /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/epydoc-3.0.1-5.1.tdv: epydoc-3.0.1-new-docutils.patch
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/epydoc-3.0.1-5.1.tuv/epydoc.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/epydoc-3.0.1-5.1.tdv/epydoc.spec
+6c6
+< Release: 5.1%{?dist}
+---
+> Release: 5.1%{?dist}.0.asc
+13a14
+> Patch2: epydoc-3.0.1-new-docutils.patch
+14a16,18
+> # Needed for some outputs, like --pdf (#522249)
+> Requires: texlive-dvips
+> Requires: texlive-latex
+34c38
+< 
+---
+> %patch2 -p1 -b .new-docutils
+74a79,83
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 3.0.1-5.1.0.asc
+> - Put in patches from Fedora 13 - but left the numbering the same as RHEL6
+> - Fix crash with newer docutils (#578920) - Lubomir Rintel
+> - Add texlive-dvips and texlive-latex requirements (#522249) - Matthias Saou
+> 

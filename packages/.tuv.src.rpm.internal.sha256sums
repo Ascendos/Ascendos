@@ -1,0 +1,514 @@
+
+
+--- BEGIN crash-trace-command-1.0-3 ---
+
+./s390.patch
+633466699ac6d3064fab4e38c054f12f5bb5c3633ded64d4db2d46b6db7ea5a3  ./s390.patch
+./crash-trace-command.spec
+874d7c8c0a3d86ec7fb817c9419780c65a9d87b550c88e3ce14a10fffd44b268  ./crash-trace-command.spec
+./crash-trace-command-1.0.tar.gz
+f52b26a3555df2eb0c289b245a50b95b64b636cc3478af1c1ccf832d9a320f00  ./crash-trace-command-1.0.tar.gz
+./trace_show_segv.patch
+8e13a95a35955e9fe99ed174957c0a9f15a4621d87c4619ebf9871a0ba4c0974  ./trace_show_segv.patch
+
+
+--- END crash-trace-command-1.0-3 ---
+
+
+
+--- BEGIN epydoc-3.0.1-5.1 ---
+
+./epydoc-3.0.1-giftopng.patch
+ce1751f2b1976f89f35f2cca34c45929a9efcdfcbe0d78b0ac8023177fb61bfe  ./epydoc-3.0.1-giftopng.patch
+./epydocgui.desktop
+46370f47d358e752a33271cb31471e9605a09de21e828e6ba5db6c0a1bdbc99d  ./epydocgui.desktop
+./epydoc.spec
+e9d4babfc23d057ad877058ddc71952ef31c2a628291d3cdfc44014062ab539b  ./epydoc.spec
+./epydoc-3.0.1-nohashbang.patch
+60ef5c0868c14cdef742051b034bbbf6569799e2f919dfa29a7d72f42f908eef  ./epydoc-3.0.1-nohashbang.patch
+./epydoc-3.0.1.tar.gz
+d4e5c8d90937d01b05170f592c1fa9b29e9ed0498dfe7f0eb2a3af61725b6ad1  ./epydoc-3.0.1.tar.gz
+
+
+--- END epydoc-3.0.1-5.1 ---
+
+
+
+--- BEGIN guile-1.8.7-4 ---
+
+./guile-1.8.6-deplibs.patch
+9f92d5fdcc49ffc11f872a9294b7102a57da3075df8932bc88b67b86c472666a  ./guile-1.8.6-deplibs.patch
+./guile-1.8.7-testsuite.patch
+bc78c8170286c54b7b114df906f5425178a1ef831b3e5522242cfbb284177f5c  ./guile-1.8.7-testsuite.patch
+./guile-1.8.7.tar.gz
+bfee6339d91955a637e7f541d96f5b1d53271b42bb4a37b8867d186a6c66f0b3  ./guile-1.8.7.tar.gz
+./guile.spec
+ce0837f50756b36eab7a75d612baffaed995f6e61f21935c88c97a4f6b429c27  ./guile.spec
+./guile-1.8.7-ia64jmp.patch
+0a98048271a8ce54b8958cf3ab6914023c180223c74d9265b832bddf87f3ee3a  ./guile-1.8.7-ia64jmp.patch
+./guile-1.8.7-linemarkers.patch
+7e53f1022768a8e7885e66c93b6863c0f98b09464f8d4cb6060281d337f4dc81  ./guile-1.8.7-linemarkers.patch
+./guile-1.8.7-multilib.patch
+89ec64724879fb2d8968b7ef1b5d02bbae6750211750b489bd49da4ea1a0f741  ./guile-1.8.7-multilib.patch
+
+
+--- END guile-1.8.7-4 ---
+
+
+
+--- BEGIN httpd-2.2.15-5 ---
+
+./httpd.init
+099afa8a415ee23f4bbc23c357276246831730173b45d0a19cf021e4657f87f4  ./httpd.init
+./httpd-2.1.10-apxs.patch
+7c677fc6e535250c2171a5a7ef067fcdfc70f2f00471e6f8f79a33b86918290c  ./httpd-2.1.10-apxs.patch
+./httpd-2.2.3-extfiltereos.patch
+35051c9ce3daa1d9af6f75ea4472c0fde5b16d330cdfcd02dcb296cfbdbfd60b  ./httpd-2.2.3-extfiltereos.patch
+./README.confd
+785efc05ce94e65f26b50e17dd19cf405506eaacf874e924068c970f1f1afe63  ./README.confd
+./httpd-2.1.10-apctl.patch
+4814c7970595ad0d0b02bf9b884a6ee1893bab953e0f9d9702036a1918f834f6  ./httpd-2.1.10-apctl.patch
+./httpd-2.2.15-davputfail.patch
+813b20d2a1785c0e4748867ac9ee73ecfcc8e4a8ede87fd00b541a41341a9e7d  ./httpd-2.2.15-davputfail.patch
+./httpd-2.2.3-graceful-ebadf.patch
+a4e2b4956094257b82c629902e9164c5c50c1fdb06648b04bfd31238d7abd1df  ./httpd-2.2.3-graceful-ebadf.patch
+./httpd.sysconf
+f2f8a47f30b9d19c4d2f0e6bbda624f74b6dd5be0da09f3773e052b64c4435d0  ./httpd.sysconf
+./ssl.conf
+73f2718e49982bd25d873ff8840219e6273dbf54e51335e39b655bd193b0751d  ./ssl.conf
+./httpd-2.2.11-corelimit.patch
+88ccc22efe4e2afdb70b7d0e9aaf41714c896ecf3623e287fa3181e00b6a6106  ./httpd-2.2.11-corelimit.patch
+./httpd-2.1.10-layout.patch
+c539f4787fc9bf01b2e8e5d2b748757df58bf19dde564df67789ab1c00e2da03  ./httpd-2.1.10-layout.patch
+./httpd-2.2.15.tar.gz
+4f879251e938e81fafedabc946831a501b71ddc33cb8a9ad4a994fce233f281b  ./httpd-2.2.15.tar.gz
+./httpd.logrotate
+5266506523a24b014bc164949ccb49b2b79ca3eafc31d86544d783e994df16c0  ./httpd.logrotate
+./httpd-2.2.15-proxyconn.patch
+33b2408a61070239d9de8e055c0de531fa1dbb17ef4cadade2b124355a77108b  ./httpd-2.2.15-proxyconn.patch
+./httpd-2.2.3-defpidlog.patch
+d1c408a10668073365b757acf18c32ef2ec355e5df37b17384cf1ba93f35b98b  ./httpd-2.2.3-defpidlog.patch
+./httpd-2.1.10-pod.patch
+1abbb2200ea13348f8be7a11fda179e9dbc0853d43c826af65a253ff09c78e0c  ./httpd-2.1.10-pod.patch
+./httpd-2.2.14-ldapdyngrp.patch
+f4804ae8b9be25aae3d36184c2b3a416e518d9e4af22e75a492e1f3f8ffab898  ./httpd-2.2.14-ldapdyngrp.patch
+./httpd-2.0.45-export.patch
+59e3cc2107023a757b185051c60c0af80d9d75b0f97fe29dfbb5b9b0a5c91bda  ./httpd-2.0.45-export.patch
+./manual.conf
+169fd956eec7819d9bb28d08fc154fd3ca1a1f28fa04e37b7d10487f46e65b7b  ./manual.conf
+./httpd-2.2.15-ssloidval.patch
+059ad102b545f2a68849c0fe8b9e6c1e707c16d1edb23f4f5147b67ab1cb0ff8  ./httpd-2.2.15-ssloidval.patch
+./index.html
+a3948b627ca379961452bcbde6053ec7445c2ea27fbaf75be3128699861e0b44  ./index.html
+./httpd-2.2.14-release.patch
+c1aee8b4058079e74369afb0a4559fcd2f8e1be394d108cacba94901806c0a84  ./httpd-2.2.14-release.patch
+./httpd-2.2.15-expectnoka.patch
+f27aae378d42465dae0d0165b1a798b5f777029a79daa419a4678993e5666e64  ./httpd-2.2.15-expectnoka.patch
+./httpd-2.2.3-pngmagic.patch
+f0f8fb61db80cbb61a7aa66193fe093994577b83d3ee79302cfaec17fe68ac0b  ./httpd-2.2.3-pngmagic.patch
+./httpd.conf
+beb8a6bbec65bd3d0a9d3cce848582838d1b64295a70d80459fe6b0a1d41ac29  ./httpd.conf
+./httpd.spec
+3995ccf820cbf7272ae04a1dcd64341ca46e8d0df0901e5bb971c436cd003582  ./httpd.spec
+./httpd-2.0.52-logresline.patch
+a94bbb3a1b8f25d2921e04f04c05910793dac7d043149034d978922a18857631  ./httpd-2.0.52-logresline.patch
+./httpd-2.2.9-deplibs.patch
+932c347f3430fd13f666933fd82958769f954cba9b36ffcbdab4d29ac8fceec4  ./httpd-2.2.9-deplibs.patch
+./httpd-2.2.15-CVE-2010-1452.patch
+3b2f4ad835b02ce77333657f1a89691f9b7dd767580e1dbe927fb4fa0e65b056  ./httpd-2.2.15-CVE-2010-1452.patch
+./httpd-2.2.11-selinux.patch
+ee34bc0e379a9352039a31b9bbabf0ace608de5a69fccbafcf8007228a3759c9  ./httpd-2.2.11-selinux.patch
+./httpd-2.2.11-xfsz.patch
+cfd9cb330ecf835436dd2f89ee393efaa893c618f0e719cb4157172fcceb8398  ./httpd-2.2.11-xfsz.patch
+./httpd-2.1.10-disablemods.patch
+6057f0551521624ddfea997b8d59b09cfee04ac06a45191d25ee9827dc9cd353  ./httpd-2.1.10-disablemods.patch
+./httpd-2.2.3-noxpad.patch
+eaa11fb4c5dd8bbe9cc95538efcc583fd7007f2da63bdeb1519d7c1091db58c4  ./httpd-2.2.3-noxpad.patch
+./httpd-2.2.0-authnoprov.patch
+b7756b5321de89578b6f49908dd293432a361f0801ba3ccf1a35d8494deadfb5  ./httpd-2.2.0-authnoprov.patch
+./welcome.conf
+8e568ee6f3e91365f4e771e8e5cad977757d77afeb1134e448ac8f4a9be670d6  ./welcome.conf
+
+
+--- END httpd-2.2.15-5 ---
+
+
+
+--- BEGIN kdepim-runtime-4.3.4-4 ---
+
+./kdepim-runtime.spec
+21df6917d720a3a75c2c13092399d7707e6135efaa3d4190323377dedead880e  ./kdepim-runtime.spec
+./kdepim-runtime-4.3.5.patch
+829a54b435047923e0718b48e211061a8984e57d2b514c174d809e732c82bb2d  ./kdepim-runtime-4.3.5.patch
+./kdepim-runtime-4.3.4.tar.bz2
+59cd69c33254ed3b24dbd57e323499c8561d4369e5798061e753847c47592706  ./kdepim-runtime-4.3.4.tar.bz2
+
+
+--- END kdepim-runtime-4.3.4-4 ---
+
+
+
+--- BEGIN mod_auth_kerb-5.4-6 ---
+
+./auth_kerb.conf
+9125317197d7dccfb5006982b48a2bd68579bdde0ccfb771671e9e81e9348d1b  ./auth_kerb.conf
+./mod_auth_kerb-5.4-rcopshack.patch
+813ad49f9c0aa8495e716a7ed902bfcef4282cb10793112ad0e92b667620e33c  ./mod_auth_kerb-5.4-rcopshack.patch
+./mod_auth_kerb-5.4.tar.gz
+690ddd66c6d941e2fa2dada46588329a6f57d0a3b9b2fd9bf055ebc427558265  ./mod_auth_kerb-5.4.tar.gz
+./mod_auth_kerb-5.4-fixes.patch
+e47da21e063b87ce28cd9eaed6bc079324ee60a13c0fbed4feb8c3d95f508000  ./mod_auth_kerb-5.4-fixes.patch
+./mod_auth_kerb.spec
+3aca7c35c70cc9672972df57fd3435b82198705c1a8f7dd791464668939a6527  ./mod_auth_kerb.spec
+
+
+--- END mod_auth_kerb-5.4-6 ---
+
+
+
+--- BEGIN nss-3.12.7-2 ---
+
+./PayPalEE.cert
+0e05be28c518e9a3cb5608ad4cfcab0354a3f63043444b05a75dd64bfed6a60f  ./PayPalEE.cert
+./renegotiate-transitional.patch
+f9202df14d896a7a7eb04ddc30d3274b6329907ea20ce052ef2d5e862673d5c5  ./renegotiate-transitional.patch
+./blank-cert8.db
+e45105a21696a26c834cfaa3f664c42426c99546094e22fbe3a5e1dd3fbc1f33  ./blank-cert8.db
+./system-pkcs11.txt
+73b8532a3cf346ccf03e7a67e55c7628aa2f504483ac719a71b771ff9ed4d2fe  ./system-pkcs11.txt
+./blank-cert9.db
+6bda6ce59a46dea427681cc8a76295e34c7c2f17f4a2f265b39cfe258ab65ded  ./blank-cert9.db
+./blank-key4.db
+a2fa0ba8e20d1aee355a0f45266eb3e53fb5720ace9fe4c9bcc964f6d4fdf87d  ./blank-key4.db
+./nss.pc.in
+35ca2fecdf4844e06f797e416d33b2d971b551b963ef660068f4a8b5fa830063  ./nss.pc.in
+./blank-key3.db
+6115cab6d646a05dd6b63e21c488da6bc36975f6e5ad8d6371c30a166c41cddc  ./blank-key3.db
+./nss-config.in
+e44ac5095b4d88f24ec7b2e6a9f1581560bd3ad41a3d198596d67ef22f67adb9  ./nss-config.in
+./nss-enable-pem.patch
+5f2342915c22f06f23aa70e3d0cec95408e57329823e2599f29e56ac8692db4d  ./nss-enable-pem.patch
+./nss-pem-20100412.tar.bz2
+45b1e064de08158b34aa15275510715d0e9d4569a40cb6ce55f2ca7446662d71  ./nss-pem-20100412.tar.bz2
+./blank-secmod.db
+3790a5404f6b7edb652544eb75bfaa8f1c515f41ef14369248151d7c52cd249e  ./blank-secmod.db
+./nss.spec
+fd00023788c48e874449df0f054c8ce9ba7012a544d0b8753ac4b56e9c960b64  ./nss.spec
+./nss-nolocalsql.patch
+044b9879793b47f1e6ecdc6259e0514aed569ac4a88a1d26f162bde649fc764b  ./nss-nolocalsql.patch
+./setup-nsssysinit.sh
+2d9f29127a425c6cb10fb238abc90b7c7acd5b22b0063a88e70968c036eb3519  ./setup-nsssysinit.sh
+./nsspem-bz596783.patch
+54cafc25676a75780f84010429a0955908f9e297fd5ac70fd386eb645720cb26  ./nsspem-bz596783.patch
+./nss-3.12.7-stripped.tar.bz2
+a372602f2d60866585db613aa939b4d9341f2134d1aa52da62e66c4105bd3cbe  ./nss-3.12.7-stripped.tar.bz2
+
+
+--- END nss-3.12.7-2 ---
+
+
+
+--- BEGIN opal-3.6.6-4 ---
+
+./opal-3.6.6-buildopts.patch
+247a7670d46c86cb9502b3d074c843d5ec09b284ed852e54126a74728a0c7371  ./opal-3.6.6-buildopts.patch
+./opal-3.6.1-noilbc.patch
+95533fb591b0b344ab4a31dd09aa99d442ac9ca3421fd64904612e333e433d88  ./opal-3.6.1-noilbc.patch
+./opal-3.6.6-strict-aliasing.patch
+947c75d9f1015439a00b9e7273bfcabbfdfe711ecefdf9490e43963a536e6dba  ./opal-3.6.6-strict-aliasing.patch
+./opal.spec
+9bd51e09ecf527bf6724a392f64a4fb0145a1e58722e43378a9a40f373a2b3b9  ./opal.spec
+./opal-3.6.6-noilbc.tar.bz2
+e662d825cfd6923434bb9f42a3e0edbbe5dbb013a5be8ede73a33b5f1ad5359e  ./opal-3.6.6-noilbc.tar.bz2
+
+
+--- END opal-3.6.6-4 ---
+
+
+
+--- BEGIN perl-Sys-Virt-0.2.4-1 ---
+
+./perl-Sys-Virt.spec
+40fa88c6966920bf5a8090508c00b40831bc79d03ed68865fc015781e8de07a9  ./perl-Sys-Virt.spec
+./Sys-Virt-0.2.4.tar.gz
+d51b6e7de3a59d87457bd7673e936905a3863cd737de03b24537129622a6d979  ./Sys-Virt-0.2.4.tar.gz
+
+
+--- END perl-Sys-Virt-0.2.4-1 ---
+
+
+
+--- BEGIN pilot-link-0.12.4-6 ---
+
+./README.RHEL
+397f817800069f28a22d5de04d7a3325d4051c3f4961364708f5bf1de16f3f51  ./README.RHEL
+./pilot-link.spec
+2ef88c4f8d96b7185ffe602489952a71b8a244b89bc4c58870153f471025295d  ./pilot-link.spec
+./pilot-link-0.12.1-var.patch
+6caeacc60342451cfcbade5a3940a0815c41ad73f3aafbcdbab452095fa69da6  ./pilot-link-0.12.1-var.patch
+./pilot-link-0.12.4.tar.bz2
+d4441cf6b35a530c093f9895be4fe661f484cd71c64b700caa5c08de15df6fd3  ./pilot-link-0.12.4.tar.bz2
+./60-pilot.perms
+b1b66a2ce9e9c02f01625c828a413cf56eda861ecd2e00450d77da8a4a94fa5d  ./60-pilot.perms
+./69-pilot-link.rules
+ddd2a56e502e3c06971ac292282346bcc14c0301fc0c9b1f951159f597aa88e7  ./69-pilot-link.rules
+./blacklist-visor
+5255a5b6c2bf955d11d8708d8b9c3abaa24e93b657832b64769f112f37770fd3  ./blacklist-visor
+./pilot-link-0.12.2-open.patch
+c65138f30e3568c032767b9aaa754a15bf127d9e1c9764aede54609c24791660  ./pilot-link-0.12.2-open.patch
+./pilot-link-0.12.3-clio.patch
+f059b7fa1942851141557c334428d4aed449d31a7fecf1a88458eb09df175cab  ./pilot-link-0.12.3-clio.patch
+
+
+--- END pilot-link-0.12.4-6 ---
+
+
+
+--- BEGIN plymouth-0.8.3-17 ---
+
+./force-enter-to-output-newline.patch
+0549b2aaa4a502ebd755b3d5a6a8593e0d31302a6d680244b2f7395c0df769a9  ./force-enter-to-output-newline.patch
+./plymouth-0.8.0-everything-is-better-in-red.patch
+39adfc35d5e28527342c60e91f42d4d4db2f50cfde41b09e2bab8623d8a1cf94  ./plymouth-0.8.0-everything-is-better-in-red.patch
+./plymouth.spec
+640a8256a5e48d1d0e2afa6829310d4fde33212b29d8c5906b79b46b8b135653  ./plymouth.spec
+./plymouth-update-initrd
+4996e0051ef4a2c5ad3f51e42595a41b6d5a9abc03debd319bef783c42828d08  ./plymouth-update-initrd
+./return-text.patch
+cddaaca8ca698a70bbb395d9db48fcd784e951915559bdfedeaa2360c5b5e1cc  ./return-text.patch
+./plymouth-0.8.3.tar.bz2
+a9f2fe507c2ee0a2368ff563a42f92bedec553be7dfc9c0b8bb324d2b7fc650c  ./plymouth-0.8.3.tar.bz2
+./rings.plymouth
+69fcf2e4cc2b0db8352eb8e42089c53e40af95bb12821e65f66c5ad9ac71963f  ./rings.plymouth
+./use-monospace-font.patch
+3bb37a5bc2a21b4e014e2d502ae3da9721c0d68b99fa47b32029e190029072b0  ./use-monospace-font.patch
+./boot-duration
+11a815f8da856b9c9dab10687f3e78ce73f049916acaa40e37dc5dbb821fae28  ./boot-duration
+./add-window-icon.patch
+7be8283168b01d19d4662b5c4f2649ce5ad2684ae4a31b3e749ba11d6a4b0fae  ./add-window-icon.patch
+./fix-watch-keystroke.patch
+1bc03799aac1bbc52b73496448938a8214d08d6a266bcc6abbcca1d96c4ebd5d  ./fix-watch-keystroke.patch
+./fix-stair-stepping.patch
+31d2e6d61859e4d5726da3124436af8dae96ec82b87d05ae07001be86313f801  ./fix-stair-stepping.patch
+./filter-out-duplicate-consoles.patch
+56ac9e990d87fe4388acc5e745192991378fea20ab5bc6873057670eafad5e64  ./filter-out-duplicate-consoles.patch
+./fix-exit-crash-with-details.patch
+ad90825d43ff10aa27748187b502e069737b253237f76fb146e90e8ade0f9f5b  ./fix-exit-crash-with-details.patch
+./better-tty-fallback.patch
+a50fe9c2ee6510168a6f4d0874bb887ed7bb62f613b93f1df07b5031f65ccdea  ./better-tty-fallback.patch
+./build-details-in.patch
+dce9336c8ddc6164e86434d1517b6a0d6eeb67e948d7040ba41d85abf9842aa8  ./build-details-in.patch
+./tty-fix.patch
+7bb1c0c016884648842e465d51d541ffc5f48618cc669ef5c0857ea8a303ae2c  ./tty-fix.patch
+./fix-assertion-on-shutdown.patch
+9a3e7e5d6dd4ca0906cd5ec27050b565d277113bd829fb654691846838c40796  ./fix-assertion-on-shutdown.patch
+./fix-throbber-glitch.patch
+bec44ba79bd263b86630b882bdf4ef70e05df81f7bb2de0c59f07e728a0a341c  ./fix-throbber-glitch.patch
+
+
+--- END plymouth-0.8.3-17 ---
+
+
+
+--- BEGIN qpid-cpp-0.7.946106-5 ---
+
+./qpid-cpp-0.7.946106.tar.gz
+7eb51ad93d91041933d2fb5f471c2a3ddc7c5225f9307313526d4b50715571a7  ./qpid-cpp-0.7.946106.tar.gz
+./store-0.7.3975.tar.gz
+2e5f873721593c55521c56ed08a73256755cf12e5f8af2bdf45ddb8e02f5eac6  ./store-0.7.3975.tar.gz
+./mrg_1.3.x.patch
+eba9d7a634134c1b2fb8be8e84d2bf7bf114ab3d3702e026632a24280cd434f7  ./mrg_1.3.x.patch
+./store_1.3.x.patch
+e1bb89c123f2ecc1b37030a3b656c8c060045f299ebb1caf4ff1f99bbe7f4a15  ./store_1.3.x.patch
+./qpid-cpp.spec
+3dc8c7e597cbe1eb7e8a35619a7187d78324f0ea955467bf4c48d4c17310929d  ./qpid-cpp.spec
+
+
+--- END qpid-cpp-0.7.946106-5 ---
+
+
+
+--- BEGIN redhat-bookmarks-6-1 ---
+
+./default-bookmarks.html
+c6b066c185f9409c5edda0c60d902300c63b5c4f9ed1228607d3f221b9abfa8a  ./default-bookmarks.html
+./redhat-bookmarks.spec
+d594db6adad1de9e832a987ec996f556038f327292631d2f42bb03e0110432a7  ./redhat-bookmarks.spec
+
+
+--- END redhat-bookmarks-6-1 ---
+
+
+
+--- BEGIN redhat-indexhtml-6-1 ---
+
+./redhat-indexhtml-6.tar.gz
+6a8382a08dfc41d4ce94e491a1299defe8d7c0307e20763645cccaadc18e649b  ./redhat-indexhtml-6.tar.gz
+./redhat-indexhtml.spec
+d0ee6ae8785e33c3e8cb1bab8a5a768ae23217ae8023dceda8c2ebbbc51b604e  ./redhat-indexhtml.spec
+
+
+--- END redhat-indexhtml-6-1 ---
+
+
+
+--- BEGIN redhat-logos-60.0.14-1 ---
+
+./redhat-logos.spec
+e8e788e8d7badab988abf4de05f2a25d7bfa284d95b5fe1196f13df58986ec13  ./redhat-logos.spec
+./redhat-logos-60.0.14.tar.bz2
+18fd43633be84af85e75df76b7cf08080725d361b76616ba355bee647dbece26  ./redhat-logos-60.0.14.tar.bz2
+
+
+--- END redhat-logos-60.0.14-1 ---
+
+
+
+--- BEGIN redhat-logos-60.0.14-1 ---
+
+./redhat-logos.spec
+e8e788e8d7badab988abf4de05f2a25d7bfa284d95b5fe1196f13df58986ec13  ./redhat-logos.spec
+./redhat-logos-60.0.14.tar.bz2
+18fd43633be84af85e75df76b7cf08080725d361b76616ba355bee647dbece26  ./redhat-logos-60.0.14.tar.bz2
+
+
+--- END redhat-logos-60.0.14-1 ---
+
+
+
+--- BEGIN redhat-logos-60.0.14-1 ---
+
+./redhat-logos.spec
+e8e788e8d7badab988abf4de05f2a25d7bfa284d95b5fe1196f13df58986ec13  ./redhat-logos.spec
+./redhat-logos-60.0.14.tar.bz2
+18fd43633be84af85e75df76b7cf08080725d361b76616ba355bee647dbece26  ./redhat-logos-60.0.14.tar.bz2
+
+
+--- END redhat-logos-60.0.14-1 ---
+
+
+
+--- BEGIN report-0.18-7 ---
+
+./remove-http-headers-from-user-display.patch
+597545b40e4c29c26c4953b45919b3ab70ede686edc92d0b00d03fe4114b524e  ./remove-http-headers-from-user-display.patch
+./xml_html_formating.patch
+530a16ed0fa4dc55fbc4b908ecbd8aa07303ff8cdae96c1dd80ccf4db7ae97a6  ./xml_html_formating.patch
+./setup_URL_translation.patch
+73eb8e90893c8c33f1aa86070e326112a85d9daa85de4c07fe6f2ecc467f0529  ./setup_URL_translation.patch
+./ftp_plugin_crash.patch
+25b92a9e61a119208ca9a1dd4bdfff64b94022fa0aebd46414bb0afa85b7614d  ./ftp_plugin_crash.patch
+./report_cmd_check_arg_access.patch
+c33c5fad016f84a41dbdfb3f5747e9b18455c3d5a577e7722ec012fe3ccf281c  ./report_cmd_check_arg_access.patch
+./report-0.18.tar.gz
+24c5146984c4c3d7ff013475a3847bb2f7c345160cbc08086aa4ebfa6e44349e  ./report-0.18.tar.gz
+./handle_self_signed_certs.patch
+15c41b8ea78f26f35168f2d2700927850cbb3ae3fe0f449ad1b7aaf6c1ec42a7  ./handle_self_signed_certs.patch
+./gtkio_clickable_button.patch
+2492907cca1354eb97a1b452756739e94cac815864c1e2e8c97884fa7247f004  ./gtkio_clickable_button.patch
+./scp_password_only_auth.patch
+3538146092051921f90e3f30aa56cf8f848aa9cc7247e4d0a5d07a01fb91f6e7  ./scp_password_only_auth.patch
+./correct-how-we-are-gathering-Product-and-Version-inf.patch
+885d0e8d664b1c40841a03336a5125e79fc0e58b3ab5b6cdb4faab8606288389  ./correct-how-we-are-gathering-Product-and-Version-inf.patch
+./report.spec
+7214ec3ab8dbff3ffe5fdb09b2848055568dd52fd11a25dc1692b226876d2bea  ./report.spec
+./correct-target-order.patch
+e7a896d45edce944dea0e0ba8a6f8be51b51de6a762c615f1a69b5deba3659cf  ./correct-target-order.patch
+./production_strata.patch
+4c148a8951166c53c2180dd1e97c87af8bb1e6052cb39fe4d3165785e9845087  ./production_strata.patch
+./ftp_deps.patch
+900151414271f59de3676bfc41d2b55462c4a455859b77e7d61ec695b8070d08  ./ftp_deps.patch
+./plugin_config_exceptions.patch
+025f02210d3fe2249a1a585a4223a9e99722e6025af3578fc47571c80fba4a41  ./plugin_config_exceptions.patch
+./strata_plugin_attach_separate_file.patch
+ab4bf5d5fadba55a92d356a4e094adcff5b1c0f265c279d8d628651e8cd2c89c  ./strata_plugin_attach_separate_file.patch
+./GTKIO-success-dialog.patch
+71ce2438632ae9e1b14f6f56f3903907438fb1e1a352658c7aad23b7e9d617bd  ./GTKIO-success-dialog.patch
+
+
+--- END report-0.18-7 ---
+
+
+
+--- BEGIN rome-0.9-4.2 ---
+
+./rome.spec
+b7b5602d593cf750ded8850e6a36e652352ef3177da3a4801dfd0ec09ceb16f0  ./rome.spec
+./rome-0.9-addosgimanifest.patch
+1e70ca7939edfb83abeeb3d09950ce0bd3e33d858fc970d87f1e701dec0f609e  ./rome-0.9-addosgimanifest.patch
+./rome-0.9-src.tar.gz
+f4119eb4eac2e983dece65b93d369d03a643aa4a5a269f354bf71568c96d2473  ./rome-0.9-src.tar.gz
+./MANIFEST.MF
+8f542984389daa1ed971bbbbff85a5a8d12595cb58093991dedc53d75e31deab  ./MANIFEST.MF
+
+
+--- END rome-0.9-4.2 ---
+
+
+
+--- BEGIN ruby-1.8.7.299-4 ---
+
+./ruby-1.8-rev27738_trunk-ext_tk.tar.gz
+cf91d160ffc31c574bca067e2ac85d53f9d02feb98a01305835e7188ffa6d2e7  ./ruby-1.8-rev27738_trunk-ext_tk.tar.gz
+./ruby-1.8.7-webrick-CVE.patch
+fd60d8aa3563800b7f8d5b5e8c980fe0cfe53d01eb08612a402850fe03ca6cf7  ./ruby-1.8.7-webrick-CVE.patch
+./ruby-1.8.6-p383-mkmf-use-shared.patch
+0b122c171bc7882796a94751ba95e95a755e2ee0469ebd7715b03094d5accb7e  ./ruby-1.8.6-p383-mkmf-use-shared.patch
+./ruby.spec
+6b24c03c67980d184c69a049aeded0a17d92e8b2f3a6f217645333c336a7da37  ./ruby.spec
+./irb.1
+bda89dd78498c7ab31048cb16173a2318fd657e887c98e0b157dac7d0d0bc1d2  ./irb.1
+./rubyfaq-990927.tar.gz
+b903b0cfd56c89f10dd289536a9aae63a26612d779ebc529f77bf6500a3f07d4  ./rubyfaq-990927.tar.gz
+./ruby-1.8.7-p299.tar.bz2
+3d8a1e4204f1fb69c9e9ffd637c7f7661a062fc2246c559f25fda5312cfd65d8  ./ruby-1.8.7-p299.tar.bz2
+./ruby-refm-rdp-1.8.2-ja-html.tar.gz
+6261d1360eca406038a8afb0a327ba68920168c029d9a492843293d0b774224c  ./ruby-refm-rdp-1.8.2-ja-html.tar.gz
+./ruby-1.8.6-p287-CVE-2008-5189.patch
+9d3b912c4e9eaf41affe3a49779dd43d0eb18fb0302883f7ee3df58783d80fa2  ./ruby-1.8.6-p287-CVE-2008-5189.patch
+./ruby-always-use-i386.patch
+7241e8c8e83bea58577e34396aafb36aeadbf3c0cf4d6a0032faff9493324d84  ./ruby-always-use-i386.patch
+./rubyfaq-jp-990927.tar.gz
+fabc28bf1d9d533d9e239253e44e38112df2316cc1156285f437b08f9f2fba15  ./rubyfaq-jp-990927.tar.gz
+./ruby-multilib.patch
+2001a3d063c5d5134a3aabc0e3778412004cbe71a591755d8d494e86ac988801  ./ruby-multilib.patch
+./ruby-1.8.7-lib-paths.patch
+8295eb9e528184f9a1c705602d66df0533180b17bd7858f098b3df56a68dfcb7  ./ruby-1.8.7-lib-paths.patch
+
+
+--- END ruby-1.8.7.299-4 ---
+
+
+
+--- BEGIN zsh-4.3.10-4.1 ---
+
+./zsh-4.3.6-8bit-prompts.patch
+10b9fc0f04c82561c39326de2d2e94f7196ffedfd500c3c12830619ea75d2d32  ./zsh-4.3.6-8bit-prompts.patch
+./zsh-test-C02-dev_fd-mock.patch
+387b9a2051ef2422a341521728eb56392321df74d30a0fc34d2fba661ee9ff49  ./zsh-test-C02-dev_fd-mock.patch
+./dotzshrc
+b895984ec9de93f4ffee3f234268e520d49e949d7ab52cbd0beaaab016002830  ./dotzshrc
+./zshrc.rhs
+914d72df3b07b8bfb148688667557ae54f7c224a43cf1bf997ce1c3523dc04d4  ./zshrc.rhs
+./zsh-4.3.6-hack-a01grammar-test-select-off.patch
+3b570fe584f5ad0727c9b3b82f9847b05ea084d4ddbf928540fe793ec008579d  ./zsh-4.3.6-hack-a01grammar-test-select-off.patch
+./zsh-serial.patch
+d092a34dc7e44dbd210451a5f67f7ed09edc27124283e1752abbb2f67fe1a241  ./zsh-serial.patch
+./zlogout.rhs
+40c24dc25b278f228e3abd76a0a765b232bc570dcab0c94ad58f40d3ed54237d  ./zlogout.rhs
+./zshenv.rhs
+5368c397c1647ef0f3d7625f8624d79071cd4fab81cbe7dc8bde4a4f0c4cbd7f  ./zshenv.rhs
+./zshprompt.pl
+46da0e80730a7b7d5b4609ebcfef774547ac8a7bb6d54be982584634972b836f  ./zshprompt.pl
+./zlogin.rhs
+9d7c9b0422a019dedeadfd26b89acb2d18731caebfd747f1ff068fb2417f73eb  ./zlogin.rhs
+./zsh.spec
+2413cc5e65a14be7a9b7c61bf4f8944bb24d727d8d47411c8c4cd7b4559a8dbd  ./zsh.spec
+./zprofile.rhs
+e3c3625d966c8277274798f26241857df5fc520e18674deba6cc356f6b022d63  ./zprofile.rhs
+./zsh-4.3.10.tar.bz2
+63fdc0273eadbb42d164f38b0b79922c0b3df0e97084e746a318276d935a4f7c  ./zsh-4.3.10.tar.bz2
+
+
+--- END zsh-4.3.10-4.1 ---
+

@@ -1,0 +1,20 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/pilot-link-0.12.4-6.tuv/pilot-link.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/pilot-link-0.12.4-6.tdv/pilot-link.spec
+5c5
+< Release: 6%{?dist}
+---
+> Release: 6%{?dist}.0.asc
+91c91,92
+< autoreconf -is
+---
+> ##SL removed autoreconf -is
+> ##autoreconf -is
+194c195,201
+< * Thu Feb 25 2010 Ivana Hutarova Varekova <varekova@redhat.com> - 2:0.12.4-6
+---
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 2:0.12.4-6.0.asc
+> - when "autoreconf -is" is called this causes libtool to run from
+> - /usr/bin/libtool which is version 2.2.6b but the source ships its own
+> - libtool in pilot-link-0.12.4/libtool which is version 2.2.6 and called
+> - from the make files. This version mix does not work.
+> 
+> * Thu Feb 25 2010 Ivana Hut3arova Varekova <varekova@redhat.com> - 2:0.12.4-6

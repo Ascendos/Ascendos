@@ -1,0 +1,15 @@
+Only in /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/ruby-1.8.7.299-4.tdv: ruby-1.8.7-shellwords-arguments.patch
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/ruby-1.8.7.299-4.tuv/ruby.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/ruby-1.8.7.299-4.tdv/ruby.spec
+19c19
+< Release:	4%{?dist}
+---
+> Release:	4%{?dist}.0.asc
+64a65
+> Patch300:	ruby-1.8.7-shellwords-arguments.patch
+187a189
+> %patch300 -p1
+561a564,567
+> * Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 1.8.7.299-4.0.asc
+> - Fix the shellwords arguments building bug with Patch300
+>   http://bugs.gentoo.org/show_bug.cgi?id=234877
+>   

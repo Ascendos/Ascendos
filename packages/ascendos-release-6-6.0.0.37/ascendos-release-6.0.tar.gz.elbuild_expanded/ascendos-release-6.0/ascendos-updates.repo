@@ -1,0 +1,13 @@
+[ascendos-updates]
+name=Ascendos $releasever Alpha updates - $basearch
+mirrorlist=http://bugzilla.ascendos.org/misc/yum/mirrorlist?release=$releasever&arch=$basearch&repo=updates&test=alpha
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
+
+[ascendos-updates-source]
+name=Ascendos $releasever Alpha updates - Source
+mirrorlist=http://bugzilla.ascendos.org/misc/yum/mirrorlist?release=$releasever&arch=src&repo=updates&test=alpha
+enabled=0
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc

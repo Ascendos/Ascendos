@@ -1,0 +1,6 @@
+[KdmGreeterTheme]
+Greeter=rhel6.xml
+Name=Red Hat Enterprise Linux 6
+Author=Red Hat, Inc.
+Copyright=(C) 2010 Red Hat, Inc.
+Screenshot=screenshot.png

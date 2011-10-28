@@ -1,0 +1,34 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-indexhtml-6-1.tuv/./redhat-indexhtml.spec	2011-10-28 07:55:10.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-indexhtml-6-1.tdv/./redhat-indexhtml.spec	2011-10-28 07:55:10.000000000 +0000
+@@ -1,7 +1,7 @@
+-Summary: Browser default start page for Red Hat Enterprise Linux
++Summary: Browser default start page for Ascendos
+ Name: redhat-indexhtml
+ Version: 6
+-Release: 1%{?dist}
++Release: 1%{?dist}.asc
+ Source: %{name}-%{version}.tar.gz
+ License: Distributable
+ Group: Documentation
+@@ -11,10 +11,7 @@
+ 
+ %description
+ The indexhtml package contains the welcome page shown by your Web browser,
+-which you'll see after you've successfully installed Red Hat Enterprise Linux.
+-
+-The Web page provided by indexhtml tells you how to register your Red
+-Hat software and how to get any support that you might need.
++which you'll see after you've successfully installed Ascendos.
+ 
+ %prep
+ %setup -q -n HTML
+@@ -34,6 +31,9 @@
+ %{_defaultdocdir}/HTML/*
+ 
+ %changelog
++* Sat Jul 30 2011 Troy Dawson <dawson@ascendos.rog> - 6-1.asc
++- Put in a generic index page with just the Ascendos logo
++
+ * Fri Aug 27 2010 Parag Nemade <pnemade AT redhat.com> - 6-1
+ - Respin the tarball to include translated pages (#626997)
+ 

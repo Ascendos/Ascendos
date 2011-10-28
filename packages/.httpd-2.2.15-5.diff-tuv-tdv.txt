@@ -1,0 +1,22 @@
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/httpd-2.2.15-5.tuv/httpd.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/httpd-2.2.15-5.tdv/httpd.spec
+4c4
+< %define vstring Red Hat
+---
+> %define vstring Ascendos
+10c10
+< Release: 5%{?dist}
+---
+> Release: 5.asc
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/httpd-2.2.15-5.tuv/index.html /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/httpd-2.2.15-5.tdv/index.html
+5c5
+< 		<title>Test Page for the Apache HTTP Server on Red Hat Enterprise Linux</title>
+---
+> 		<title>Test Page for the Apache HTTP Server on Ascendos</title>
+88c88
+< 		<h1>Red Hat Enterprise Linux <strong>Test Page</strong></h1>
+---
+> 		<h1>Ascendos <strong>Test Page</strong></h1>
+106c106
+< 					<p>For information on Red Hat Enterprise Linux, please visit the <a href="http://www.redhat.com/">Red Hat, Inc. website</a>. The documentation for Red Hat Enterprise Linux is <a href="http://www.redhat.com/docs/manuals/enterprise/">available on the Red Hat, Inc. website</a>.</p>
+---
+> 					<p>For information on Ascendos, please visit the <a href="http://www.ascendos.org/">Ascendos website</a>.</p>

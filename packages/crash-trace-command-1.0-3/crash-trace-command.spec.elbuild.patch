@@ -1,0 +1,28 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/crash-trace-command-1.0-3.tuv/./crash-trace-command.spec	2011-10-28 07:54:56.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/crash-trace-command-1.0-3.tdv/./crash-trace-command.spec	2011-10-28 07:54:56.000000000 +0000
+@@ -4,12 +4,13 @@
+ Summary: trace extension module for the crash utility
+ Name: crash-trace-command
+ Version: 1.0
+-Release: 3%{?dist}
++Release: 3%{?dist}.asc
+ License: GPLv2
+ Group: Development/Debuggers
+ Source: %{name}-%{version}.tar.gz
+ URL: http://people.redhat.com/anderson/extensions/trace.c
+-Vendor: Fujitsu Limited
++# Ascendos: this should not be hard coded, no other modifications
++#Vendor: Fujitsu Limited
+ Packager: Lai Jiangshan <laijs@cn.fujitsu.com>
+ ExclusiveOS: Linux
+ ExclusiveArch: x86_64 %{ix86} ppc64 ia64 s390 s390x
+@@ -42,6 +43,9 @@
+ %doc COPYING
+ 
+ %changelog
++* Fri Oct 14 2011 Douglas McClendon <dmc@ascendos.org> - 1.0-3.asc
++- comment out hardcoded Vendor in spec
++
+ * Wed Jun  9 2010 Dave Anderson <anderson@redhat.com> - 1.0-3
+ - Remove trace_dump.patch, which requires a kernel later than
+   the RHEL6 base of 2.6.32.

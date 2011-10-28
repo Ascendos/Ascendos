@@ -1,0 +1,25 @@
+#BACKGROUND #000000
+
+SCALE ON
+BACKGROUND_IMAGE 0 0 background.png
+SCALE OFF
+
+# the splash image is 370x200 centered
+IMAGE_REL CC 0 0 CC splash.png
+
+WAIT_STATE kded
+IMAGE_REL CC -136 60 CC progressbar1.png
+
+WAIT_STATE kcminit
+IMAGE_REL CC -116 60 CC progressbar2.png
+
+WAIT_STATE ksmserver
+IMAGE_REL CC -99 60 CC progressbar3.png
+
+WAIT_STATE wm
+IMAGE_REL CC -82 60 CC progressbar4.png
+
+WAIT_STATE desktop
+IMAGE_REL CC -65 60 CC progressbar5.png
+
+WAIT_STATE ready

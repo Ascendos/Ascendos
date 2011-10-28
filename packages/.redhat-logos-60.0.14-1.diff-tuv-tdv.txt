@@ -1,0 +1,43 @@
+Binary files /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-logos-60.0.14-1.tuv/redhat-logos-60.0.14.tar.bz2 and /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-logos-60.0.14-1.tdv/redhat-logos-60.0.14.tar.bz2 differ
+diff -r /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-logos-60.0.14-1.tuv/redhat-logos.spec /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-logos-60.0.14-1.tdv/redhat-logos.spec
+5c5
+< Summary: Red Hat-related icons and pictures
+---
+> Summary: Ascendos logos and artwork. 
+7c7
+< Release: 1%{?dist}
+---
+> Release: 3.asc6
+12,13c12,13
+< License: Copyright 1999-2010 Red Hat, Inc.  All rights reserved.
+< URL: http://www.redhat.com
+---
+> License: GPL+, CC-BY-SA
+> URL: http://ascendos.org/
+26c26
+< Licensed only for approved usage, see COPYING for details.
+---
+> Ascendos artwork and branding elements
+35a36
+> ##Shamelessly copied and pasted from upstream
+108,109d108
+< ln -s %{_datadir}/backgrounds/default.png background.png
+< ln -s %{_datadir}/pixmaps/system-logo-white.png system-logo-white.png
+116c115,116
+< ln -s %{_datadir}/backgrounds/1920x1200_day.png 1920x1200.png
+---
+> #ln -s %{_datadir}/backgrounds/1920x1200_day.png 1920x1200.png
+> ln -s %{_datadir}/backgrounds/default.png 1920x1200.png
+187a188,199
+> 
+> * Fri Oct 14 2011 Douglas McClendon <dmc@ascendos.org> 60.0.14-3.asc6
+> - added ascendos-dp-splash.png from Shawn as firstboot/splash-small.png
+> 
+> * Fri Oct 07 2011 Douglas McClendon <dmc@ascendos.org> 60.0.14-2.asc6
+> - updated 3 anaconda images from Shawn
+> - went with 2.asc6 as prior build was 1.asc6 (?)
+> 
+> * Tue Nov 23 2010 Shawn Thompson <superfox436@gmail.com>  60.0.14-1.asc-0.1
+> - Put in temporary Ascendos artwork (and SL's charge theme just for now)
+> - Change ring throbber to something cooler for now
+> 

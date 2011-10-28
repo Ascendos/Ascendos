@@ -1,0 +1,35 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-bookmarks-6-1.tuv/./redhat-bookmarks.spec	2011-10-28 07:55:09.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-bookmarks-6-1.tdv/./redhat-bookmarks.spec	2011-10-28 07:55:09.000000000 +0000
+@@ -1,10 +1,10 @@
+ Name:           redhat-bookmarks
+ Version:        6
+-Release:        1%{?dist}
+-Summary:        Red Hat Enterprise Linux bookmarks
++Release:        1%{?dist}.asc
++Summary:        Ascendos bookmarks
+ Group:          Applications/Internet
+ License:        GFDL
+-URL:            http://www.redhat.com/
++URL:            http://www.ascendos.org/
+ Source0:        default-bookmarks.html
+ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+ BuildArch:      noarch
+@@ -12,7 +12,7 @@
+ 
+ 
+ %description
+-This package contains the default bookmarks for Red Hat Enterprise Linux
++This package contains the default bookmarks for Ascendos
+ 
+ %prep
+ 
+@@ -34,6 +34,9 @@
+ %{_datadir}/bookmarks/default-bookmarks.html
+ 
+ %changelog
++* Sat Jul 30 2011 Troy Dawson <dawson@ascendos.org> 6-1.asc
++- Modified to put in Ascneods bookmarks
++
+ * Tue Aug  3 2010 Christopher Aillon <caillon@redhat.com> 6-1
+ - Update for RHEL 6
+ 

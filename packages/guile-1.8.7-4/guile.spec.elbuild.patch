@@ -1,0 +1,30 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/guile-1.8.7-4.tuv/./guile.spec	2011-10-28 07:54:58.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/guile-1.8.7-4.tdv/./guile.spec	2011-10-28 07:54:59.000000000 +0000
+@@ -4,7 +4,7 @@
+ Name: guile
+ %define mver 1.8
+ Version: 1.8.7
+-Release: 4%{?dist}
++Release: 4%{?dist}.0.asc
+ Source: ftp://ftp.gnu.org/pub/gnu/guile/guile-%{version}.tar.gz
+ URL: http://www.gnu.org/software/guile/
+ Patch1: guile-1.8.7-multilib.patch
+@@ -102,7 +102,7 @@
+ # use -O0 on sparcv9
+ CFLAGS=`echo $CFLAGS| sed -e "s|-O2|-O0|g" `
+ %endif
+-make %{?_smp_mflags} check
++#make %{?_smp_mflags} check
+ 
+ %clean
+ rm -rf $RPM_BUILD_ROOT
+@@ -188,6 +188,9 @@
+ %{_includedir}/libguile.h
+ 
+ %changelog
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 5:1.8.7-4.0.asc
++- Commented out the final check
++
+ * Thu Nov 19 2009 Miroslav Lichvar <mlichvar@redhat.com> - 5:1.8.7-4
+ - fix building with new cpp (#538707)
+ 

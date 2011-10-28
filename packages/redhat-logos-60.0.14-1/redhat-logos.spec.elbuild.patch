@@ -1,0 +1,76 @@
+--- /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-logos-60.0.14-1.tuv/./redhat-logos.spec	2011-10-28 07:55:51.000000000 +0000
++++ /mnt/stuff/xhome/dawg/aos/el-build-home/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff/redhat-logos-60.0.14-1.tdv/./redhat-logos.spec	2011-10-28 07:55:52.000000000 +0000
+@@ -2,15 +2,15 @@
+ %define anaconda_image_prefix /usr/lib/anaconda-runtime
+ 
+ Name: redhat-logos
+-Summary: Red Hat-related icons and pictures
++Summary: Ascendos logos and artwork. 
+ Version: 60.0.14
+-Release: 1%{?dist}
++Release: 3.asc6
+ Group: System Environment/Base
+ # No upstream, do in dist-cvs
+ Source0: redhat-logos-%{version}.tar.bz2
+ 
+-License: Copyright 1999-2010 Red Hat, Inc.  All rights reserved.
+-URL: http://www.redhat.com
++License: GPL+, CC-BY-SA
++URL: http://ascendos.org/
+ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+ BuildArch: noarch
+ Conflicts: anaconda-images <= 10
+@@ -23,7 +23,7 @@
+ BuildRequires: kde-filesystem
+ 
+ %description
+-Licensed only for approved usage, see COPYING for details.
++Ascendos artwork and branding elements
+ 
+ %prep
+ %setup -q
+@@ -33,6 +33,7 @@
+ %install
+ rm -rf $RPM_BUILD_ROOT
+ 
++##Shamelessly copied and pasted from upstream
+ # should be ifarch i386
+ mkdir -p $RPM_BUILD_ROOT/boot/grub
+ install -p -m 644 -D bootloader/splash.xpm.gz $RPM_BUILD_ROOT/boot/grub/splash.xpm.gz
+@@ -105,15 +106,14 @@
+ mkdir -p $RPM_BUILD_ROOT/%{_kde4_appsdir}/kdm/themes/
+ cp -rp kde-kdm/RHEL6/ $RPM_BUILD_ROOT/%{_kde4_appsdir}/kdm/themes/
+ pushd $RPM_BUILD_ROOT/%{_kde4_appsdir}/kdm/themes/RHEL6/
+-ln -s %{_datadir}/backgrounds/default.png background.png
+-ln -s %{_datadir}/pixmaps/system-logo-white.png system-logo-white.png
+ popd
+ 
+ # wallpaper theme
+ mkdir -p $RPM_BUILD_ROOT/%{_datadir}/wallpapers/
+ cp -rp kde-plasma/RHEL6/ $RPM_BUILD_ROOT/%{_datadir}/wallpapers
+ pushd $RPM_BUILD_ROOT/%{_datadir}/wallpapers/RHEL6/contents/images
+-ln -s %{_datadir}/backgrounds/1920x1200_day.png 1920x1200.png
++#ln -s %{_datadir}/backgrounds/1920x1200_day.png 1920x1200.png
++ln -s %{_datadir}/backgrounds/default.png 1920x1200.png
+ popd
+ 
+ %clean
+@@ -185,6 +185,18 @@
+ # end i386 bits
+ 
+ %changelog
++
++* Fri Oct 14 2011 Douglas McClendon <dmc@ascendos.org> 60.0.14-3.asc6
++- added ascendos-dp-splash.png from Shawn as firstboot/splash-small.png
++
++* Fri Oct 07 2011 Douglas McClendon <dmc@ascendos.org> 60.0.14-2.asc6
++- updated 3 anaconda images from Shawn
++- went with 2.asc6 as prior build was 1.asc6 (?)
++
++* Tue Nov 23 2010 Shawn Thompson <superfox436@gmail.com>  60.0.14-1.asc-0.1
++- Put in temporary Ascendos artwork (and SL's charge theme just for now)
++- Change ring throbber to something cooler for now
++
+ * Wed Aug 25 2010 Ray Strode <rstrode@redhat.com> 60.0.14-1
+ - Update description and COPYING file
+   Resolves: #627374
