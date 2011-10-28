@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# mirror-tuv-srpms-el6 mirrors a popular set of open sources
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## mirror-tuv-el6-srpms <outputdir> (e.g. ~/.el-build/cache)
+##
+##
+## DESCRIPTION
+##
+## mirror-tuv-el6-srpms will mirror all four flavors of source rpms and
+## updates from the tuv or one of its mirrors.   And perhaps a few other
+## related tasks or added flexibility in the future.
+##
+##
+## NOTES
+##
+## -
+##
+#############################################################################
+
+
+## TODO
+# - use rsync
+# - ...
+#
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# excessive and/or amusing vendor name use avoidance
+tuv_name_lc_enc="erqung"
+
+# todo: for production and lowest latency, you'd want to use this
+#mirror="ftp://ftp.tuv.com/tuv/linux/enterprise"
+# but for development-
+#mirror="ftp://ftp.linux.ncsu.edu/mirror/ftp.tuv.com/pub/tuv/linux/enterprise"
+mirror="ftp://mirrors.kernel.org/tuv/tuv/linux/enterprise"
+
+flavors="\
+6Server
+6Workstation
+6ComputeNode
+6Client
+"
+
+# to enable debug messages
+debug=1
+
+# to suppress status messages
+quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} [<output directory>=~/.el-build/cache]"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if (($debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: old_school_crypto <string>
+#
+# probably overkill avoidance of explicit TUV referencing
+#
+function old_school_crypto {
+    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
+mirrorx=$( echo "${mirror}" | sed -e "s/tuv/${tuv_name_lc}/g" )
+
+if [ $# -eq 0 ]; then 
+    outputdir=$( readlink -e "${HOME}/.el-build/cache" )
+elif [ $# -ne 1 ]; then 
+    usage
+else
+    outputdir=$( readlink -e "${1}" )
+fi
+
+if ( ! mkdir -p "${outputdir}" ); then
+    die "could not create output directory: ${outputdir}"
+fi
+
+mkdir -p "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS"
+
+for flavor in ${flavors}; do
+    if [ -d "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS" ]; then
+	rm -rf "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS" 
+    fi
+    mkdir -p "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS" 
+
+    cp -av \
+	"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/"*.src.rpm \
+	"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS/" 
+
+    lftp "${mirrorx}" \
+	-e "cd ${flavor}/en/os ; mirror --continue --delete SRPMS ${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS ; quit"
+
+    for src_pkg in $( ls -1A "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS/"*.src.rpm ); do
+	src_pkg_base=$( basename "${src_pkg}" )
+	if [ -e "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}" ]; then
+	    if ( ! diff -q "${src_pkg}" \
+"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}" > /dev/null 2>&1 ); then
+	        die "UNEXPECTED DIFFERING FILES WITH THE SAME NAME :: ${src_pkg} :: ${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}"
+	    fi
+	    # remove the extra copy
+	    rm -f "${src_pkg}"
+	else
+	    status "NEW PACKAGE: copying ${src_pkg_base} to 6Superset"
+	    mv "${src_pkg}" \
+		"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}"
+	fi
+	# make the src_pkg be a link to the superset
+	ln -s "../../../../6Superset/en/os/SRPMS/${src_pkg_base}" "${src_pkg}"
+    done
+
+done
+

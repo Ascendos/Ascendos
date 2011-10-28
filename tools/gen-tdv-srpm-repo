@@ -1,0 +1,474 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# gen-tdv-srpm-repo generates the downstream vendors srpm repo from a given
+#                   upstream vendor srpm repo and a delta repo
+#
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## gen-tdv-srpm-repo \
+##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.generated] \
+##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff \
+##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] 
+##
+##
+## DESCRIPTION
+##
+## ...
+##
+##
+## NOTES
+##
+##
+#############################################################################
+
+## TODO
+# - ...
+#  - all very hardcoded for initial asc workflow, improve flexibility/utility
+#  - definitely should support diffing sl6/etc... as well against tuv, for
+#    sanity comparison and reference value
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y-%m-%d--%H-%M-%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# to enable debug messages
+debug=1
+
+# to suppress status messages
+quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} ... (TODO/FIXME)"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if (($debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: listremove "item" "list"
+#
+# return a list copy but with an item taken out
+#
+function listremove {
+    item="${1}"
+    shift
+
+    for word in ${@}; do
+	if [ "${word}" != "${item}" ]; then
+	    echo -en "${word} "
+	fi
+    done
+}
+
+
+#############################################################################
+#
+# usage: listin "item" "list"
+#
+# return true if item is in list
+#
+function listin {
+    item="${1}"
+    shift
+
+    retval=false
+    for word in "$@"; do
+	if [ "${word}" == "${item}" ]; then
+	    return 0;
+	fi
+    done
+    return 1
+}
+
+
+#############################################################################
+#
+# usage: listreverse "list"
+#
+# returns a given list of words reversed
+#
+function listreverse {
+    numwords=0
+    for word in $@; do
+	numwords=$(( ${numwords} + 1 ))
+	wordlist[${numwords}]="${word}"
+    done
+    for (( i=numwords ; ${i} > 0 ; i=$(( ${i} - 1 )) )); do
+	echo "${wordlist[${i}]}"
+    done
+}
+
+
+#############################################################################
+#
+# usage: get_asc_version <some-version.asc[.ASCVERSION].src.rpm>
+#
+# dies if input is not a proper .asc[.ASCVERSION].src.rpm, and returns
+# ASCVERSION, or the special 0 value for no suffixed version
+#
+function get_asc_version {
+    if ( echo "$@" | grep -q "\.asc\.src\.rpm$" ); then
+	echo 0
+    elif ( ! echo "$@" | grep -q "\.asc\.[0-9]*\.src\.rpm$" ); then
+	die "no asc version because $@ is not a .asc.*src.rpm"
+    else
+	echo "$@" | sed -e 's/.*\.asc\.\([0-9]*\)\.src\.rpm$/\1/'
+    fi
+}
+
+
+#############################################################################
+#
+# usage: set_asc_version <version> <some-version.asc[.ASCVERSION].src.rpm>
+#
+# returns the given asc style package name, but with alternate version
+#
+function set_asc_version {
+    version="${1}"
+    shift
+
+    if ( ! echo "$@" | grep -q "\.asc\.src\.rpm$" ); then
+	if ( ! echo "$@" | grep -q "\.asc\.[0-9]\+\.src\.rpm$" ); then
+	    die "set_asc_version: non-well-formatted asc src rpm file: $@"
+	fi
+    fi
+
+    if ((!${version})); then
+	if ( echo "$@" | grep -q "\.asc\.src\.rpm$" ); then
+	    # in this case, return the same as the input
+	    echo "$@"
+	else 
+	    echo "$@" | sed -e "s/\.asc\.[0-9]\+\.src\.rpm\$/\.asc\.src\.rpm/"
+	fi
+    else
+	if ( echo "$@" | grep -q "\.asc\.src\.rpm$" ); then
+	    echo "$@" | sed -e "s/\.asc\.src\.rpm\$/\.asc\.${version}\.src\.rpm/"
+	else
+	    echo "$@" | sed -e "s/\.asc\.[0-9]\+\.src\.rpm\$/\.asc\.${version}\.src\.rpm/"
+	fi
+    fi
+}
+
+
+#############################################################################
+#
+# usage: old_school_crypto <string>
+#
+# probably overkill avoidance of explicit TUV referencing
+#
+function old_school_crypto {
+    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+
+#############################################################################
+### calculate tree root and set up environment
+elbuild_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 )
+
+
+#############################################################################
+### retrieve arguments/options
+
+##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.generated] \
+##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff \
+##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] \
+
+if [ $# -eq 0 ]; then 
+    output_tdv_srpm_repo=$( readlink -f "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.generated" )
+    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff" )
+    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+elif [ $# -eq 1 ]; then 
+    output_tdv_srpm_repo=$( readlink -f "${1}" )
+    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff" )
+    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+elif [ $# -eq 2 ]; then 
+    tdv_delta_repo=$( readlink -e "${1}" )
+    output_tdv_srpm_repo=$( readlink -f "${2}" )
+    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+elif [ $# -eq 3 ]; then 
+    tdv_delta_repo=$( readlink -e "${1}" )
+    output_tdv_srpm_repo=$( readlink -f "${2}" )
+    tuv_srpm_repo=$( readlink -f "${3}" )
+else
+    usage
+fi
+
+#############################################################################
+### validate args
+if [ -d "${output_tdv_srpm_repo}" ]; then
+    die "output dir ${output_file} already exists"
+else
+    mkdir -p "${output_tdv_srpm_repo}" 
+fi
+
+if [ ! -d "${tdv_delta_repo}" ]; then
+    die "tdv_delta_repo directory ${tdv_delta_repo} does not exist"
+fi
+
+if [ ! -d "${tuv_srpm_repo}" ]; then
+    die "tuv_srpm_repo directory ${tuv_srpm_repo} does not exist"
+fi
+
+
+#### outline
+
+if [ -f "${HOME}/.rpmmacros" ]; then
+    mv "${HOME}/.rpmmacros" \
+	"${HOME}/.rpmmacros.orig.${mypid}"
+fi
+if [ -d "${HOME}/rpmbuild" ]; then
+    mv "${HOME}/rpmbuild" \
+	"${HOME}/rpmbuild.orig.${mypid}"
+fi
+
+rpmdev-setuptree
+cat <<EOF > "${HOME}/.rpmmacros"
+%vendor Ascendos
+EOF
+
+## for each tuv srpm, not in non.in.asc list, rebuild as initial contents
+for srpm in $( ls -1A "${tuv_srpm_repo}/"*.src.rpm ); do
+    buildit=1
+    srpm_filename=$( echo "${srpm}" | sed -e 's/.*\///' )
+    status "processing tuv package: ${srpm_filename} ..."
+    for blacklisted_pkg_entry in $( < "${elbuild_devroot}/Ascendos/6/6.0/configs/tuv-pkgs-not-in-asc6" ); do
+	blacklisted_pkg_name=$( echo "${blacklisted_pkg_entry}" | sed -e 's/^===//' -e 's/===$//' )
+	if [ "${srpm_filename#${blacklisted_pkg_name}}" != "${srpm_filename}" ]; then
+	    buildit=0
+	fi
+    done
+    if ((${buildit})); then
+	rpm -i "${tuv_srpm_repo}/${srpm_filename}"
+	rpmbuild -bs --rmspec --rmsource "${HOME}/rpmbuild/SPECS/"*.spec
+	mv "${HOME}/rpmbuild/SRPMS/"*.src.rpm \
+	    "${output_tdv_srpm_repo}/"
+    fi
+
+done
+
+## process each delta directory
+for target_pkg_name in $( find "${tdv_delta_repo}" -mindepth 1 -maxdepth 1 -type d -print | sed -e 's/.*\///' ); do
+    status "processing package with tdv delta: ${target_pkg_name} ..."
+
+    mkdir -p "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild"
+    pushd "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild" > /dev/null 2>&1
+    # extract *TUV* original package if it exists
+    if [ -f "${tuv_srpm_repo}/${target_pkg_name}.el6.src.rpm" ]; then
+	rpm2cpio "${tuv_srpm_repo}/${target_pkg_name}.el6.src.rpm" \
+	    | cpio --quiet --extract --make-directories
+    fi
+    popd > /dev/null 2>&1
+
+    # now integrate changes from delta directory
+    cp -a "${tdv_delta_repo}/${target_pkg_name}" \
+	"${output_tdv_srpm_repo}/${target_pkg_name}" 
+    pushd "${output_tdv_srpm_repo}/${target_pkg_name}" > /dev/null 2>&1
+
+    # first pass for special tarball-expanded direcories
+    for dir in $( find . -type d -print ); do
+	if ( echo "${dir}" | grep -q "\.elbuild_expanded\$" ); then
+	    target_dir_file=$( echo "${dir}" | sed -e 's/\.elbuild_expanded$//' )
+	    pushd "${dir}" > /dev/null 2>&1
+	    if ( echo "${target_dir_file}" | grep -q "\.tar\.gz\$" ); then
+		tar -czpsf "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/${target_dir_file}" .
+	    elif ( echo "${target_dir_file}" | grep -q "\.tar\.bz2\$" ); then
+		tar -cjpsf "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/${target_dir_file}" .
+	    elif ( echo "${target_dir_file}" | grep -q "\.tar$" ); then
+		tar -cpsf "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/${target_dir_file}" .
+	    fi
+	    popd > /dev/null 2>&1
+	fi
+    done
+    
+    # second pass for everything else 
+    for file in $( find . -type f -print ); do
+	if ( echo "${file}" | grep -q "\.elbuild_patchable\$" ); then
+		# disregard for now
+	    true
+	elif ( echo "${file}" | grep -q "\.elbuild_expanded\/" ); then
+		# disregard, taken care of above
+	    true
+	elif ( echo "${file}" | grep -q "\.elbuild\.patch\$" ); then
+	    target_file=$( echo "${file}" | sed -e 's/\.elbuild\.patch$//' )
+	    patch --quiet "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/${target_file}" \
+		"${output_tdv_srpm_repo}/${target_pkg_name}/${file}" 
+	elif ( echo "${file}" | grep -q "\.elbuild_not_used\$" ); then
+		# this file isn't used by tdv, so remove from rebuild 
+	    killfile=$( echo "${file}" | sed -e 's/\.elbuild_not_used$//' )
+	    rm -f "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/${killfile}"
+	else
+		# diff file takes priority, copy over tuv version if present
+	    cp "${file}" "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/${file}"
+	fi
+    done
+    
+    popd > /dev/null 2>&1
+    rm -rf "${output_tdv_srpm_repo}/${target_pkg_name}"
+
+    mv "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild/"* \
+	"${HOME}/rpmbuild/SOURCES/"
+
+    rm -rf "${output_tdv_srpm_repo}/${target_pkg_name}.tdv.rebuild"
+
+    mv "${HOME}/rpmbuild/SOURCES/"*.spec \
+	"${HOME}/rpmbuild/SPECS/"
+
+    rpmbuild -bs --rmspec --rmsource "${HOME}/rpmbuild/SPECS/"*.spec 
+    mv "${HOME}/rpmbuild/SRPMS/"*.src.rpm \
+	"${output_tdv_srpm_repo}/"
+done
+
+#############################################################################
+### tmpdir
+tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+mkdir -p "${tmpdir}"
+
+#############################################################################
+### ...
+
+
+
+#############################################################################
+### cleanup
+
+
+if [ -d "${HOME}/.rpmbuild.orig.${mypid}" ]; then
+    rm -rf "${HOME}/.rpmbuild"
+    mv "${HOME}/.rpmbuild.orig.${mypid}" \
+	"${HOME}/.rpmbuild"
+fi
+if [ -f "${HOME}/.rpmmacros.orig.${mypid}" ]; then
+    rm -f "${HOME}/.rpmmacros"
+    mv "${HOME}/.rpmmacros.orig.${mypid}" \
+	"${HOME}/.rpmmacros"
+fi
+
+
+rm -rf "${tmpdir}"
+debug "goodbye..."
+
+### end script, only notes below...
+#############################################################################
+#############################################################################
+#############################################################################
+#
+# ...
+
+
+
