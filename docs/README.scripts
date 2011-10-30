@@ -1,0 +1,138 @@
+#############################################################################
+#############################################################################
+
+                       Ascendos: README.scripts
+
+  el-build subcommands in Ascendos/tools/scripts/ and their current purpose
+
+#############################################################################
+#############################################################################
+
+This is temporary documentation until someone writes something better. 
+
+The same goes for most of the scripts themselves too.
+
+
+#############################################################################
+#############################################################################
+##
+## the big board: an html status table highlighting missing package builds
+##
+
+# tool for running on the koji server to output healthy set of metadata for
+# subsequent parsing
+koji-dump-buildinfo
+
+# fetches/caches a copy of tuv el6 srpm superset of their 4 flavors
+mirror-tuv-srpms-el6
+
+# looks at mirror-tuv-srpms-el6 output and generates a list sorted by src
+# pkg build date
+datesort-tuv-el6-srpms
+
+# looks at datesorted output and generates a readable chart
+repochart-tuv-el6
+
+# cross references the outputs of koji-dump-buildinfo and
+# datesort-tuv-el6-srpms, outputting a .csv table of useful status
+# information regarding each available tuv source package
+bs-check-tuv-el6
+
+# gpl tool for .csv -> .html used to generate the big board html from
+# repochart-tuv-el6 output
+csv2html.pl
+
+
+#############################################################################
+#############################################################################
+##
+## srpm repo diffing tools for initial import of deltas to packages/ 
+##
+
+# rpm package signature verification
+sigcheck-tdv-srpms-el6
+sigcheck-tuv-srpms-el6
+
+# generates the list of changed srpms between two repos
+src-pkg-repo-diff--gen-min-srpm-list
+
+# generates elbuild format deltas suitable for initial import
+src-pkg-repo-diff--gen-debug-output
+
+# builds the new srpm repo from deltas and tuv srpm repo
+gen-tdv-srpm-repo
+
+
+#############################################################################
+#############################################################################
+##
+## misc tools
+##
+
+# (at least) for bugzilla's initial components import script
+gen-pkg-list-el6
+
+# simple way for non-root to dump a .iso image to directory of files
+#  - useful to debug/inspect el-build .iso output
+iso-x
+
+# python -m SimpleHTTPDServer.py but uses an existing apache install
+#  - used by el-build to support offline builds against cached repos
+user-httpd
+
+
+#############################################################################
+#############################################################################
+##
+## main build tools
+##
+
+# the wrapper script, dispatches work to subcommand scripts
+el-build
+
+# the main build tool at the moment.  
+#  - currently inputs from koji and outputs composed repos.
+#  - will eventually use koji to take input from gen-tdv-srpm-repo
+bake
+
+# a tool to automate the pushing of individual packages from an
+# unsigned state in koji, to a signed state in a staging area.
+el-push
+
+# the actual workhorse script run inside the throwaway vm that el-build
+# creates.  It invokes pungi/mock/livecd-creator (todo: /koji).
+isobuild-internal
+
+# unfinished tool for taking the output of koji/pungi/livecd-creator and
+# using to populate a staging area suitable for subsequent mirroring to
+# the masses.  Support for user modules defining specific layout logic
+# is being implemented up front.
+populate-staging-repo
+
+# temporary automation script making up for deficiencies in prior scripts
+rename-isos
+
+
+#############################################################################
+#############################################################################
+##
+## shared bash environment (logging/misc library)
+##
+
+# the entrypoint loaded/sourced by scripts making use of the framework
+libx.sh
+
+# user changeable environment settings
+defaults 
+
+# common bash functions
+functions
+
+# common bash code
+common
+
+
+#############################################################################
+#############################################################################
+#############################################################################
+#############################################################################
