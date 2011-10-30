@@ -443,8 +443,8 @@ sleep 2
 #
 
 
-## expose inner processing script (x-run/isobuild-internal) in the docroot
-cp "${x_devdir}/tools/scripts/isobuild-internal" \
+## expose inner processing script (x-run/isobuild) in the docroot
+cp "${x_devdir}/tools/scripts/isobuild" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
 
 ## expose kickstarts for pungi and livecd-creator in the docroot

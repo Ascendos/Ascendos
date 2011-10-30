@@ -379,7 +379,9 @@ wget "${elbuild_docroot}livecd-desktop-x86_64.ks"
 ## install rebootless installation goodness
 cat <<EOF >> "livecd-desktop-x86_64.ks"
 %post --nochroot
-rpm --root \$INSTALL_ROOT -Uvh /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
 sed -i -e "s/fedora-release/ascendos-release/g" \$INSTALL_ROOT/usr/sbin/zyx-liveinstaller-cli
 echo "Ascendos Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
 # on 6.0-alpha zli seems very slow, no need to clutter apps menu with this very,
