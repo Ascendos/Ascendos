@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# el-build: an enterprise linux distro building tool 
+#
+#############################################################################
+#
+# Copyright 2007-2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## el-build
+##
+##
+## DESCRIPTION
+##
+## el-build is a wrapper to a set of tools for rebuilding and forking a
+## popular upstream 'enterprise' linux distribution.  Please see the 
+## accompanying documentation and the ascendos.org website for further
+## information.
+##
+##
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## local constant definitions
+##
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# to enable debug messages if desired
+x_debug=0
+
+# to suppress status messages if desired
+x_quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo "    el-build-command \\"
+    echo "    [command options...]"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+debug "initializing..."
+
+if ((! $#)); then
+    usage
+fi
+
+subcommand="${1}"
+shift
+
+if [ ! -x "${x_devdir}/tools/scripts/${subcommand}" ]; then
+    die "subcommand: ${subcommand}: not found"
+fi
+
+# just a first pass, probably soon to be rewritten in python
+eval "${x_devdir}/tools/scripts/${subcommand}" "$@"
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#
+#
+

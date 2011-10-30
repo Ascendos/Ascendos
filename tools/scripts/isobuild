@@ -85,6 +85,13 @@ x64outroot=/root/el-build-workarea/output
 x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
 outroot=/root/output
 
+# the f13 ones aren't going to change
+# TODO: I couldn't get yumdownloader --source --config= to do what I wanted to
+#       scriptedly get the latest version in the el-build wrapper's caching section
+pigz_version="2.1.6-1"
+mock_version="1.1.15-1"
+livecdtools_version="13.4-1"
+
 #############################################################################
 #############################################################################
 ##
@@ -212,13 +219,13 @@ rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
-#wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-13.4-1.el6.src.rpm
-wget "${cache_root}one-off-files/livecd-tools-13.4-1.el6.src.rpm"
-if ( ! rpm --checksig livecd-tools-13.4-1.el6.src.rpm ); then
+#wget "ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-${livecdtools_version}.el6.src.rpm"
+wget "${cache_root}one-off-files/livecd-tools-${livecdtools_version}.el6.src.rpm"
+if ( ! rpm --checksig "livecd-tools-${livecdtools_version}.el6.src.rpm" ); then
     echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
     exit 1
 fi
-rpmbuild --rebuild livecd-tools-13.4-1.el6.src.rpm
+rpmbuild --rebuild "livecd-tools-${livecdtools_version}.el6.src.rpm"
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 ## get zyx-liveinstaller to support rebootless live media installation
@@ -235,23 +242,23 @@ rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 
 ## get pigz installed, needed by mock
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
-wget "${cache_root}one-off-files/pigz-2.1.6-1.el6.src.rpm"
-if ( ! rpm --checksig pigz-2.1.6-1.el6.src.rpm ); then
+wget "${cache_root}one-off-files/pigz-${pigz_version}.el6.src.rpm"
+if ( ! rpm --checksig "pigz-${pigz_version}.el6.src.rpm" ); then
     echo "${progname}: fatal error, pigz signature could not be verified as correct"
     exit 1
 fi
-rpmbuild --rebuild pigz-2.1.6-1.el6.src.rpm
-rpm -Uvh /rpmbuild/RPMS/x86_64/pigz-2.1.6-1.el6.x86_64.rpm
+rpmbuild --rebuild "pigz-${pigz_version}.el6.src.rpm"
+rpm -Uvh "/rpmbuild/RPMS/x86_64/pigz-${pigz_version}.el6.x86_64.rpm"
 
 ## get mock installed, needed by pungi-x32(i386 output)
-#wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
-wget "${cache_root}one-off-files/mock-1.1.12-1.el6.src.rpm"
-if ( ! rpm --checksig mock-1.1.12-1.el6.src.rpm ); then
+#wget "ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-${mock_version}.el6.src.rpm"
+wget "${cache_root}one-off-files/mock-${mock_version}.el6.src.rpm"
+if ( ! rpm --checksig "mock-${mock_version}.el6.src.rpm" ); then
     echo "${progname}: fatal error, mock signature could not be verified as correct"
     exit 1
 fi
-rpmbuild --rebuild mock-1.1.12-1.el6.src.rpm
-rpm -Uvh /rpmbuild/RPMS/noarch/mock-1.1.12-1.el6.noarch.rpm
+rpmbuild --rebuild "mock-${mock_version}.el6.src.rpm"
+rpm -Uvh "/rpmbuild/RPMS/noarch/mock-${mock_version}.el6.noarch.rpm"
 
 
 ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)

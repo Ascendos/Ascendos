@@ -136,6 +136,10 @@ http://build.ascendos.org/linux/ascendos/6.0
 #mirror_dirs="\
 #"
 
+pigz_version="2.1.6-1"
+mock_version="1.1.15-1"
+livecdtools_version="13.4-1"
+
 # another hardcoded internal list
 mirror_files="\
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
@@ -144,9 +148,9 @@ ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/re
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
-ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-1.1.12-1.el6.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-13.4-1.el6.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-${pigz_version}.el6.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-${mock_version}.el6.src.rpm
+ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-${livecdtools_version}.el6.src.rpm
 "
 
 # to enable debug messages
@@ -215,7 +219,7 @@ function status {
 #
 function debug {
     time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $debug)); then
+    if (($debug)); then
 	echo "${progname}: ${time}: debug: $@"
     fi
     for logfile in $logfiles; do
