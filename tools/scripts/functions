@@ -1,0 +1,145 @@
+#!/bin/bash
+#
+#############################################################################
+#############################################################################
+#
+# xfunctions: utility functions
+#
+#############################################################################
+#
+# Copyright 2007-2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## X funcions
+##
+## utility functions for ${x_toolname} scripts
+##
+
+#############################################################################
+##
+## set default values for undefined globals that are used
+##
+if [ "${x_debug}" == "" ]; then
+    x_debug=0
+fi
+
+if [ "${x_verbose}" == "" ]; then
+    x_verbose=0
+fi
+
+if [ "${x_quiet}" == "" ]; then
+    x_quiet=0
+fi
+
+if [ "${progname}" == "" ]; then
+    progname="libx.sh functions"
+fi
+
+if [ "${logfiles}" == "" ]; then
+    logfiles="/dev/null"
+fi
+
+if [ "${cleanup_command}" == "" ]; then
+    cleanup_command="echo cleaning up..."
+fi
+
+
+#############################################################################
+#############################################################################
+#
+# usage: normalize_path <path>
+#
+# normalize_path will take a path to a file or directory, and return
+# an equivalent non-relative (non-symlink?) path
+#
+# globals used: none
+#
+function normalize_path {
+    result=$( cd $( dirname "${1}" ) ; pwd )/$( basename "${1}" )
+    if (($?)); then
+	die "unexpected problem normalizing path ${1}"
+    else
+	echo "${result}"
+    fi
+}
+
+
+#############################################################################
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: x_quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! "${x_quiet}")); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in ${logfiles}; do
+	echo "${progname}: ${time}: status: $@" >> "${logfile}"
+    done
+}
+
+#############################################################################
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: x_debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if (("${x_debug}")); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in ${logfiles}; do
+	echo "${progname}: ${time}: debug: $@" >> "${logfile}"
+    done
+}
+
+
+#############################################################################
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+#############################################################################
+#############################################################################
+## EOF: only notes below
+#############################################################################
+#############################################################################
+#
+#
