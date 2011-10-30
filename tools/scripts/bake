@@ -3,7 +3,7 @@
 #############################################################################
 #############################################################################
 #
-# el-build: an enterprise linux distro building tool 
+# bake: invoke pungi and livecd-creator to generate iso/repo output
 #
 #############################################################################
 #
@@ -33,12 +33,12 @@
 #############################################################################
 #############################################################################
 ##
-## el-build
+## bake
 ##
 ##
 ## DESCRIPTION
 ##
-## el-build takes as input network or offline access to a bootstrapping
+## bake takes as input network or offline access to a bootstrapping
 ## enterprise linux distro (e.g. SL60/F13) and recently built set of distro
 ## packages (e.g. from koji), and outputs a new installable distro repotree
 ## (e.g. ASC60) suitable for mirroring to the masses.
@@ -47,11 +47,10 @@
 ## LONG TERM ROADMAP
 ##
 ## the input pipeline will be expanded to include:
-## - generating the 'recently built set of distro packages' from access to
-##   the new input of just the .src.rpms for the new distro (i.e. koji)
-## - then another addition to the input pipeline of generating those input
-##   .src.rpms from just the minimal git tree of deltas between that set of
-##   .src.rpms and a pristine set of .src.rpms from the upstream vendor.
+## - taking advantage of gen-tdv-srpm-repos ability to create the input
+##   srpms from the buildtools tree.
+## - then invoking makeworld/koji to generate what is the current input
+##   to bake-isos
 ##
 ##
 ## NOTES
@@ -78,6 +77,9 @@
 #############################################################################
 
 
+#############################################################################
+#############################################################################
+##
 ## TODO
 # - factor main into several large independent functions
 # - ? add option bootstrap_distro_tree=...sl60x64
@@ -88,14 +90,29 @@
 #############################################################################
 #############################################################################
 ##
-## get runtime environment
+## local constant definitions
 ##
-starttime="$( date +%Y%m%d%H%M%S )"
-progname="$( basename $0 )"
-progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 ) )
-rundir="$( pwd )"
-mypid=$$
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
+
 
 
 #############################################################################
@@ -109,11 +126,12 @@ distroname_def="Ascendos"
 distrover_def="6.0"
 offline_def="no"
 distrorelname_def="nameless"
-# presumption is to first check in ./, then devroot/6/distrover/
+# presumption is to first check in ./, then x_devdir/6/distrover/
 config_x64_def="pungi-x86_64.ks"
 config_x32_def="pungi-i386.ks"
 outputdir_def="${rundir}/${progname}-output"
-homedotdir_def="${HOME}/.${progname}"
+#homedotdir_def="${HOME}/.${progname}"
+homedotdir_def="${HOME}/.${x_toolname}"
 cachedir_def="${homedotdir_def}/cache"
 if [ "${TMPDIR}" != "" ]; then
     tmpdir_def="${TMPDIR}"
@@ -153,11 +171,11 @@ ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-${mock_version}.el6.src.rpm
 ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-${livecdtools_version}.el6.src.rpm
 "
 
-# to enable debug messages
-debug=1
+# to enable debug messages if desired
+x_debug=1
 
-# to suppress status messages
-quiet=0
+# to suppress status messages if desired
+x_quiet=0
 
 
 #############################################################################
@@ -192,55 +210,6 @@ function usage {
 
 
 #############################################################################
-#
-# usage: status <message...>
-#
-# wrapper for sending status messages to console and log
-#
-# globals used: quiet, progname, logfiles(not required)
-#
-function status {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $quiet)); then
-	echo "${progname}: ${time}: status: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: status: $@" >> $logfile
-    done
-}
-
-#############################################################################
-#
-# usage: debug <message...>
-#
-# wrapper for sending debug messages to console and log
-#
-# globals used: debug, progname, logfiles(not required)
-#
-function debug {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if (($debug)); then
-	echo "${progname}: ${time}: debug: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: debug: $@" >> $logfile
-    done
-}
-
-
-#############################################################################
-#
-# usage: die <message...>
-#
-# issue last words
-#
-function die {
-    status "$@"
-    exit 1
-}
-
-
-#############################################################################
 #############################################################################
 ##
 ## main
@@ -248,11 +217,6 @@ function die {
 
 status "initializing..."
 
-#############################################################################
-### calculate tree root and set up environment
-elbuild_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 )
-debug "devroot is ${elbuild_devroot}"
 
 # note: presumption is that el-build is run from within it's own
 #       developtment tree, e.g. 
@@ -415,18 +379,19 @@ fi
 
 # trust our own copies of the keys, instead of theoretical mitm 
 # during the download of the src.rpms from the same server
-cp "${elbuild_devroot}/security/keys/RPM-GPG-KEY-"* \
+cp "${x_devdir}/security/keys/RPM-GPG-KEY-"* \
     "${cachedir}/one-off-files/"
 
 # note: ugly(?) temporary workaround that will be obsolete no later than the 
 #       time when koji/makeworld show up in el-build
+# todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
 createrepo \
     "${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
 createrepo \
-    -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-x86_64.xml" \
+    -g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
     "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
 createrepo \
-    -g "${elbuild_devroot}/6/6.0/configs/comps-asc6-i386.xml" \
+    -g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
     "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
 
 # perhaps this never was needed if I had not been using offline=yes before recovering
@@ -465,8 +430,8 @@ sleep 2
 killall -KILL httpd > /dev/null 2>&1
 sleep 2
 # launch the httpd daemon
-"${elbuild_devroot}/tools/el-build/user-httpd" \
-    8421 \
+"${x_devdir}/tools/scripts/user-httpd" \
+    "${x_builder_user_httpd_port}" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc" \
     start
@@ -478,21 +443,21 @@ sleep 2
 #
 
 
-## expose inner processing script (x-run/isobuild) in the docroot
-cp "${elbuild_devroot}/tools/el-build/isobuild" \
+## expose inner processing script (x-run/isobuild-internal) in the docroot
+cp "${x_devdir}/tools/scripts/isobuild-internal" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
 
 ## expose kickstarts for pungi and livecd-creator in the docroot
-cp "${elbuild_devroot}/6/6.0/configs/"*.ks \
+cp "${x_devdir}/6/6.0/configs/"*.ks \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
 ## expose pungi i386 mock config in the docroot
-cp "${elbuild_devroot}/6/6.0/configs/mock-"*.cfg \
+cp "${x_devdir}/6/6.0/configs/mock-"*.cfg \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
 
 ### create throwaway vm's .ks from template, placed in docroot
-cp "${elbuild_devroot}/tools/el-build/min-el60-x64.ks" \
+cp "${x_devdir}/6/6.0/configs/min-el60-x64.ks" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
 #############################################################################
@@ -585,10 +550,37 @@ qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
 
 #############################################################################
 #
+## check for cached copy of throwaway vm
+#
+
+# see if cached copy exists by calculating filename based on sha256 checksum
+vm_cfg_checksum=$( sha256sum \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks" \
+    | awk '{print $1}')
+
+if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
+    rm -f "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+    cp -a --sparse=always \
+	"${cachedir}/vm-${vm_cfg_checksum}.img" \
+	"${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+    touch "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img.fromcache"
+    virt-install \
+	--import \
+	--name="${progname}-${starttime}-${mypid}" \
+	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
+	--disk="${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	--disk="${tmpdir}/${starttime}.${mypid}.vm/output.img" \
+	--ram="${x_builder_vm_memory}" \
+	--noreboot \
+	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks"
+else
+
+#############################################################################
+#
 ## run netinst(all) on/to throwaway vm disk image
 #
 
-# TODO: not actually cleaning anything up yet
+# TODO: not actually cleaning anything up yet, up to the user
 #virsh destroy "${progname}-${starttime}-${mypid}"
 #virsh undefine "${progname}-${starttime}-${mypid}"
 
@@ -601,26 +593,21 @@ qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
 #       for the netinst here (just boot.iso? or does virt-install pull the
 #       kernel and initrd from PXE/pxeboot directories?)
 
-virt-install \
-    --name="${progname}-${starttime}-${mypid}" \
-    --location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
-    --disk="${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-    --disk="${tmpdir}/${starttime}.${mypid}.vm/output.img" \
-    --ram=768 \
-    --noreboot \
-    -x "ks=http://10.0.2.2:8421/min-el60-x64.ks"
+    virt-install \
+	--name="${progname}-${starttime}-${mypid}" \
+	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
+	--disk="${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	--disk="${tmpdir}/${starttime}.${mypid}.vm/output.img" \
+	--ram="${x_builder_vm_memory}" \
+	--noreboot \
+	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks"
 
-# note: this doesn't seem to work at all (due to virt-install signatures? 
-#       qemu-img qcow2 requirements?
-#mv \
-#    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-#    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" 
-#qemu-img create -f qcow2 \
-#    -b "${tmpdir}/${starttime}.${mypid}.vm/sysroot.freshinstall.img" \
-#    "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
-# TODO: above is indicating a desire/intent to be able to cache the
-#       freshinstall img for use in subsequent run. 
-
+    # cache a pristine copy for future runs
+    # note: could use qemu-img or other snapshots, but those may have performance issues
+    cp -a --sparse=always \
+	"${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	"${cachedir}/vm-${vm_cfg_checksum}.img"
+fi
 
 #############################################################################
 #
@@ -631,7 +618,7 @@ virsh start "${progname}-${starttime}-${mypid}"
 # wait until processing is complete
 xdone=0
 while ((! $xdone)); do
-    sleep 30
+    sleep "${x_builder_vm_shutdown_polling_frequency}"
     if $( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
 	xdone=1
     fi
