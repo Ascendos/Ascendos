@@ -341,6 +341,7 @@ for dependent_bootstrap_os in ${dependent_bootstrap_os_list}; do
     koji add-tag --arches "i686,x86_64" "${os_abbrev}-build"
     koji add-target "${os_abbrev}" "${os_abbrev}-build" "${os_abbrev}"
     koji add-group "${os_abbrev}-build" build
+    # todo: obvious listification
     koji add-group-pkg "${os_abbrev}-build" build bash bzip2 coreutils cpio diffutils findutils gawk
     koji add-group-pkg "${os_abbrev}-build" build gcc gcc-c++ grep gzip info make patch redhat-rpm-config
     koji add-group-pkg "${os_abbrev}-build" build rpm-build sed shadow-utils tar unzip util-linux-ng which
@@ -381,7 +382,6 @@ for srpm in ${srpm_list}; do
     koji add-pkg --owner=ascendos-team sl60 "${pkg_n}"
 done
 
-
 #
 # BIG NOTE: this here is just the crudest first pass at a completely 
 #           automated build.  Interesting questions such as whether a 6.1 update
@@ -414,13 +414,16 @@ done
 #           Or I could still totally be misunderstanding something subtle (or even 'obvious')
 #
 #
+
 pushd  "${outroot}/koji"
 
 for srpm in ${srpm_list}; do
     xdone=0
     for bs_os in ${bs_os_abbrevs}; do
 	echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
-	if $( koji build "${bs_os}" "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}" ); then
+	wget "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}"
+	if $( koji build "${bs_os}" "${srpm}" ); then
+	    rm -f "${srpm}"
 	    pkg_nvr=$( basename "${srpm}" .src.rpm )
 	    koji download-build "${pkg_nvr}"
 	    echo "DEBUG: seemed to build ok..."
