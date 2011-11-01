@@ -3,7 +3,8 @@
 #############################################################################
 #############################################################################
 #
-# isobuild: a complete and deterministic environment and wrapper for pungi
+# isobuild: a complete and deterministic environment and wrapper for pungi,
+#           livecd-creator, and koji distro build and compose tools.
 #
 #############################################################################
 #
@@ -107,7 +108,8 @@ cd /root
 # keep screen from blanking (perhaps this should be in el-build only)
 setterm -blank 0
 
-# pungi requires selinux not be enforcing
+# pungi requires selinux not be enforcing 
+# and makeworld too, though perhaps that can be fixed
 setenforce 0
 
 
@@ -125,6 +127,21 @@ enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
 EOF
+
+cat <<EOF > /etc/yum.repos.d/asc-src.repo
+[asc-src]
+name=Ascendos - sources
+baseurl=${cache_root}build.ascendos.org___linux__ascendos__SRPMS/
+enabled=0
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
+EOF
+
+# quick sanity test of above
+yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
+echo "DMCDEBUG: checking anaconda src.rpm download"
+ls -l anaconda*.src.rpm
+
 
 #cp /etc/yum.repos.d/sl.repo /etc/yum.repos.d/sl.repo.orig
 # no need for updates (until an os bug requiring one hits us)
@@ -148,8 +165,8 @@ yum -y install zlib-devel
 # for rpmdev-setuptree (not used) 
 #yum -y install rpm-build
 
-# for general utility (not used)
-#yum -y install lftp
+# for general utility 
+yum -y install lftp
 
 # for external data pulling (should already be installed
 yum -y install wget
@@ -172,10 +189,20 @@ yum -y install anaconda-runtime
 # or alternately without bringing 'all' of epel into things-
 
 ## install pubkeys for verifying .src.rpm signatures
-#wget ${fedora_mirror_root}/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
+
+
+# for yumdownloader workaround downloading of anaconda src.rpm (at least)
+#wget "${ascendos_mirror_root}/GPG/RPM-GPG-KEY-ascendos-alpha"
+wget "${cache_root}one-off-files/RPM-GPG-KEY-ascendos-alpha"
+rpm --import RPM-GPG-KEY-ascendos-alpha
+#wget "${ascendos_mirror_root}/GPG/RPM-GPG-KEY-ascendos-alpha-dmc"
+wget "${cache_root}one-off-files/RPM-GPG-KEY-ascendos-alpha-dmc"
+rpm --import RPM-GPG-KEY-ascendos-alpha-dmc
+
+#wget "${fedora_mirror_root}/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary"
 wget "${cache_root}one-off-files/RPM-GPG-KEY-fedora-13-primary"
 rpm --import RPM-GPG-KEY-fedora-13-primary
-#wget wget ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
+#wget "wget ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6"
 wget "${cache_root}one-off-files/RPM-GPG-KEY-EPEL-6"
 rpm --import RPM-GPG-KEY-EPEL-6
 
@@ -238,6 +265,7 @@ fi
 rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 # TODO: use result when invoking livecd-tools 
 #       /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+# TODO: post alpha, depending on consensus, only put zli in a descendent 'DescendOS' 'strain'
 
 
 ## get pigz installed, needed by mock
@@ -260,6 +288,154 @@ fi
 rpmbuild --rebuild "mock-${mock_version}.el6.src.rpm"
 rpm -Uvh "/rpmbuild/RPMS/noarch/mock-${mock_version}.el6.noarch.rpm"
 
+
+## run koji to generate pungi/livecd-create binary rpm input from the full dev tree
+
+# get the full devtree
+wget -O /tmp/devtree.tar.bz2 "${elbuild_docroot}devtree.tar.bz2"
+mkdir /root/devtree
+tar -C /root/devtree -xvf /tmp/devtree.tar.bz2
+
+mkfs.ext3 -O sparse_super /dev/sdc
+mkdir /mnt/space
+mount /dev/sdc /mnt/space
+mkdir /mnt/space/el-build
+cp -av /root/devtree/Ascendos/6/build/koji-setup-scripts \
+     /mnt/space/el-build/scripts
+
+mkdir -p "${outroot}"
+mkdir -p "${outroot}/logs"
+mkdir "${outroot}/6.0"
+
+
+# TODO: need to add epel or appropriate subset to offline cached mirrors
+#       but for initial testing, just aiming for a first automated
+#       and successful package build
+yum -y install yum-conf-epel
+
+pushd /mnt/space/el-build/scripts
+bash ./makeworld
+
+# todo: fix this in makeworld
+chkconfig postgresql on
+
+# dmc: It would be my guess that it is worth 'modifying' more source packages 
+#      such that this list could be reduced to ideally a single entry
+dependent_bootstrap_os_list="\
+sl60:http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0/\$arch/os/
+f13:http://archives.fedoraproject.org:/pub/archive/fedora/linux/releases/13/Everything/\$arch/os/
+f12:http://archives.fedoraproject.org:/pub/archive/fedora/linux/releases/12/Everything/\$arch/os/
+rhel6beta:ftp://mirrors.kernel.org:/pub/redhat/redhat/rhel/beta/6/\arch/os/
+"
+
+# and our build repo
+koji add-external-repo ascendos-build http://build.ascendos.org/linux/ascendos/build/\$arch/
+
+bs_os_abbrevs=""
+# create a build target for each dependent bootstrapping os
+for dependent_bootstrap_os in ${dependent_bootstrap_os_list}; do
+    os_repo=$( echo "${dependent_bootstrap_os}" | sed -e 's/[^:]*://' )
+    os_abbrev=$( echo "${dependent_bootstrap_os}" | sed -e 's/:.*//' )
+    bs_os_abbrevs="${bs_os_abbrevs} ${os_abbrev}"
+
+
+    koji add-tag "${os_abbrev}"
+    koji add-tag --arches "i686,x86_64" "${os_abbrev}-build"
+    koji add-target "${os_abbrev}" "${os_abbrev}-build" "${os_abbrev}"
+    koji add-group "${os_abbrev}-build" build
+    koji add-group-pkg "${os_abbrev}-build" build bash bzip2 coreutils cpio diffutils findutils gawk
+    koji add-group-pkg "${os_abbrev}-build" build gcc gcc-c++ grep gzip info make patch redhat-rpm-config
+    koji add-group-pkg "${os_abbrev}-build" build rpm-build sed shadow-utils tar unzip util-linux-ng which
+    # experimental, will this work?? (instead of sl-release, fedora-release, etc
+    koji add-group-pkg "${os_abbrev}-build" build system-release
+    koji add-group-pkg "${os_abbrev}-build" build buildsys-macros-el6
+
+    # create the repo
+    koji add-external-repo "${os_abbrev}-base" "${os_repo}"
+    # cause it to be used for builds with abbrev-build build tag (src or dest, I forget)
+    koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
+    # cause the ascendos-build repo to be used for each of the build-targets
+    koji add-external-repo ascendos-build -t "${os_abbrev}-build"
+done
+
+# todo, this repo needs to get generated from the new gen-tdv-srpm-repo script, and the list
+# with the reverse builddate sorting
+srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org___linux__ascendos__SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
+echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
+
+# FIXME:initial dev/debug
+srpm_list="\
+libXfixes-4.0.4-1.el6.src.rpm
+"
+
+pkg_list=""
+for srpm in ${srpm_list}; do
+    pkg_nvr=$( basename "${srpm}" .src.rpm )
+    pkg_nv=$( "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+    pkg_n=$( "${pkg_nv}" | sed -e 's/-[^-]*$//' )
+    # better to do this with a local copy of the package and rpm query with format
+    pkg_list="${pkg_list} ${pkg_n}"
+
+    # does it matter that this isn't choosing initial tag/target
+    # based on what they end up getting built against?
+    koji add-pkg --owner=ascendos-team sl60 "${pkg_n}"
+done
+
+
+
+#
+# BIG NOTE: this here is just the crudest first pass at a completely 
+#           automated build.  Interesting questions such as whether a 6.1 update
+#           should be built against the 6.0 output, or more importantly, if all
+#           the 6.0 output should be rebuilt against itself, are currently left
+#           as topics for further discussion and solidification as automation logic.
+#           myself, I'd prefer, if it turned out to be possible/feasible/practical,
+#           to make enough package changes that a bootstrap from _just_ f13, _or_
+#           centos5x was possible.  But that is all post-beta fodder if not post 
+#           main release.
+#
+#           What is here for this first pass represents what I think Troy expected
+#           would work as a general algorithm.  I.e. try sl60, then f13, then f12,
+#           then rhel6beta, and if one of those latter ones works, that is fine to
+#           use instead of alternately trying to modify the src.rpm.  Personally,
+#           it just feels wrong to me mixing binaries built against these radically
+#           different buildroots, but I'll grant the best path is to get that full
+#           working as a deployable release to the masses, and if desired, worrying
+#           about simplified bootstrapping post-release.  Or the quite real possibility
+#           that as I grok things better, it wil radically change my impression of
+#           where the code should end up at.
+#
+#           Also, I think Troy with the existing build.ascendos.org/koji had packages
+#           feeding back into the koji-external-repos, unlike here.  That gets to 
+#           the question above, and if strongly desired could be added here.  Though
+#           that seems to me to be very wonky, as envisioned by the case of dozens
+#           of koji build nodes, and trying to spawn hundreds of new package updates
+#           simultaneously, and i.e. the nondeterminism in the contents of their
+#           buildroots based on what other packages had finished before they started.
+#           Or I could still totally be misunderstanding something subtle (or even 'obvious')
+#
+#
+
+for srpm in ${srpm_list}; do
+    xdone=0
+    for bs_os in ${bs_os_abbrevs}; do
+	echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
+	if $( koji build "${bs_os}" "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}" ); then
+	    echo "DEBUG: seemed to build ok..."
+	    sleep 300
+	    xdone=1
+	else
+	    echo "DEBUG: seemed NOT to build ..."
+	    sleep 300
+	fi
+    done
+done
+
+# TODO: iterate over input packages and use el-push to arrange into
+#       an output structure suitable for pungi here below (instead of 
+#       its current use of published builds
+
+popd
 
 ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
 mkdir /root/el-build-workarea
@@ -447,6 +623,10 @@ mv "${x32outroot}/6.0/i386" \
 # sources
 mv "${x32outroot}/6.0/source" \
     "${outroot}/6.0/"
+
+# bug workaround (TODO a bit cleaner after the first test)
+cp /root/anaconda*.src.rpm \
+    "${outroot}/6.0/source/SRPMS/"
 
 
 # prepare output for the external user
