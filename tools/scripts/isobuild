@@ -137,11 +137,8 @@ gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
 EOF
 
-# quick sanity test of above
+# sanity test of above, and workaround for a pungi bug
 yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
-echo "DMCDEBUG: checking anaconda src.rpm download"
-ls -l anaconda*.src.rpm
-
 
 #cp /etc/yum.repos.d/sl.repo /etc/yum.repos.d/sl.repo.orig
 # no need for updates (until an os bug requiring one hits us)
@@ -315,6 +312,7 @@ yum -y install yum-conf-epel
 
 pushd /mnt/space/el-build/scripts
 bash ./makeworld
+popd
 
 # todo: fix this in makeworld
 chkconfig postgresql on
@@ -368,6 +366,8 @@ srpm_list="\
 libXfixes-4.0.4-1.el6.src.rpm
 "
 
+mkdir "${outroot}/koji"
+
 pkg_list=""
 for srpm in ${srpm_list}; do
     pkg_nvr=$( basename "${srpm}" .src.rpm )
@@ -380,7 +380,6 @@ for srpm in ${srpm_list}; do
     # based on what they end up getting built against?
     koji add-pkg --owner=ascendos-team sl60 "${pkg_n}"
 done
-
 
 
 #
@@ -415,27 +414,27 @@ done
 #           Or I could still totally be misunderstanding something subtle (or even 'obvious')
 #
 #
+pushd  "${outroot}/koji"
 
 for srpm in ${srpm_list}; do
     xdone=0
     for bs_os in ${bs_os_abbrevs}; do
 	echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
 	if $( koji build "${bs_os}" "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}" ); then
+	    pkg_nvr=$( basename "${srpm}" .src.rpm )
+	    koji download-build "${pkg_nvr}"
 	    echo "DEBUG: seemed to build ok..."
-	    sleep 300
-	    xdone=1
 	else
 	    echo "DEBUG: seemed NOT to build ..."
-	    sleep 300
 	fi
     done
 done
 
+popd
+
 # TODO: iterate over input packages and use el-push to arrange into
 #       an output structure suitable for pungi here below (instead of 
 #       its current use of published builds
-
-popd
 
 ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
 mkdir /root/el-build-workarea
