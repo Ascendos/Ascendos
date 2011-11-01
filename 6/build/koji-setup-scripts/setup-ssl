@@ -12,7 +12,7 @@ for i in TOP HOSTNAME HTTPDCONF PKI SSL_SUBJ WIPEDATA; do
 	if [ \$$i ]; then
 		echo -n "$i "
 		eval n=\$$i
-		if [ ! $n ]; then
+		if [ ! "${n}" ]; then
 			echo
 			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
 			exit 1
@@ -235,6 +235,14 @@ if [ $WIPEDATA == "1" ]; then
 
 	echo "Making joe pleb users that use emailAddress in the DN"
 
+	# Ascendos: this worksaround a current problem, though for all I know in a non
+	#           offline/singleuser/automated environment like el-build, maybe this
+	#           has other negative repurcussions and should be resolved another way.
+	cp ./index.txt.attr ./not.index.txt.attr.not
+	cat <<EOF > ./index.txt.attr 
+unique_subject = no
+EOF
+
 	for user in kojira $HOSTNAME $USERLIST; do
 		echo
 		echo "=============================================================="
@@ -263,7 +271,7 @@ if [ $WIPEDATA == "1" ]; then
 			-cert		${caname}_ca_cert.crt \
 			-outdir 	certs \
 			-out		certs/${user}.crt \
-			-infiles	certs/${user}.csr
+			-infiles	certs/${user}.csr 
 
 		echo "Generate human readable pem file"
 		cat certs/${user}.crt certs/${user}.key > ${user}.pem

@@ -15,7 +15,7 @@ for i in TOP KOJIPASS; do
 	if [ \$$i ]; then
 		echo -n "$i "
 		eval n=\$$i
-		if [ ! $n ]; then
+		if [ ! "${n}" ]; then
 			echo
 			echo "conf error: $i is NOT defined/set in the defaults file. exiting."
 			exit 1

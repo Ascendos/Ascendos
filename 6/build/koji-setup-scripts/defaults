@@ -6,7 +6,8 @@
 REPO_LOCAL_MAIN="http://koji-server/repo/ascendos/6rolling/\$arch/os/"
 # This dictates the top level directory under which all the files used by
 # koji will reside
-TOP=/srv
+#TOP=/srv
+TOP=/mnt/space/el-build
 
 # This is simply to define where the koji setup scripts will be run from.
 # generaly you wouldn't need to change this
@@ -16,7 +17,8 @@ SUBDIR=scripts
 HOSTNAME=`hostname --long`
 
 #domain for email notifications
-EMAILDOMAIN=ascendos.org
+# set this to something meaningful to receive automated koji emails
+EMAILDOMAIN=example.com
 
 #smtp host for email
 SMTPHOST=localhost
@@ -46,7 +48,8 @@ HTTPDIR=/etc/httpd/conf.d
 # config, koji_ca_cert.crt <user>.pem and optionally <user_browser_cert>.p12
 # the <user>.pem files can be found in /etc/pki/koji/certs
 # minimally you need to define koji here
-KOJILOCALUSER="kojira ascendos-team dawson"
+# KOJILOCALUSER="kojira ascendos-team dmc"
+KOJILOCALUSER="kojira ascendos-team"
 KOJIADMINUSER="kojira ascendos-team"
 USERLIST="koji $KOJILOCALUSER"
 
