@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# datesort-tuv-el6-srpms generates a date sorted package list given
+#                        a directory of tuv-el6 srpms as input
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## datesort-tuv-el6-srpms \
+##     [<inputdir>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] \
+##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted]
+##
+##
+## DESCRIPTION
+##
+## output a list of the srpms in the inputdir, sorted by their (src)package
+## build date.
+##
+##
+## NOTES
+##
+## -
+##
+#############################################################################
+
+
+## TODO
+# - use rsync
+# - ...
+#
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y-%m-%d--%H-%M-%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# excessive and/or amusing vendor name use avoidance
+tuv_name_lc_enc="erqung"
+
+flavors="\
+6Server
+6Workstation
+6ComputeNode
+6Client
+"
+
+# to enable debug messages
+debug=1
+
+# to suppress status messages
+quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} <output directory>\\"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if (($debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: old_school_crypto <string>
+#
+# probably overkill avoidance of explicit TUV referencing
+#
+function old_school_crypto {
+    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+debug "initializing..."
+
+tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
+
+inputdir=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+if [ $# -eq 0 ]; then 
+    inputdir=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+    output=$( readlink -f "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted" )
+elif [ $# -eq 1 ]; then 
+    inputdir=$( readlink -e "${1}" )
+    output="-"
+elif [ $# -eq 2 ]; then 
+    inputdir=$( readlink -e "${1}" )
+    output=$( readlink -f "${2}" )
+else
+    usage
+fi
+
+if [ ! -d "${inputdir}" ]; then
+    die "input directory ${inputdir} does not exist"
+fi
+
+if [ -f "${output}" ]; then
+    die "output ${output} already exists"
+fi
+
+tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+
+mkdir -p "${tmpdir}"
+
+debug "processing input, retrieving package build times, this may take a few minutes..."
+
+for file in $( ls -1A "${inputdir}/"*.src.rpm ); do
+    pkg=$( basename "${file}" .src.rpm )
+    pkg_buildtime_eseconds=$( rpm -q --queryformat="%{BUILDTIME}" -p "${file}" )
+    pkg_buildtime_date=$( rpm -q --queryformat="%{BUILDTIME:date}" -p "${file}" )
+    printf \
+	-v printf_output \
+	"%011d | %-69s | %s |" \
+	"${pkg_buildtime_eseconds}" \
+	"${pkg}" \
+	"${pkg_buildtime_date}" 
+    echo -en "${printf_output}\n" >> "${tmpdir}/pkg_list_with_buildtimes.txt"
+done
+
+
+cat "${tmpdir}/pkg_list_with_buildtimes.txt" \
+    | sort \
+    | sed -e 's/^[^:]*:: //' \
+    | sed -e 's/[0-9]* //' \
+    > "${tmpdir}/pkg_list_with_buildtimes.sorted.txt" 
+
+if [ "${output}" == "-" ]; then
+    cat "${tmpdir}/pkg_list_with_buildtimes.sorted.txt"
+else
+    cat "${tmpdir}/pkg_list_with_buildtimes.sorted.txt" \
+	> "${output}"
+fi
+
+debug "cleaning up temporary files..."
+rm -rf "${tmpdir}"
+
+debug "done."
+

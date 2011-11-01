@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+progname=$( basename "${0}" )
+
+if [ $# -ne 2 ]; then
+    echo "usage: ${progname} <el-build-output-dir> <newly-arranged-output-dir>"
+    exit 1
+fi
+
+indir="${1}"
+outdir="${2}"
+
+echo "${progname}: status: indir is ${indir}"
+echo "${progname}: status: outdir is ${outdir}"
+
+if [ ! -d "${indir}" ]; then
+    echo "${progname}: fatal error: indir does not exist"
+fi
+
+if [ -d "${outdir}" ]; then
+    echo "${progname}: fatal error: outdir already exists"
+fi
+
+x64outroot="${indir}/root/pungi-workarea/output"
+x32outroot="${indir}/var/lib/mock/mock-for-pungi-el6-i386/root/root/pungi-workarea/output"
+
+mkdir -p "${outdir}"
+
+mkdir -p "${outdir}/test"
+
+mkdir -p "${outdir}/test/6.0"
+
+mkdir -p "${outdir}/test/6.0/alpha-rc1"
+
+mkdir -p "${outdir}/test/6.0/alpha-rc1/os"
+mkdir -p "${outdir}/test/6.0/alpha-rc1/iso"
+mkdir -p "${outdir}/test/6.0/alpha-rc1/updates"
+
+#
+# file categories
+#
+
+# note: test=release would be used to signify final bits with
+#        no test name (e.g. alpha-rc1) subdir after the ver subdir
+
+# file category: ver=6.0 test=alpha-rc1 arch=x32 os
+mkdir -p "${outdir}/test/6.0/alpha-rc1/os/i386"
+rsync -av \
+    "${x32outroot}/6.0/i386/os/" \
+    "${outdir}/test/6.0/alpha-rc1/os/i386"
+
+# file category: ver=6.0 test=alpha-rc1 arch=x64 os
+mkdir -p "${outdir}/test/6.0/alpha-rc1/os/x86_64"
+rsync -av \
+    "${x64outroot}/6.0/x86_64/os/" \
+    "${outdir}/test/6.0/alpha-rc1/os/x86_64"
+
+
+# note: unify sources from both of the arch builds
+# todo: verify same named files are same file, and merge/create repo
+
+# file category: ver=6.0 test=alpha-rc1 arch=src(from x64 compose) type=os
+mkdir -p "${outdir}/test/6.0/alpha-rc1/os/source/SRPMS"
+rsync -av \
+    "${x64outroot}/6.0/source/SRPMS/" \
+    "${outdir}/test/6.0/alpha-rc1/os/source/SRPMS"
+# file category: ver=6.0 test=alpha-rc1 arch=src(from x32 compose) type=os
+rsync -av \
+    "${x32outroot}/6.0/source/SRPMS/" \
+    "${outdir}/test/6.0/alpha-rc1/os/source/SRPMS"
+
+mkdir -p "${outdir}/test/6.0/alpha-rc1/iso/i386"
+# file category: ver=6.0 test=alpha-rc1 arch=x32 type=iso
+rsync -av \
+    "${x32outroot}/6.0/i386/iso/" \
+    "${outdir}/test/6.0/alpha-rc1/iso/i386"
+
+# file category: ver=6.0 test=alpha-rc1 arch=x64 type=iso
+mkdir -p "${outdir}/test/6.0/alpha-rc1/iso/x86_64"
+rsync -av \
+    "${x64outroot}/6.0/x86_64/iso/" \
+    "${outdir}/test/6.0/alpha-rc1/iso/x86_64"
+
+# file category: ver=6.0 test=alpha-rc1 arch=x32 type=updates
+mkdir -p "${outdir}/test/6.0/alpha-rc1/updates/i386"
+# file category: ver=6.0 test=alpha-rc1 arch=x64 type=updates
+mkdir -p "${outdir}/test/6.0/alpha-rc1/updates/x86_64"
+# file category: ver=6.0 test=alpha-rc1 arch=src type=updates
+# note: could be kept in same dir as ver-os-src, or even just os-src
+#       (i.e. there is guaranteed uniqueness of filenames amongst all those) 
+mkdir -p "${outdir}/test/6.0/alpha-rc1/updates/source"
+
+
+

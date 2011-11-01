@@ -133,11 +133,7 @@ outputdir_def="${rundir}/${progname}-output"
 #homedotdir_def="${HOME}/.${progname}"
 homedotdir_def="${HOME}/.${x_toolname}"
 cachedir_def="${homedotdir_def}/cache"
-if [ "${TMPDIR}" != "" ]; then
-    tmpdir_def="${TMPDIR}"
-else
-    tmpdir_def="${homedotdir_def}/tmp"
-fi
+bake_tmpdir_def="${homedotdir_def}/tmp"
 clear_bootstrapos_repodata_def="no"
 
 # a rather internally hardcoded list for the first pass
@@ -196,7 +192,7 @@ function usage {
     echo "    [config_x32=${config_x32_def}] \\"
     echo "    [outputdir=${outputdir_def}] \\"
     echo "    [cachedir=${cachedir_def}] \\"
-    echo "    [tmpdir=${tmpdir_def}] \\"
+    echo "    [${bake_tmpdir}=${bake_tmpdir}_def}] \\"
     echo "    [builtrepo=${builtrepo_def}]"
     echo ""
     echo "All arguments are optional, with default values shown as above."
@@ -236,7 +232,7 @@ config_x32="${config_x32_def}"
 outputdir="${outputdir_def}"
 homedotdir="${homedotdir_def}"
 cachedir="${cachedir_def}"
-tmpdir="${tmpdir_def}"
+bake_tmpdir="${bake_tmpdir_def}"
 builtrepo="${builtrepo_def}"
 
 
@@ -375,34 +371,44 @@ else
 
     done
 
+    # note: ugly(?) temporary workaround that will be obsolete no later than the 
+    #       time when koji/makeworld show up in el-build
+    # todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
+    createrepo \
+	"${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
+    createrepo \
+	-g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
+	"${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
+    createrepo \
+	-g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
+	"${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
+
+    ## create multiarch repo structure usable by koji
+    # TODO: total temporary hack, long term the first thing that comes to mind
+    #       is having this mirroring code, seperated out into a seperate script,
+    #       and using a config file for target directories, and encoding effectively
+    #       the entire url (including scheme, e.g. rsync/http/ftp) and target directory.
+    #       I.e. an evolution beyond what viros' does with vmirmog to resolve the 
+    #       issue of making it simple to seperate the phases of 'pull stuff from net'
+    #       and 'convert that stuff to the output'.
+    mkdir -p \
+	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0"
+    mkdir -p \
+	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386"
+    mkdir -p \
+	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64"
+    ln -s \
+	../../ftp.scientificlinux.org___linux__scientific__6.0__i386__os \
+	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386/os"
+    ln -s \
+	../../ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os \
+	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64/os"
 fi
 
 # trust our own copies of the keys, instead of theoretical mitm 
 # during the download of the src.rpms from the same server
 cp "${x_devdir}/security/keys/RPM-GPG-KEY-"* \
     "${cachedir}/one-off-files/"
-
-# note: ugly(?) temporary workaround that will be obsolete no later than the 
-#       time when koji/makeworld show up in el-build
-# todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
-createrepo \
-    "${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
-createrepo \
-    -g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
-    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
-createrepo \
-    -g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
-    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
-
-# perhaps this never was needed if I had not been using offline=yes before recovering
-# from a prior bug
-#createrepo \
-#    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-x86_64.xml" \
-#    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os"
-#createrepo \
-#    -g "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repodata/comps-sl6-i386.xml" \
-#    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__i386__os"
-
 
 
 #############################################################################
@@ -459,6 +465,11 @@ cp "${x_devdir}/6/6.0/configs/mock-"*.cfg \
 ### create throwaway vm's .ks from template, placed in docroot
 cp "${x_devdir}/6/6.0/configs/min-el60-x64.ks" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
+
+### give a full copy of the devtree to the vm
+tar -C $( dirname "${x_devdir}" ) -cvjf \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/devtree.tar.bz2" \
+    $( basename "${x_devdir}" )
 
 #############################################################################
 #
@@ -543,9 +554,13 @@ sed -i \
 #
 ## create throwaway vm disk image
 #
-mkdir -p "${tmpdir}/${starttime}.${mypid}.vm"
-qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 77G
-qemu-img create "${tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
+mkdir -p "${bake_tmpdir}/${starttime}.${mypid}.vm"
+# TODO: hide output (I want to bring in viros' libvsys.sh veva wrapper, but
+#       probably better to wait at least till a pythonified el-build wrapper
+#       sets up environment with debug logfilenames if such was enabled
+qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 77G
+qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
+qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" 77G
 
 
 #############################################################################
@@ -559,17 +574,17 @@ vm_cfg_checksum=$( sha256sum \
     | awk '{print $1}')
 
 if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
-    rm -f "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+    rm -f "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
     cp -a --sparse=always \
 	"${cachedir}/vm-${vm_cfg_checksum}.img" \
-	"${tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
-    touch "${tmpdir}/${starttime}.${mypid}.vm/sysroot.img.fromcache"
+	"${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+    touch "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img.fromcache"
     virt-install \
 	--import \
 	--name="${progname}-${starttime}-${mypid}" \
-	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
-	--disk="${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-	--disk="${tmpdir}/${starttime}.${mypid}.vm/output.img" \
+	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/output.img" \
+	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
 	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks"
@@ -596,16 +611,19 @@ else
     virt-install \
 	--name="${progname}-${starttime}-${mypid}" \
 	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
-	--disk="${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-	--disk="${tmpdir}/${starttime}.${mypid}.vm/output.img" \
+	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/output.img" \
+	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
+	--noautoconsole \
 	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks"
+# TODO: make --noautoconsole a --quiet/--debug/--verbose kind of thing
 
     # cache a pristine copy for future runs
     # note: could use qemu-img or other snapshots, but those may have performance issues
     cp -a --sparse=always \
-	"${tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	"${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
 	"${cachedir}/vm-${vm_cfg_checksum}.img"
 fi
 
@@ -613,7 +631,15 @@ fi
 #
 ## run throwaway vm for main/inner processing/build phase
 #
+
+## todo: have all virt runs log through simple text channel to console, i.e.
+##       console over serial port, or ssh/netcat logfile streaming...
 virsh start "${progname}-${starttime}-${mypid}"
+
+sleep 60
+
+# TODO: make this a --debug only thing
+vncviewer $( virsh vncdisplay "${progname}-${starttime}-${mypid}" )
 
 # wait until processing is complete
 xdone=0
@@ -629,7 +655,7 @@ done
 ## arrange output for user, clean up, and exit
 #
 pushd "${outputdir}" > /dev/null 2>&1
-tar xvf "${tmpdir}/${starttime}.${mypid}.vm/output.img"
+tar xvf "${bake_tmpdir}/${starttime}.${mypid}.vm/output.img"
 popd > /dev/null 2>&1
 
 #############################################################################

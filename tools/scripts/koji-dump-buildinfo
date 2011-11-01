@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# koji-dump-buildinfo generates a text file collection dump of various
+#                     koji buildinfo results, for subsequent use by the
+#                     bs-check-tuv-el6 script.
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## ...
+##
+##
+## DESCRIPTION
+##
+## ...
+##
+##
+## NOTES
+##
+## note: one path to getting all koji buildinfo:                                                                          
+## (foreach tag in koji list-tags) koji latest-pkg --all <tag>
+## koji list-untagged
+## (foreach pkg-nvr from above lists) koji buildinfo <pkg-nvr>
+##
+#############################################################################
+
+
+## TODO
+# - ...
+#
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+if [ $# -ne 1 ]; then
+    echo "usage: koji-dump-buildinfo <outputdir>"
+    exit 1
+fi
+
+outputdir="${1}"
+
+if [ -d "${outputdir}" ]; then
+    echo "error: output directory already exists - ${outputdir}"
+    exit 1
+fi
+
+mkdir -p "${outputdir}"
+mkdir -p "${outputdir}/buildinfo"
+
+koji list-history --all \
+    > "${outputdir}/history.all.txt"
+
+koji list-history --all --verbose \
+    > "${outputdir}/history.all.verbose.txt"
+
+
+koji list-tags \
+    > "${outputdir}/tag.list.txt"
+
+koji list-untagged > "${outputdir}/pkg.list.unfiltered.txt"
+
+for tag in $( < "${outputdir}/tag.list.txt" ); do
+    koji latest-pkg --all "${tag}" \
+	| grep -v "^Build.*Tag.*Built" \
+	| grep -v "^-------" \
+	| awk '{print $1}' \
+	>> "${outputdir}/pkg.list.unfiltered.txt"
+done
+
+cat "${outputdir}/pkg.list.unfiltered.txt" \
+    | sort \
+    | uniq \
+    > "${outputdir}/pkg.list.txt" 
+
+for package in $( < "${outputdir}/pkg.list.txt" ); do
+    mkdir "${outputdir}/buildinfo/${package}" 
+    pushd "${outputdir}/buildinfo/${package}" > /dev/null 2>&1
+
+    # get buildinfo report
+    koji buildinfo "${package}" \
+	> buildinfo
+
+    # get state
+    cat buildinfo \
+	| grep "^State:" \
+	| sed -e 's/^State: //' \
+	> state
+
+    # check for non-COMPLETE build state
+    if [ "$( < state )" != "COMPLETE" ]; then
+	ln -s state incomplete.state
+    fi
+
+    # get build id number 
+    cat buildinfo \
+	| grep "^BUILD:" \
+	| sed -e 's/^[^\[]*\[\([^\]*\)\].*/\1/' \
+	> build_id
+
+    # get built by username
+    cat buildinfo \
+	| grep "^Built by:" \
+	| sed -e 's/^Built by: //' \
+	> built_by_user
+
+    # check for non-koji built by user
+    if [ "$( < built_by_user )" != "koji" ]; then
+	ln -s built_by_user non-koji.built_by_user
+    fi
+
+    # get task id number
+    cat buildinfo \
+	| grep "^Task: " \
+	| awk '{print $2}' \
+	> task_id
+
+
+    # get task type
+    cat buildinfo \
+	| grep "^Task: " \
+	| awk '{print $3}' \
+	> task_type
+
+    # check for non-build task type
+    if [ "$( < task_type )" != "build" ]; then
+	ln -s task_type non-build.task_type
+    fi
+
+    # get build target
+    cat buildinfo \
+	| grep "^Task: " \
+	| awk '{print $4}' \
+	| sed -e 's/^(//' -e 's/,$//' \
+	> build_target
+
+    # get build source
+    cat buildinfo \
+	| grep "^Task: " \
+	| awk '{print $5}' \
+	| sed -e 's/)$//' \
+	> build_source
+
+    # get state
+    cat buildinfo \
+	| grep "^Tags:" \
+	| sed -e 's/^Tags: //' \
+	> tags
+
+    in_header=1
+    while read line; do
+	if ((${in_header})); then
+	    if $( echo "${line}" | grep -q "^RPMs:" ); then
+		in_header=0
+	    fi
+	else
+	    echo "${line}" >> rpms.fullpaths
+	    echo $( basename "${line}" ) >> rpms
+	fi
+    done < buildinfo
+    
+    popd > /dev/null 2>&1
+done
+
+## end script, just notes below
+
+# example buildinfo
+cat <<EOF > /dev/null
+BUILD: acl-2.2.49-4.el6 [48]
+State: COMPLETE
+Built by: koji
+Task: 275 build (ascendos-60, acl-2.2.49-4.el6.src.rpm)
+Finished: Wed, 20 Jul 2011 16:24:29 EST
+Tags: 
+RPMs:
+/srv/koji/packages/acl/2.2.49/4.el6/i686/acl-debuginfo-2.2.49-4.el6.i686.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/i686/acl-2.2.49-4.el6.i686.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/i686/libacl-2.2.49-4.el6.i686.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/i686/libacl-devel-2.2.49-4.el6.i686.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/x86_64/libacl-2.2.49-4.el6.x86_64.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/x86_64/libacl-devel-2.2.49-4.el6.x86_64.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/x86_64/acl-debuginfo-2.2.49-4.el6.x86_64.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/x86_64/acl-2.2.49-4.el6.x86_64.rpm
+/srv/koji/packages/acl/2.2.49/4.el6/src/acl-2.2.49-4.el6.src.rpm
+EOF
+
+
+
+

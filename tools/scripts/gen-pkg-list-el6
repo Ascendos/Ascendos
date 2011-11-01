@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# gen-pkg-list-el6 inputs an upstream vendor's source package repository's filelist
+#                  and outputs a the list of individual packages without versions
+#
+# initial purpose is to initialize an el6 rebuild project's bugzilla component list
+#
+# Author: Douglas McClendon -- dmc AT filteredperception DOT org -- 2011
+
+
+# probably overkill avoidance of explicit TUV referencing
+function old_school_crypto {
+    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+}
+
+tuv_name_lc_enc="erqung"
+tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
+
+our_name_lc="ascendos"
+
+lftp ftp://ftp.linux.ncsu.edu \
+    -e "ls mirror/ftp.${tuv_name_lc}.com/pub/${tuv_name_lc}/linux/enterprise/6Server/en/os/SRPMS ; \
+        ls mirror/ftp.${tuv_name_lc}.com/pub/${tuv_name_lc}/linux/enterprise/6Workstation/en/os/SRPMS ; \
+        ls mirror/ftp.${tuv_name_lc}.com/pub/${tuv_name_lc}/linux/enterprise/6ComputeNode/en/os/SRPMS ; \
+        ls mirror/ftp.${tuv_name_lc}.com/pub/${tuv_name_lc}/linux/enterprise/6Client/en/os/SRPMS ; \
+        quit" \
+    | grep "\.src\.rpm$" \
+    | awk '{print $9}' \
+    | sed -e 's/\.src\.rpm$//' \
+    | sed -e 's/-[^-]*$//' \
+    | sed -e 's/-[^-]*$//' \
+    | grep -v "${tuv_name_lc}-logos" \
+    | grep -v "${tuv_name_lc}-release" \
+    | grep -v "${tuv_name_lc}-bookmarks" \
+    | grep -v "${tuv_name_lc}-indexhtml" \
+    | sort \
+    | uniq 
+
+# note, the following TUV named packages remain, as they do in SL
+# publican-XXXXXX
+# XXXXXX-lsb
+# XXXXXX-menus
+# XXXXXX-rpm-config

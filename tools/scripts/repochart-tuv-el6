@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# repochart-tuv-el6 generates a data chart of el6 packages whose source
+#                   packages have been published by TUV.  The chart includes
+#                   most importantly, the list of repos the packages should
+#                   get pushed to when built.  This is a subset of
+#                   pointreleases X base|updates
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## repochart-tuv-el6 \
+##     [<input>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted] \
+##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart]
+##
+##
+## DESCRIPTION
+##
+## ...
+##
+##
+## NOTES
+##
+## -
+##
+#############################################################################
+
+## TODO
+# - ...
+#
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y-%m-%d--%H-%M-%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# to enable debug messages
+debug=1
+
+# to suppress status messages
+quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} ... (TODO/FIXME)"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if (($debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: old_school_crypto <string>
+#
+# probably overkill avoidance of explicit TUV referencing
+#
+function old_school_crypto {
+    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+if [ $# -eq 0 ]; then 
+    input=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted" )
+    output=$( readlink -f "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart" )
+elif [ $# -eq 1 ]; then 
+    inputdir=$( readlink -e "${1}" )
+    output="-"
+elif [ $# -eq 2 ]; then 
+    inputdir=$( readlink -e "${1}" )
+    output=$( readlink -f "${2}" )
+else
+    usage
+fi
+
+if [ ! -f "${input}" ]; then
+    die "input data file ${1} does not exist"
+fi
+
+
+if [ -f "${output}" ]; then
+    die "output ${output} already exists"
+fi
+
+tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+
+mkdir -p "${tmpdir}"
+
+mkdir "${tmpdir}/chart_db"
+
+##
+## from tuv and/or wikipedia: the tuv pointrelease dates
+##
+#
+# tuv-6.0 released 2010/11/10
+#  - actual threshold gleamed from sources:
+#    - (01285176517/Wed 22 Sep 2010 12:28:37 PM CDT)
+#      - python-crypto package, subsequent is 6.0 updates
+#
+# tuv-6.1 released 2011/05/19
+#  - actual threshold gleamed from sources:
+#    - (01305056350/Tue 10 May 2011 02:39:10 PM CDT)
+#      - kernel package, subsequent is 6.1 updates
+#
+# NOTE: this list was created manually by inspecting the datesorted
+#       package list.  If someone can brilliantly autogenerate this
+#       from data on the internet, in such a way that such future 
+#       manual maintenance is not necessary...  I'll be impressed.
+
+releases_and_temporal_thresholds="\
+6.0:01285176517
+6.1:01305056350
+6.FAKE_END:07777777777
+"
+
+# initialize array of point releases along with their temporal thresholds
+num_releases=0
+for release in ${releases_and_temporal_thresholds}; do
+    release_version[${num_releases}]=$( echo "${release}" | sed -e 's/:.*//' )
+    release_threshold[${num_releases}]=$( echo "${release}" | sed -e 's/.*:0*//' )
+    num_releases=$(( ${num_releases} + 1 ))
+done
+# compensate for the final .FAKE_END release
+num_releases=$(( ${num_releases} - 1 ))
+
+# start with the first release, and increment this value every time
+# a threshold is hit
+current_release_index=0
+# and then also add the prior current release to this list of prior releases
+prior_releases=""
+while read line; do
+    pkg_nvr=$( echo "${line}" | awk -F'|' '{print $2}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+    pkg_nv=$( echo "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+    pkg_n=$( echo "${pkg_nv}" | sed -e 's/-[^-]*$//' )
+    pkg_time_date=$( echo "${line}" | awk -F'|' '{print $3}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+    pkg_time_esecs=$( date --date="${pkg_time_date}" +%s )
+
+    if (( "${pkg_time_esecs}" > \
+	release_threshold[${current_release_index}] )); then
+	prior_releases="${prior_releases} ${release_version[${current_release_index}]}"
+	current_release_index=$(( ${current_release_index} + 1 ))
+    fi
+    # this actually reflects the next to-be-released pointrelease,
+    # horribly confusing, but should be clear if the logic is working...
+    cur_pkg_relver="${release_version[${current_release_index}]}"
+
+    mkdir -p "${tmpdir}/chart_db/${pkg_n}"
+    # this will continually overwrite, which makes sense, i.e. if 2 updates
+    # were released after 6.0 was released but before 6.1 was released, then
+    # the lattermost is the base-version for 6.1
+    for (( i=${current_release_index} ; $i < ${num_releases} ; i=$(( $i + 1 )) )); do
+	# until further notice, this latest version is the base version for
+	# next pointrelease, and all subsequent
+	echo "${pkg_nvr}" > "${tmpdir}/chart_db/${pkg_n}/${release_version[${i}]}-base-version"
+    done
+    for prior_release in ${prior_releases}; do
+	echo "${pkg_nvr}" >> "${tmpdir}/chart_db/${pkg_n}/${prior_release}-updates-versions"
+    done
+    
+#    echo ""
+#    echo "scanning package: ${pkg_nvr}"
+#    echo "pkg_time_esecs is ${pkg_time_esecs}"
+#    echo "pkg_time_date is ${pkg_time_date}"
+#    echo "current pkg release index is ${current_release_index}"
+#    echo "current pkg release is ${release_version[${current_release_index}]}"
+    for prior_release in ${prior_releases}; do
+	true
+#	echo "prior_releases: ${prior_release}"
+    done
+#    echo ""
+done < "${input}"
+
+
+while read line; do
+    pkg_time_esecs=$( echo "${line}" | awk -F'|' '{print $1}' | sed -e 's/^\s*0*//' -e 's/\s*$//' )
+    pkg_nvr=$( echo "${line}" | awk -F'|' '{print $2}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+    pkg_nv=$( echo "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+    pkg_n=$( echo "${pkg_nv}" | sed -e 's/-[^-]*$//' )
+    pkg_time_date=$( echo "${line}" | awk -F'|' '{print $3}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+
+    # fields to add:
+    #  - list of pointrels for which pkg_nvr is a base version
+    #  - list of pointrels for which pkg_nvr is an update
+    #  (basically which of the repos it lives in, {pointrels}X{base|updates}
+
+    pkg_repos=""
+    # for each pointrelease
+    for (( i=0 ; $i < ${num_releases} ; i=$(( $i + 1 )) )); do
+	# should the pkg_nvr live in this pointrelease's base/os repo?
+	if [ -f "${tmpdir}/chart_db/${pkg_n}/${release_version[${i}]}-base-version" ]; then
+	    if [ "${pkg_nvr}" == "$( < ${tmpdir}/chart_db/${pkg_n}/${release_version[${i}]}-base-version )" ]; then
+		pkg_repos="${pkg_repos} ${release_version[${i}]}-base"
+	    fi
+	fi
+	# should the pkg_nvr live in this pointrelease's updates repo?
+	if [ -f "${tmpdir}/chart_db/${pkg_n}/${release_version[${i}]}-updates-versions" ]; then
+	    for test_pkg_nvr in $( < "${tmpdir}/chart_db/${pkg_n}/${release_version[${i}]}-updates-versions" ); do
+		if [ "${pkg_nvr}" == "${test_pkg_nvr}" ]; then
+		    pkg_repos="${pkg_repos} ${release_version[${i}]}-updates"
+		fi
+	    done
+	fi
+    done
+
+#	"| %011d | %-69s | %31s | %-69s |" \
+#	"${pkg_time_esecs}" 
+    printf \
+	-v printf_output \
+	"| %-69s | %31s | %-69s |" \
+	"${pkg_nvr}" \
+	"${pkg_time_date}" \
+	"${pkg_repos}" 
+    echo -en "${printf_output}\n" >> "${output}"
+
+done < "${input}"
+
+

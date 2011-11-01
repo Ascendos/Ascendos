@@ -1,0 +1,362 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# bs-check-tuv-el6 looks at an el6 repochart, and checks against a (koji)
+#                  buildserver to see if a complete package build is
+#                  available, and add tags and buildtargets associated with
+#                  it to an expanded repochart.
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## repochart-tuv-el6 \
+##     [<input>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted] \
+##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart]
+##
+##
+## DESCRIPTION
+##
+## ...
+##
+##
+## NOTES
+##
+## -
+##
+#############################################################################
+
+## TODO
+# - ...
+#
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y-%m-%d--%H-%M-%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# to enable debug messages
+debug=1
+
+# to suppress status messages
+quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} ... (TODO/FIXME)"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if (($debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: old_school_crypto <string>
+#
+# probably overkill avoidance of explicit TUV referencing
+#
+function old_school_crypto {
+    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+
+#############################################################################
+### calculate tree root and set up environment
+elbuild_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 )
+
+
+if [ $# -eq 0 ]; then 
+    input=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart" )
+    output=$( readlink -f "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.bsinfochart" )
+elif [ $# -eq 1 ]; then 
+    input=$( readlink -e "${1}" )
+    output="-"
+elif [ $# -eq 2 ]; then 
+    input=$( readlink -e "${1}" )
+    output=$( readlink -f "${2}" )
+else
+    usage
+fi
+
+if [ ! -f "${input}" ]; then
+    die "input data file ${1} does not exist"
+fi
+
+
+if [ -f "${output}" ]; then
+    die "output ${output} already exists"
+fi
+
+tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+
+mkdir -p "${tmpdir}"
+
+tac "${input}" > "${tmpdir}/revinput"
+
+mkdir "${tmpdir}/chart_db"
+
+# this is looking at the list of repos in the repochart, and deducing
+# the maximum version
+max_pointrel=$( echo $( cat "${input}"  \
+    | awk -F'|' '{print $4}' \
+    | sed -e 's/-updates/-base/g' \
+    | sed -e 's/-base//g' ) \
+    | sed -e 's/ /\n/g' \
+    | sort --sort=version \
+    | tail -1 )
+
+max_pointrel_major=$( echo "${max_pointrel}" | awk -F'.' '{print $1}' )
+max_pointrel_minor=$( echo "${max_pointrel}" | awk -F'.' '{print $2}' )
+
+# header
+
+in_repo_header_csv=""
+for (( i=0 ; i <= "${max_pointrel_minor}" ; i=$(( $i + 1 )) )); do
+    # initialize to not present, later flag as YES if found in pkg_repos
+    in_repo_header_csv="${in_repo_header_csv}\"${max_pointrel_major}.${i}-base\",\"${max_pointrel_major}.${i}-updates\","
+done
+
+echo -en '"package name - version - release",' >> "${output}.csv"
+echo -en '"src-package build date",' >> "${output}.csv"
+echo -en '"in ascendos",' >> "${output}.csv"
+echo -en '"on buildserver",' >> "${output}.csv"
+echo -en '"build complete",' >> "${output}.csv"
+echo -en "${in_repo_header_csv}" >> "${output}.csv"
+echo -en '"koji build target",' >> "${output}.csv"
+echo -en '"koji build tags",' >> "${output}.csv"
+echo -en "\n" >> "${output}.csv"
+
+est_num_pkgs=$( cat "${input}" | wc -l )
+
+# counters
+num_pkgs=0
+num_pkgs_in_asc=0
+num_pkgs_in_asc_on_bs=0
+num_pkgs_in_asc_on_bs_complete=0
+
+while read line; do
+    num_pkgs=$(( ${num_pgks} + 1 ))
+
+    pkg_nvr=$( echo "${line}" | awk -F'|' '{print $2}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+    pkg_nv=$( echo "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+    pkg_n=$( echo "${pkg_nv}" | sed -e 's/-[^-]*$//' )
+    pkg_time_date=$( echo "${line}" | awk -F'|' '{print $3}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+    pkg_time_esecs=$( date --date="${pkg_time_date}" +%s )
+    pkg_repos=$( echo "${line}" | awk -F'|' '{print $4}' | sed -e 's/^\s*//' -e 's/\s*$//' )
+
+    echo "${pkg_nvr}" >> "${tmpdir}/num_pkgs"
+
+    status "scanning #"$( cat "${tmpdir}/num_pkgs" | wc -l )"/${est_num_pkgs} : ${pkg_n} ..."
+    # see if pkg should be in asc
+    pkg_in_asc="no"
+    if ( ! grep -q "^===${pkg_n}===" "${elbuild_devroot}/Ascendos/6/6.0/configs/tuv-pkgs-not-in-asc6" ); then
+	pkg_in_asc="yes"
+	echo "${pkg_nvr}" >> "${tmpdir}/num_pkgs_in_asc"
+    fi
+
+    # see if a (latest) version of the package exists in the koji buildinfo dump
+    pkg_exists_in_bs="no"
+    pkg_complete_in_bs="no"
+    build_target="none"
+    tags="none"
+    # this doesn't really work, but the motivating issue was, e.g. plymouth-bla.asc.src.rpm where the .asc replaced the .el6, which
+    # seems to go against package naming convention.
+#    pkg_nvr_short=$( echo "${pkg_nvr}" | sed -e 's/\.el6.*$//g' )
+    pkg_dir_if_exists=$( ls --sort=version -1Ad "${HOME}/.el-build/cache/koji-dump-output/buildinfo/${pkg_nvr}"* 2> /dev/null | tail -1 )
+    if [ -d "${pkg_dir_if_exists}" ]; then
+	pkg_exists_in_bs="yes"
+	echo "${pkg_nvr}" >> "${tmpdir}/num_pkgs_in_asc_on_bs"
+	if [ ! -e "${pkg_dir_if_exists}/incomplete.state" ]; then
+	    pkg_complete_in_bs="yes"
+	    echo "${pkg_nvr}" >> "${tmpdir}/num_pkgs_in_asc_on_bs_complete"
+
+	    build_target=$( <  "${pkg_dir_if_exists}/build_target" )
+	    tags=$( <  "${pkg_dir_if_exists}/tags" )
+	fi
+    fi
+
+    in_repo_header=""
+    in_repo_header_csv=""
+    for (( i=0 ; i <= "${max_pointrel_minor}" ; i=$(( $i + 1 )) )); do
+        # initialize to not present, later flag as YES if found in pkg_repos
+	in_pointrel_base[$i]="no"
+	in_pointrel_updates[$i]="no"
+	in_repo_header="${in_repo_header}${max_pointrel_major}.${i}-base ${max_pointrel_major}.${i}-updates "
+	in_repo_header_csv="${in_repo_header_csv}${max_pointrel_major}.${i}-base,${max_pointrel_major}.${i}-updates,"
+    done
+    for repo in ${pkg_repos}; do
+	if ( echo "${repo}" | grep -q "\-base" ); then
+	    pointrel=$( echo "${repo}" | sed -e 's/-base//g' )
+	    pointrel_major=$( echo "${repo}" | awk -F'.' '{print $1}' )
+	    pointrel_minor=$( echo "${repo}" | awk -F'.' '{print $2}' )
+	    in_pointrel_base[${pointrel_minor}]="yes"
+	elif ( echo "${repo}" | grep -q "\-updates" ); then
+	    pointrel=$( echo "${repo}" | sed -e 's/-updates//g' )
+	    pointrel_major=$( echo "${repo}" | awk -F'.' '{print $1}' )
+	    pointrel_minor=$( echo "${repo}" | awk -F'.' '{print $2}' )
+	    in_pointrel_updates[${pointrel_minor}]="yes"
+	else
+	    die "unexpected non-base non-updates repo: ${repo}"
+	fi
+    done
+
+    in_repo_status=""
+    in_repo_status_csv=""
+    for (( i=0 ; i <= "${max_pointrel_minor}" ; i=$(( $i + 1 )) )); do
+	in_repo_status="${in_repo_status}${in_pointrel_base[$i]} ${in_pointrel_updates[$i]} "
+	in_repo_status_csv="${in_repo_status_csv}\"${in_pointrel_base[$i]}\",\"${in_pointrel_updates[$i]}\","
+    done
+
+    echo -en "\"${pkg_nvr}\"," >> "${output}.csv"
+    echo -en "\"${pkg_time_date}\"," >> "${output}.csv"
+    echo -en "\"${pkg_in_asc}\"," >> "${output}.csv"
+    echo -en "\"${pkg_exists_in_bs}\"," >> "${output}.csv"
+    echo -en "\"${pkg_complete_in_bs}\"," >> "${output}.csv"
+    echo -en "${in_repo_status_csv}" >> "${output}.csv"
+    echo -en "\"${build_target}\"," >> "${output}.csv"
+    echo -en "\"${tags}\"," >> "${output}.csv"
+    echo -en "\n" >> "${output}.csv"
+
+done < "${tmpdir}/revinput"
+
+echo -en "\n" >> "${output}.csv"
+echo -en "\n" >> "${output}.csv"
+echo -en "\n" >> "${output}.csv"
+echo -en "\"number of tuv packages\"," >> "${output}.csv"
+echo -en "\"number packages in ascendos\"," >> "${output}.csv"
+echo -en "\"number of packages on buildserver\"," >> "${output}.csv"
+echo -en "\"number of completed packages on buildserver\"," >> "${output}.csv"
+echo -en "\n" >> "${output}.csv"
+
+num_pkgs=$( cat "${tmpdir}/num_pkgs" | wc -l )
+num_pkgs_in_asc=$( cat "${tmpdir}/num_pkgs_in_asc" | wc -l )
+num_pkgs_in_asc_on_bs=$( cat "${tmpdir}/num_pkgs_in_asc_on_bs" | wc -l )
+num_pkgs_in_asc_on_bs_complete=$( cat "${tmpdir}/num_pkgs_in_asc_on_bs_complete" | wc -l )
+
+echo -en "\"${num_pkgs}\"," >> "${output}.csv"
+echo -en "\"${num_pkgs_in_asc}\"," >> "${output}.csv"
+echo -en "\"${num_pkgs_in_asc_on_bs}\"," >> "${output}.csv"
+echo -en "\"${num_pkgs_in_asc_on_bs_complete}\"," >> "${output}.csv"
+echo -en "\n" >> "${output}.csv"
+echo -en "\n" >> "${output}.csv"
+
+cp "${output}.csv" "${tmpdir}/pkg_big_board.csv"
+
+pushd "${tmpdir}" 2>&1 > /dev/null
+"${elbuild_devroot}/Ascendos/tools/csv2html.pl" \
+    -b -e -d \
+    -i "pkg_big_board.csv" \
+    -o "pkg_big_board.html"
+popd "${tmpdir}" 2>&1 > /dev/null
+
+mv "${tmpdir}/pkg_big_board.html" "${output}.html"
+

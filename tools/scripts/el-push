@@ -1,0 +1,455 @@
+#!/usr/bin/env bash
+
+######## WARNING: CURRENTLY HARDCODED TO 6.0 current alpha semantics
+
+#
+#############################################################################
+#############################################################################
+#
+# el-push: an enterprise linux distro repository package management tool 
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## el-push
+##
+##
+## DESCRIPTION
+##
+## el-push does stuff...
+##
+##
+## LONG TERM ROADMAP
+##
+## el-push will do more stuff...
+##
+##
+## NOTES
+##
+## -
+##
+#############################################################################
+
+
+## TODO
+# -
+# - ...
+#
+
+
+#############################################################################
+#############################################################################
+##
+## get runtime environment
+##
+starttime="$( date +%Y%m%d%H%M%S )"
+progname="$( basename $0 )"
+progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 ) )
+rundir="$( pwd )"
+mypid=$$
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+## constants (variable options to be)
+signing_user_def="none"
+build_area_def="${HOME}/.asc"
+
+# unused or used for tags/targets names, need somewhat better defined
+# (or understood) schema for tags/targets
+dist_name_def="ascendos"
+dist_version_major_def="6"
+dist_version_minor_def="0"
+disttest_def="alpha"
+
+quiet_def=0
+debug_def=0
+
+
+## derived values
+
+# identifier for tmp filenames
+tmp_orig_str="orig-${progname}"
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo "    [signing_user=${signing_user_def}] \\"
+    echo "    package ..."
+    echo ""
+    echo "packages can be a package name, or a .src.rpm filename"
+    echo ""
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#
+# usage: status <message...>
+#
+# wrapper for sending status messages to console and log
+#
+# globals used: quiet, progname, logfiles(not required)
+#
+function status {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $quiet)); then
+	echo "${progname}: ${time}: status: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: status: $@" >> $logfile
+    done
+}
+
+#############################################################################
+#
+# usage: debug <message...>
+#
+# wrapper for sending debug messages to console and log
+#
+# globals used: debug, progname, logfiles(not required)
+#
+function debug {
+    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    if ((! $debug)); then
+	echo "${progname}: ${time}: debug: $@"
+    fi
+    for logfile in $logfiles; do
+	echo "${progname}: ${time}: debug: $@" >> $logfile
+    done
+}
+
+
+#############################################################################
+#
+# usage: die <message...>
+#
+# issue last words
+#
+function die {
+    status "$@"
+    exit 1
+}
+
+
+#############################################################################
+#
+## set option value defaults
+#
+signing_user="${signing_user_def}"
+build_area="${build_area_def}"
+dist_name="${dist_name_def}"
+dist_version_major="${dist_version_major_def}"
+dist_version_minor="${dist_version_minor_def}"
+disttest="${disttest_def}"
+quiet="${quiet_def}"
+debug="${debug_def}"
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+#############################################################################
+### calculate tree root and set up environment
+
+# pre git commit
+if [ "${progdir}" == "/home/builder/.asc-tmp/bin" ]; then
+elpush_devroot="/home/builder/.asc-tmp/git/Ascendos"
+else
+elpush_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
+    pwd ; popd > /dev/null 2>&1 )
+fi
+
+debug "devroot is ${elpush_devroot}"
+echo "devroot is ${elpush_devroot}"
+debug "devroot is ${elpush_devroot}"
+
+# note: presumption is that el-build is run from within it's own
+#       developtment tree, e.g. 
+# $ ./relative/path/to/Ascendos/tools/el-build/el-push or $ ./el-push
+
+
+#############################################################################
+#
+## process command line arguments / options
+#
+status "processing options..."
+# this is a simple enough method for a first pass.  I'd have brought in
+# viros's libvopt.sh if it wasn't so complex.
+pkg_list=""
+for option in "$@"; do
+    if [ "${option}" == "usage" ]; then
+	usage
+    elif [ "${option}" == "--usage" ]; then
+	usage
+    elif [ "${option}" == "help" ]; then
+	usage
+    fi
+    if $( echo "${option}" | grep -q "=" ); then
+	# simplest
+#	eval "${option}"
+	# a bit better, allows e.g. distroname="Two Words"
+	# (though a two word distroname is as yet untested and may not work anyway)
+	opt_name=$( echo "${option}" | sed -e 's/=.*//' )
+	opt_val=$( echo "${option}" | sed -e 's/[^=]*=//' )
+	eval "${opt_name}='${opt_val}'"
+    else
+	pkg_list="${pkg_list} ${option}"
+	debug "pkg is ${option}"
+    fi
+    debug "opt is ${option}"
+done
+
+
+
+## derived values
+
+# directory to koji download-build to before signing
+staging_dir="${build_area}/pkg-staging"
+secret_dir="${build_area}/.keys-${signing_user}"
+
+#### fun mirror mapping stuffs
+
+### note: still semi-hardcoded, i.e. no updates and pointrel detection
+
+#noarch-debuginfo-rpm
+# note, this should map/mirror to mroot/development or the like, not mroot
+dev_staging_root="/srv/external/ascendos"
+
+
+# note: existing structure leaves src out of everything.  good reasons??
+src_rpm_homes="\
+${dev_staging_root}/SRPMS
+"
+
+noarch_rpm_homes="\
+${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/i386/Packages
+${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/x86_64/Packages
+${dev_staging_root}/everything
+"
+x32_rpm_homes="\
+${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/i386/Packages
+${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/x86_64/Packages
+${dev_staging_root}/everything
+"
+x64_rpm_homes="\
+${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/x86_64/Packages
+${dev_staging_root}/everything
+"
+
+
+noarch_debuginfo_rpm_homes="\
+${dev_staging_root}/debuginfo
+${dev_staging_root}/everything
+"
+x32_debuginfo_rpm_homes="\
+${dev_staging_root}/debuginfo
+${dev_staging_root}/everything
+"
+x64_debuginfo_rpm_homes="\
+${dev_staging_root}/debuginfo
+${dev_staging_root}/everything
+"
+
+
+
+
+
+## make sure not to step on users files
+
+if [ -d "${HOME}/.gnupg" ]; then
+    mv "${HOME}/.gnupg" "${HOME}/.gnupg.${tmp_orig_str}.$$"
+fi
+
+if [ -f "${HOME}/.rpmmacros" ]; then
+    mv "${HOME}/.rpmmacros" "${HOME}/.rpmmacros.${tmp_orig_str}.$$"
+fi
+
+
+if [ ! -d "${secret_dir}" ]; then
+    die "user keydir ${secret_dir} for user ${signing_user} does not exist"
+fi
+# todo: probably better to use GNUPGHOME or such
+cp -a "${secret_dir}" "${HOME}/.gnupg"
+cp -a "${secret_dir}.rpmmacros" "${HOME}/.rpmmacros"
+
+# the package name, as in the .src.rpm submitted to koji
+# e.g. zsh-4.3.10-4.1.el6.asc for
+# > koji build ascendos-60 zsh-4.3.10-4.1.el6.asc.src.rpm
+# > koji download-build ascendos-60 zsh-4.3.10-4.1.el6.asc.src.rpm
+for package in ${pkg_list}; do
+
+    status "processing package: ${package} ..."
+
+    # this supports either input as a .src.rpm name or a package/ver name
+    pkg_name=$( echo "$( basename ${package} )" | sed -e 's/\.src\.rpm//' )
+
+    # TODO: check to see if pkg is in bao/linux/ascendos/everything
+    # TODO: write logic to determine non-everything placement, 
+    # i.e. which point-rel and update/not
+
+    status "pulling package from build system: ${pkg_name} ..."
+
+    if [ -d "${staging_dir}/${pkg_name}" ]; then
+	die "staging directory already exists, aborting."
+    else
+	# todo: error check...
+	mkdir "${staging_dir}/${pkg_name}"
+    fi
+
+    pushd "${staging_dir}/${pkg_name}" 2>&1 > /dev/null
+
+    koji \
+	download-build \
+	--debuginfo \
+	--arch=noarch \
+	--arch=i386 \
+	--arch=i686 \
+	--arch=x86_64 \
+	--arch=src  \
+	${pkg_name}
+    koji_retval=$?
+    if (( $koji_retval )); then
+	die "could not koji download the package"
+    fi
+    
+    status "signing packages..."
+    rpm --addsign *.rpm
+
+    # TODO: also need to detect base/updates based on e.g. .el6_0. and for base, build dates 
+    #       to map to pointrel
+
+    for rpm in $( ls -1A *.src.rpm 2> /dev/null ); do
+	status "processing src_rpm: ${rpm}"
+	for newhome in ${src_rpm_homes}; do
+	    if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+	    cp -v "${rpm}" "${newhome}/${rpm}"
+	done
+    done
+    for rpm in $( ls -1A *.noarch.rpm 2> /dev/null ); do
+	# note: mingw32 seems to be the only noarch packages with debuginfo packages
+	if ( echo "${rpm}" | grep -q debuginfo ); then
+	    status "processing noarch_debuginfo_rpm: ${rpm}"
+	    for newhome in ${noarch_debuginfo_rpm_homes}; do
+		if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+		cp -v "${rpm}" "${newhome}/${rpm}"
+	    done
+	else
+	    status "processing noarch_rpm: ${rpm}"
+	    for newhome in ${noarch_rpm_homes}; do
+		if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+		cp -v "${rpm}" "${newhome}/${rpm}"
+	    done
+	fi
+    done
+    for rpm in $( ls -1A *.i[36]86.rpm 2> /dev/null ); do
+	if ( echo "${rpm}" | grep -q debuginfo ); then
+	    status "processing x32_debuginfo_rpm: ${rpm}"
+	    for newhome in ${x32_debuginfo_rpm_homes}; do
+		if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+		cp -v "${rpm}" "${newhome}/${rpm}"
+	    done
+	else
+	    status "processing x32_rpm: ${rpm}"
+	    for newhome in ${x32_rpm_homes}; do
+		if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+		cp -v "${rpm}" "${newhome}/${rpm}"
+	    done
+	fi
+    done
+    for rpm in $( ls -1A *.x86_64.rpm 2> /dev/null ); do
+	if ( echo "${rpm}" | grep -q debuginfo ); then
+	    status "processing x64-debuginfo-rpm: ${rpm}"
+	    for newhome in ${x64_debuginfo_rpm_homes}; do
+		if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+		cp -v "${rpm}" "${newhome}/${rpm}"
+	    done
+	else
+	    status "processing x64-rpm: ${rpm}"
+	    for newhome in ${x64_rpm_homes}; do
+		if [ ! -d "${newhome}" ]; then die "destination home ${newhome} is not a directory"; fi
+		cp -v "${rpm}" "${newhome}/${rpm}"
+	    done
+	fi
+    done
+
+    popd 2>&1 > /dev/null
+done
+
+
+## clean up and return things to order
+
+rm -rf "${HOME}/.gnupg"
+rm -f "${HOME}/.rpmmacros"
+
+if [ -f "${HOME}/.rpmmacros.${tmp_orig_str}.$$" ]; then
+    mv "${HOME}/.rpmmacros.${tmp_orig_str}.$$" "${HOME}/.rpmmacros"
+fi
+if [ -d "${HOME}/.gnupg.${tmp_orig_str}.$$" ]; then
+    mv "${HOME}/.gnupg.${tmp_orig_str}.$$" "${HOME}/.gnupg"
+fi
+
+
+## update the repodata
+
+pushd "${dev_staging_root}" 2>&1 > /dev/null
+
+createrepo -d --update SRPMS
+createrepo -d --update everything
+createrepo -d --update debuginfo
+# NOTE: the current development external ascendos layout seems very confused (6.0/os/arch vs 6.1/arch/os)
+pushd "${dist_version_major}.${dist_version_minor}/os/i386" 2>&1 > /dev/null
+createrepo -d --update -g repodata/comps-asc6-i386.xml .
+popd 2>&1 > /dev/null
+pushd "${dist_version_major}.${dist_version_minor}/os/x86_64" 2>&1 > /dev/null
+createrepo -d --update -g repodata/comps-asc6-x86_64.xml .
+popd 2>&1 > /dev/null
+
+
+popd 2>&1 > /dev/null
+
