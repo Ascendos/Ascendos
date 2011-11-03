@@ -2,6 +2,7 @@
 - added Ascendos Product
  - added versions
  - batch imported entire el pkg list as components
+  - using Ascendos/tools/gen-pkg-list-el6
 
 - 2011/10/07 
  - added timetrackinggroup
@@ -11,4 +12,7 @@
  - yum -y install cronie
  - copied 15m cd /usr/share/bugzilla;./whine.pl to /etc/crond.d/bugzilla
  - added a first whine for dmc@ascendos.org, weekly summary of bugs changed in last 8 days
+  - doesn't seem to actually be working yet... should file a bug, sigh...
 
+- 2011/10/21
+ - renamed bug version 6.0-dogfood-rc1 to 6.0-alpha-rc2
