@@ -3,7 +3,8 @@
 #############################################################################
 #############################################################################
 #
-# bake: invoke pungi and livecd-creator to generate iso/repo output
+# bake: a complete and deterministic environment for the standard upstream
+#           build and compose tools (koji/pungi/livecd-creator)
 #
 #############################################################################
 #
@@ -125,6 +126,8 @@ builtrepo_def="http://build.ascendos.org/linux/ascendos/${distrover}"
 distroname_def="Ascendos"
 distrover_def="6.0"
 offline_def="no"
+do_bake_phases_def="all"
+bake_flags_def=""
 distrorelname_def="nameless"
 # presumption is to first check in ./, then x_devdir/6/distrover/
 config_x64_def="pungi-x86_64.ks"
@@ -187,12 +190,14 @@ function usage {
     echo "    [distroname=${distroname_def}] \\"
     echo "    [distrover=${distrover_def}] \\"
     echo "    [offline=${offline_def}] \\"
+    echo "    [do_bake_phases=${do_bake_phases_def}] \\"
+    echo "    [bake_flags=${bake_flags_def}] \\"
     echo "    [distrorelname=${distrorelname_def}] \\"
     echo "    [config_x64=${config_x64_def}] \\"
     echo "    [config_x32=${config_x32_def}] \\"
     echo "    [outputdir=${outputdir_def}] \\"
     echo "    [cachedir=${cachedir_def}] \\"
-    echo "    [${bake_tmpdir}=${bake_tmpdir}_def}] \\"
+    echo "    [bake_tmpdir=${bake_tmpdir}_def}] \\"
     echo "    [builtrepo=${builtrepo_def}]"
     echo ""
     echo "All arguments are optional, with default values shown as above."
@@ -225,6 +230,8 @@ status "initializing..."
 distroname="${distroname_def}"
 distrover="${distrover_def}"
 offline="${offline_def}"
+do_bake_phases="${do_bake_phases_def}"
+bake_flags="${bake_flags_def}"
 clear_bootstrapos_repodata="${clear_bootstrapos_repodata}"
 distrorelname="${distrorelname_def}"
 config_x64="${config_x64_def}"
@@ -311,98 +318,107 @@ if [ "${clear_bootstrapos_repodata}" == "yes" ]; then
     rm -rf ./ftp.scientificlinux.org___linux__scientific__6x__SRPMS/repo{data,view}
 fi
 
-
 if [ "${offline}" == "yes" ]; then
     status "offline mode: not updating cache / mirrors..."
 else
-    for mirror_dir in ${mirror_dirs}; do
-	status "updating mirror: ${mirror_dir}"
 
-	mirror_hostpath=$( echo "${mirror_dir}" | sed -e 's/[^\/]*\/\///' )
-	debug "mirror_hostpath is ${mirror_hostpath}"
-	mirror_urltype=$( echo "${mirror_dir}" | sed -e 's/:\/\/.*//' )
-	debug "mirror_urltype is ${mirror_urltype}"
-	mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
-	debug "mirror_host is ${mirror_host}"
-	mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
-	debug "mirror_path is ${mirror_path}"
-	mirror_path_parent=$( dirname "${mirror_path}" )
-	debug "mirror_path_parent is ${mirror_path_parent}"
-	mirror_path_child=$( basename "${mirror_path}" )
-	debug "mirror_path_child is ${mirror_path_child}"
-	mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
-	mirror_dir_xmog="${mirror_host}___${mirror_path_xmog}"
-	debug "mirror_dir_xmog is ${mirror_dir_xmog}"
+    if ( ! ping -c3 mirrors.kernel.org > /dev/null 2>&1 ) then
+        # presume offline intent if no net connection seemingly present
+	status "can't ping mirrors.kernel.org, falling back to trying an offline from-cache build ..."
+	offline=yes
+    else
+	# this should get factored into its own function/script
 
-	mirror_dest_path="${cachedir}/${mirror_dir_xmog}"
-	if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
-	    die "could not mkdir ${mirror_dest_path}"
-	fi
+	for mirror_dir in ${mirror_dirs}; do
+	    status "updating mirror: ${mirror_dir}"
+	    
+	    mirror_hostpath=$( echo "${mirror_dir}" | sed -e 's/[^\/]*\/\///' )
+	    debug "mirror_hostpath is ${mirror_hostpath}"
+	    mirror_urltype=$( echo "${mirror_dir}" | sed -e 's/:\/\/.*//' )
+	    debug "mirror_urltype is ${mirror_urltype}"
+	    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
+	    debug "mirror_host is ${mirror_host}"
+	    mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
+	    debug "mirror_path is ${mirror_path}"
+	    mirror_path_parent=$( dirname "${mirror_path}" )
+	    debug "mirror_path_parent is ${mirror_path_parent}"
+	    mirror_path_child=$( basename "${mirror_path}" )
+	    debug "mirror_path_child is ${mirror_path_child}"
+	    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
+	    mirror_dir_xmog="${mirror_host}___${mirror_path_xmog}"
+	    debug "mirror_dir_xmog is ${mirror_dir_xmog}"
 
-	lftp -e "cd ${mirror_path_parent} ; mirror --parallel=2 --use-cache --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
+	    mirror_dest_path="${cachedir}/${mirror_dir_xmog}"
+	    if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
+		die "could not mkdir ${mirror_dest_path}"
+	    fi
+	    
+	    lftp -e "cd ${mirror_path_parent} ; mirror --parallel=2 --use-cache --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
+	    
+	done
+	
+	mkdir -p "${cachedir}/one-off-files"
+	for mirror_file in ${mirror_files}; do
+	    status "caching file: ${mirror_file}"
+	    
+	    mirror_hostpath=$( echo "${mirror_file}" | sed -e 's/[^\/]*\/\///' )
+	    debug "mirror_hostpath is ${mirror_hostpath}"
+	    mirror_urltype=$( echo "${mirror_file}" | sed -e 's/:\/\/.*//' )
+	    debug "mirror_urltype is ${mirror_urltype}"
+	    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
+	    debug "mirror_host is ${mirror_host}"
+	    mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
+	    debug "mirror_path is ${mirror_path}"
+	    mirror_path_parent=$( dirname "${mirror_path}" )
+	    debug "mirror_path_parent is ${mirror_path_parent}"
+	    mirror_path_child=$( basename "${mirror_path}" )
+	    debug "mirror_path_child is ${mirror_path_child}"
+	    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
+	    mirror_file_xmog="${mirror_host}___${mirror_path_xmog}"
+	    debug "mirror_file_xmog is ${mirror_file_xmog}"
+	    
+            # for now, just clobber
+            # TODO: have finer grained actual caching behavior
+	    rm -f "${cachedir}/one-off-files/${mirror_path_child}"
+	    wget -q -O "${cachedir}/one-off-files/${mirror_path_child}" \
+		"${mirror_file}"
+	    
+	done
 
-    done
+        # note: ugly(?) temporary workaround that will be obsolete no later than the 
+        #       time when koji/makeworld show up in el-build
+        # todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
+	createrepo \
+	    "${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
+	createrepo \
+	    -g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
+	    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
+	createrepo \
+	    -g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
+	    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
 
-    mkdir -p "${cachedir}/one-off-files"
-    for mirror_file in ${mirror_files}; do
-	status "caching file: ${mirror_file}"
+        ## create multiarch repo structure usable by koji
+        # TODO: total temporary hack, long term the first thing that comes to mind
+        #       is having this mirroring code, seperated out into a seperate script,
+        #       and using a config file for target directories, and encoding effectively
+        #       the entire url (including scheme, e.g. rsync/http/ftp) and target directory.
+        #       I.e. an evolution beyond what viros' does with vmirmog to resolve the 
+        #       issue of making it simple to seperate the phases of 'pull stuff from net'
+        #       and 'convert that stuff to the output'.
+        mkdir -p \
+    	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0"
+	mkdir -p \
+	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386"
+	mkdir -p \
+	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64"
+	ln -s \
+	    ../../ftp.scientificlinux.org___linux__scientific__6.0__i386__os \
+	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386/os"
+	ln -s \
+	    ../../ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os \
+	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64/os"
+    fi
 
-	mirror_hostpath=$( echo "${mirror_file}" | sed -e 's/[^\/]*\/\///' )
-	debug "mirror_hostpath is ${mirror_hostpath}"
-	mirror_urltype=$( echo "${mirror_file}" | sed -e 's/:\/\/.*//' )
-	debug "mirror_urltype is ${mirror_urltype}"
-	mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
-	debug "mirror_host is ${mirror_host}"
-	mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
-	debug "mirror_path is ${mirror_path}"
-	mirror_path_parent=$( dirname "${mirror_path}" )
-	debug "mirror_path_parent is ${mirror_path_parent}"
-	mirror_path_child=$( basename "${mirror_path}" )
-	debug "mirror_path_child is ${mirror_path_child}"
-	mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
-	mirror_file_xmog="${mirror_host}___${mirror_path_xmog}"
-	debug "mirror_file_xmog is ${mirror_file_xmog}"
-
-	# for now, just clobber
-	# TODO: have finer grained actual caching behavior
-	rm -f "${cachedir}/one-off-files/${mirror_path_child}"
-	wget -q -O "${cachedir}/one-off-files/${mirror_path_child}" \
-	    "${mirror_file}"
-
-    done
-
-    # note: ugly(?) temporary workaround that will be obsolete no later than the 
-    #       time when koji/makeworld show up in el-build
-    # todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
-    createrepo \
-	"${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
-    createrepo \
-	-g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
-	"${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
-    createrepo \
-	-g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
-	"${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
-
-    ## create multiarch repo structure usable by koji
-    # TODO: total temporary hack, long term the first thing that comes to mind
-    #       is having this mirroring code, seperated out into a seperate script,
-    #       and using a config file for target directories, and encoding effectively
-    #       the entire url (including scheme, e.g. rsync/http/ftp) and target directory.
-    #       I.e. an evolution beyond what viros' does with vmirmog to resolve the 
-    #       issue of making it simple to seperate the phases of 'pull stuff from net'
-    #       and 'convert that stuff to the output'.
-    mkdir -p \
-	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0"
-    mkdir -p \
-	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386"
-    mkdir -p \
-	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64"
-    ln -s \
-	../../ftp.scientificlinux.org___linux__scientific__6.0__i386__os \
-	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386/os"
-    ln -s \
-	../../ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os \
-	"${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64/os"
 fi
 
 # trust our own copies of the keys, instead of theoretical mitm 
@@ -430,6 +446,7 @@ mkdir -p "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot"
 ln -s ../../cache \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/cache"
 
+status "launching user (non-root) httpd as a service for the inner processing vm ..."
 # this could no doubt be narrowed, lazy big hammer for the first pass
 killall httpd > /dev/null 2>&1
 sleep 2
@@ -448,9 +465,37 @@ sleep 2
 ## prepare network environment for the throwaway vm
 #
 
+if [ "${do_bake_phases}" == "all" ]; then
+    do_bake_phases="\
+sources-recompile
+build-installer-traditional-x32
+build-installer-traditional-x64
+build-installer-live-x32
+build-installer-live-x64
+staging-layout
+"
+fi
 
-## expose inner processing script (x-run/isobuild) in the docroot
-cp "${x_devdir}/tools/scripts/isobuild" \
+# support both space and comma seperated lists as input for do_bake_phases
+new_bake_phases=""
+for bake_phase in $( echo "${do_bake_phases}" ); do
+    new_bake_phases="${new_bake_phases} $( echo ${bake_phase} | sed -e 's/,/ /g' )"
+done
+do_bake_phases="${new_bake_phases}"
+
+# expose baking options to the inner/v-bake script
+# TODO: probably a cleaner way
+# ?: will this even work, or will multiline above cause problems?
+cat <<EOF > "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/v-bake.options" 
+do_bake_phases="${do_bake_phases}"
+bake_flags="${bake_flags}"
+EOF
+
+status "do_bake_phases option being passed to v-bake is: ${do_bake_phases} ..."
+status "bake_flags option being passed to v-bake is: ${bake_flags} ..."
+
+## expose inner processing script (x-run/v-bake) in the docroot
+cp "${x_devdir}/tools/scripts/v-bake" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
 
 ## expose kickstarts for pungi and livecd-creator in the docroot
@@ -466,8 +511,9 @@ cp "${x_devdir}/6/6.0/configs/mock-"*.cfg \
 cp "${x_devdir}/6/6.0/configs/min-el60-x64.ks" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
 
+status "preparing a full copy of the build tools devtree for the inner-vm to use ..."
 ### give a full copy of the devtree to the vm
-tar -C $( dirname "${x_devdir}" ) -cvjf \
+tar -C $( dirname "${x_devdir}" ) -cjf \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/devtree.tar.bz2" \
     $( basename "${x_devdir}" )
 
@@ -555,6 +601,8 @@ sed -i \
 ## create throwaway vm disk image
 #
 mkdir -p "${bake_tmpdir}/${starttime}.${mypid}.vm"
+
+status "creating new system disk image files for the inner-vm ..."
 # TODO: hide output (I want to bring in viros' libvsys.sh veva wrapper, but
 #       probably better to wait at least till a pythonified el-build wrapper
 #       sets up environment with debug logfilenames if such was enabled
@@ -574,6 +622,7 @@ vm_cfg_checksum=$( sha256sum \
     | awk '{print $1}')
 
 if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
+    status "found acceptable cached system image, duplicating ..."
     rm -f "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
     cp -a --sparse=always \
 	"${cachedir}/vm-${vm_cfg_checksum}.img" \
@@ -587,7 +636,8 @@ if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
 	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
-	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks"
+	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks" \
+	> "${bake_tmpdir}/${starttime}.${mypid}.vm/virt-install.log" 2>&1
 else
 
 #############################################################################
@@ -608,6 +658,7 @@ else
 #       for the netinst here (just boot.iso? or does virt-install pull the
 #       kernel and initrd from PXE/pxeboot directories?)
 
+    status "launching inner-vm installation ..."
     virt-install \
 	--name="${progname}-${starttime}-${mypid}" \
 	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
@@ -617,11 +668,13 @@ else
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
 	--noautoconsole \
-	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks"
+	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks" \
+	> "${bake_tmpdir}/${starttime}.${mypid}.vm/virt-install.log" 2>&1
 # TODO: make --noautoconsole a --quiet/--debug/--verbose kind of thing
 
     # cache a pristine copy for future runs
     # note: could use qemu-img or other snapshots, but those may have performance issues
+    status "stashing a duplicate of the freshly installed vm in the cache ..."
     cp -a --sparse=always \
 	"${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
 	"${cachedir}/vm-${vm_cfg_checksum}.img"
@@ -634,12 +687,14 @@ fi
 
 ## todo: have all virt runs log through simple text channel to console, i.e.
 ##       console over serial port, or ssh/netcat logfile streaming...
+status "launching inner-vm's processing phase ..."
 virsh start "${progname}-${starttime}-${mypid}"
 
 sleep 60
 
 # TODO: make this a --debug only thing
-vncviewer $( virsh vncdisplay "${progname}-${starttime}-${mypid}" )
+vncviewer $( virsh vncdisplay "${progname}-${starttime}-${mypid}" ) \
+    > "${bake_tmpdir}/${starttime}.${mypid}.vm/vncviewer.log" 2>&1
 
 # wait until processing is complete
 xdone=0

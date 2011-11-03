@@ -3,8 +3,8 @@
 #############################################################################
 #############################################################################
 #
-# isobuild: a complete and deterministic environment and wrapper for pungi,
-#           livecd-creator, and koji distro build and compose tools.
+# v-bake: a complete and deterministic environment for the standard upstream
+#         build and compose tools (koji/pungi/livecd-creator) (INNER-VM PART)
 #
 #############################################################################
 #
@@ -34,19 +34,24 @@
 #############################################################################
 #############################################################################
 ##
-## isobuild
+## v-bake
 ##
 ##
 ## DESCRIPTION
 ##
-## isobuild presumes it is run on standard pungi capable platform, e.g.
+## v-bake presumes it is run on standard pungi capable platform, e.g.
 ## SL60/F13/, and proceeds to generate pungi output in a thusly more easily
 ## reproducible fashion
 ##
 ##
 ## LONG TERM ROADMAP
 ##
-## -
+## - probably better if the entire devtree, already being pulled for
+##   koji makeworld stuffs, is used, along with libx.sh
+## - there needs to be a mode or alternate script with shared parts,
+##   that easily allows v-bake to be run 'native' by el-build, without
+##   running in a vm (for those that want the speed and can live with the
+##   less deterministic and isolated environment/host)
 ##
 ## NOTES
 ##
@@ -59,16 +64,12 @@
 #############################################################################
 #############################################################################
 ##
-## get runtime environment
+## local constant definitions
 ##
-starttime="$( date +%Y%m%d%H%M%S )"
-progname="$( basename $0 )"
-# less confusing output messages when run as embedded /tmp/x-run
-progname="isobuild"
-progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 ) )
-rundir="$( pwd )"
-mypid=$$
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
 
 
 #############################################################################
@@ -87,11 +88,12 @@ x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/out
 outroot=/root/output
 
 # the f13 ones aren't going to change
-# TODO: I couldn't get yumdownloader --source --config= to do what I wanted to
+# TODO: I couldn't get yumdownloader --source --config= to do what I wanted to, to
 #       scriptedly get the latest version in the el-build wrapper's caching section
 pigz_version="2.1.6-1"
 mock_version="1.1.15-1"
 livecdtools_version="13.4-1"
+
 
 #############################################################################
 #############################################################################
@@ -99,20 +101,34 @@ livecdtools_version="13.4-1"
 ## main
 ##
 
-### presumption, this is run as root from /etc/rc.d/rc.local on a system that
-### has just had a min-sl60 kickstart installation (basic 'minimal' sl60 install)
+## presumption, this is run as root from /etc/rc.d/rc.local on a system that
+## has just had a min-sl60 kickstart installation (basic 'minimal' sl60 install)
 
-# gotta start somewhere
-cd /root
+#############################################################################
+## initialize environment
 
 # keep screen from blanking (perhaps this should be in el-build only)
 setterm -blank 0
 
-# pungi requires selinux not be enforcing 
-# and makeworld too, though perhaps that can be fixed
-setenforce 0
+#############################################################################
+## initialize output and workareas
+mkdir -p "${outroot}"
+cd "${outroot}"
+mkdir 6.0
+mkdir logs
+mkdir koji
+mkdir devtree
+# todo: make this area more of an option/constant
+mkdir /root/el-build-workarea
+mkdir /root/el-build-workarea/cache
+mkdir /root/el-build-workarea/output
 
 
+#############################################################################
+## initialize package management
+
+# TODO: obviously hardcoded stuffs that need to be abstracted into config files
+#       alongside other target-distro-specifying configs
 mv /etc/yum.repos.d /etc/yum.repos.d.orig
 mkdir /etc/yum.repos.d
 cat <<EOF > /etc/yum.repos.d/sl.repo
@@ -128,6 +144,47 @@ gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
 EOF
 
+#############################################################################
+## get the full devtree
+yum -y install wget
+wget -q -O - "${elbuild_docroot}devtree.tar.bz2" \
+    | tar -C "${outroot}/devtree" -xvjf - 
+
+#############################################################################
+##
+## load system library (now that it is accessible)
+##
+if [ ! -f "${outroot}/devtree/Ascendos/tools/scripts/libx.sh" ]; then
+    echo "v-bake: FATAL ERROR: libx.sh system library not found"
+    # devdebug
+    sleep 300
+    exit 1
+else
+    source "${outroot}/devtree/Ascendos/tools/scripts/libx.sh"
+fi
+##
+#############################################################################
+
+
+
+#############################################################################
+## fetch baking options from the wrapper script
+wget -O "${outroot}/logs/v-bake.options" \
+    "${elbuild_docroot}v-bake.options"
+# enumerated here for early reference, overridden by options sourcing below
+do_bake_phases="\
+sources-recompile-test
+sources-recompile
+build-installer-traditional-x32
+build-installer-traditional-x64
+build-installer-live-x32
+build-installer-live-x64
+staging-layout
+"
+source "${outroot}/logs/v-bake.options"
+
+#############################################################################
+# workaround for what appears to be a pungi bug (no anaconda srpm in output)
 cat <<EOF > /etc/yum.repos.d/asc-src.repo
 [asc-src]
 name=Ascendos - sources
@@ -136,14 +193,14 @@ enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
 EOF
-
-# sanity test of above, and workaround for a pungi bug
+#
 yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
 
-#cp /etc/yum.repos.d/sl.repo /etc/yum.repos.d/sl.repo.orig
+
+#############################################################################
 # no need for updates (until an os bug requiring one hits us)
+#cp /etc/yum.repos.d/sl.repo /etc/yum.repos.d/sl.repo.orig
 #mv /etc/yum.repos.d/sl-updates.repo /etc/yum.repos.d/sl-updates.repo.orig
-#
 #sed -i \
 #    -e 's|http://ftp.scientificlinux.org|ftp://ftp.scientificlinux.org|g' \
 #    /etc/yum.repos.d/sl.repo
@@ -152,21 +209,19 @@ yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
 #    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os|g" \
 #    /etc/yum.repos.d/sl.repo
 
-# for rpmbuild(--rebuild)
+# for rpmbuild(--rebuild) and rpmdev-setuptree
 yum -y install rpm-build
 
 # for rebuilding pigz
 yum -y install gcc
 yum -y install zlib-devel
 
-# for rpmdev-setuptree (not used) 
-#yum -y install rpm-build
-
 # for general utility 
 yum -y install lftp
 
-# for external data pulling (should already be installed
-yum -y install wget
+# for chroot (no doubt pulled in my something else, but
+#             currently having chroot not found issues)
+yum -y install coreutils
 
 # for rebuilding python-kid
 yum -y install python-docutils
@@ -253,6 +308,8 @@ rpmbuild --rebuild "livecd-tools-${livecdtools_version}.el6.src.rpm"
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 ## get zyx-liveinstaller to support rebootless live media installation
+# TODO: need an updated version with asc-el6 fixes incorporated rather than worked around in .ks
+# TODO: post alpha, depending on consensus, only put zli in a descendent 'DescendOS' 'strain'
 #wget "${fedora_mirror_root}/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm"
 wget "${cache_root}one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm"
 if ( ! rpm --checksig zyx-liveinstaller-0.2.4-1.fc13.src.rpm ); then
@@ -260,9 +317,6 @@ if ( ! rpm --checksig zyx-liveinstaller-0.2.4-1.fc13.src.rpm ); then
     exit 1
 fi
 rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
-# TODO: use result when invoking livecd-tools 
-#       /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
-# TODO: post alpha, depending on consensus, only put zli in a descendent 'DescendOS' 'strain'
 
 
 ## get pigz installed, needed by mock
@@ -286,107 +340,136 @@ rpmbuild --rebuild "mock-${mock_version}.el6.src.rpm"
 rpm -Uvh "/rpmbuild/RPMS/noarch/mock-${mock_version}.el6.noarch.rpm"
 
 
+# pungi requires selinux not be enforcing 
+# and makeworld too, though perhaps that can be fixed
+setenforce 0
+
 ## run koji to generate pungi/livecd-create binary rpm input from the full dev tree
+# TODO: enumerate the packages koji/makeworld bring in, i.e. look at the epel packages,
+#       and see about selectively mirroring/precaching
 
-# get the full devtree
-wget -O /tmp/devtree.tar.bz2 "${elbuild_docroot}devtree.tar.bz2"
-mkdir /root/devtree
-tar -C /root/devtree -xvf /tmp/devtree.tar.bz2
+# TODO: this and similar below should be broken into additional called scripts
+if ( listin "sources-recompile" "${do_bake_phases}" ); then
 
-mkfs.ext3 -O sparse_super /dev/sdc
-mkdir /mnt/space
-mount /dev/sdc /mnt/space
-mkdir /mnt/space/el-build
-cp -av /root/devtree/Ascendos/6/build/koji-setup-scripts \
-     /mnt/space/el-build/scripts
+    mkfs.ext3 -O sparse_super /dev/sdc
+    mkdir /mnt/space
+    mount /dev/sdc /mnt/space
+    mkdir /mnt/space/el-build
+    cp -av "${outroot}/devtree/Ascendos/6/build/koji-setup-scripts" \
+	/mnt/space/el-build/scripts
 
-mkdir -p "${outroot}"
-mkdir -p "${outroot}/logs"
-mkdir "${outroot}/6.0"
+    # TODO: need to add epel or appropriate subset to offline cached mirrors
+    #       but for initial testing, just aiming for a first automated
+    #       and successful package build
+    yum -y install yum-conf-epel
 
+    pushd /mnt/space/el-build/scripts
+    bash ./makeworld
+    popd
 
-# TODO: need to add epel or appropriate subset to offline cached mirrors
-#       but for initial testing, just aiming for a first automated
-#       and successful package build
-yum -y install yum-conf-epel
+    # todo: fix this in makeworld
+    chkconfig postgresql on
+    chkconfig httpd on
+    chkconfig kojira on
 
-pushd /mnt/space/el-build/scripts
-bash ./makeworld
-popd
-
-# todo: fix this in makeworld
-chkconfig postgresql on
-
-# dmc: It would be my guess that it is worth 'modifying' more source packages 
-#      such that this list could be reduced to ideally a single entry
-dependent_bootstrap_os_list="\
+    # dmc: It would be my guess that it is worth 'modifying' more source packages 
+    #      such that this list could be reduced to ideally a single entry
+    dependent_bootstrap_os_list="\
 sl60:http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0/\$arch/os/
 f13:http://archives.fedoraproject.org:/pub/archive/fedora/linux/releases/13/Everything/\$arch/os/
 f12:http://archives.fedoraproject.org:/pub/archive/fedora/linux/releases/12/Everything/\$arch/os/
 rhel6beta:ftp://mirrors.kernel.org:/pub/redhat/redhat/rhel/beta/6/\arch/os/
 "
 
-# and our build repo
-koji add-external-repo ascendos-build http://build.ascendos.org/linux/ascendos/build/\$arch/
+    # and our build repo
+    koji \
+	add-external-repo \
+	ascendos-build \
+	http://build.ascendos.org/linux/ascendos/build/\$arch/
 
-bs_os_abbrevs=""
-# create a build target for each dependent bootstrapping os
-for dependent_bootstrap_os in ${dependent_bootstrap_os_list}; do
-    os_repo=$( echo "${dependent_bootstrap_os}" | sed -e 's/[^:]*://' )
-    os_abbrev=$( echo "${dependent_bootstrap_os}" | sed -e 's/:.*//' )
-    bs_os_abbrevs="${bs_os_abbrevs} ${os_abbrev}"
+    bs_os_abbrevs=""
+    # create a build target for each dependent bootstrapping os
+    for dependent_bootstrap_os in ${dependent_bootstrap_os_list}; do
+	os_repo=$( echo "${dependent_bootstrap_os}" | sed -e 's/[^:]*://' )
+	os_abbrev=$( echo "${dependent_bootstrap_os}" | sed -e 's/:.*//' )
+	bs_os_abbrevs="${bs_os_abbrevs} ${os_abbrev}"
+	
+	koji add-tag "${os_abbrev}"
+	koji add-tag --arches "i686,x86_64" "${os_abbrev}-build"
+	koji add-target "${os_abbrev}" "${os_abbrev}-build" "${os_abbrev}"
+	koji add-group "${os_abbrev}-build" build
+        # todo: obvious listification
+	buildroot_minbuild_pkgset="\
+bash
+bzip2
+coreutils
+cpio
+diffutils
+findutils
+gawk
+gcc
+gcc-c++
+grep
+gzip
+info
+make
+patch
+redhat-rpm-config
+rpm-build
+sed
+shadow-utils
+tar
+unzip
+util-linux-ng
+which
+system-release
+buildsys-macros-el6
+"
+# note: system-release is an experimental replacement for sl-release
 
+	koji add-group-pkg "${os_abbrev}-build" build "${buildroot_minbuild_pkgset}"
 
-    koji add-tag "${os_abbrev}"
-    koji add-tag --arches "i686,x86_64" "${os_abbrev}-build"
-    koji add-target "${os_abbrev}" "${os_abbrev}-build" "${os_abbrev}"
-    koji add-group "${os_abbrev}-build" build
-    # todo: obvious listification
-    koji add-group-pkg "${os_abbrev}-build" build bash bzip2 coreutils cpio diffutils findutils gawk
-    koji add-group-pkg "${os_abbrev}-build" build gcc gcc-c++ grep gzip info make patch redhat-rpm-config
-    koji add-group-pkg "${os_abbrev}-build" build rpm-build sed shadow-utils tar unzip util-linux-ng which
-    # experimental, will this work?? (instead of sl-release, fedora-release, etc
-    koji add-group-pkg "${os_abbrev}-build" build system-release
-    koji add-group-pkg "${os_abbrev}-build" build buildsys-macros-el6
+        # create the repo
+	koji add-external-repo "${os_abbrev}-base" "${os_repo}"
 
-    # create the repo
-    koji add-external-repo "${os_abbrev}-base" "${os_repo}"
-    # cause it to be used for builds with abbrev-build build tag (src or dest, I forget)
-    koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
-    # cause the ascendos-build repo to be used for each of the build-targets
-    koji add-external-repo ascendos-build -t "${os_abbrev}-build"
-done
+        # cause it to be used for builds with abbrev-build build tag (src or dest, I forget)
+	koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
 
-# todo, this repo needs to get generated from the new gen-tdv-srpm-repo script, and the list
-# with the reverse builddate sorting
-srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org___linux__ascendos__SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
-echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
+        # cause the ascendos-build repo to be used for each of the build-targets
+	koji add-external-repo ascendos-build -t "${os_abbrev}-build"
 
-# FIXME:initial dev/debug
-srpm_list="\
+    done
+
+    # todo, this repo needs to get generated from the new gen-tdv-srpm-repo script, 
+    # and the list with the reverse builddate sorting
+    srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org___linux__ascendos__SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
+    echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
+
+    if ( listin "source-recompile-test" "${bake_flags}" ); then
+        # FIXME:initial dev/debug
+	srpm_list="\
 libXfixes-4.0.4-1.el6.src.rpm
 "
+    fi
 
-mkdir "${outroot}/koji"
+    pkg_list=""
+    for srpm in ${srpm_list}; do
+	pkg_nvr=$( basename "${srpm}" .src.rpm )
+	pkg_nv=$( "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+	pkg_n=$( "${pkg_nv}" | sed -e 's/-[^-]*$//' )
+        # better to do this with a local copy of the package and rpm query with format
+	pkg_list="${pkg_list} ${pkg_n}"
 
-pkg_list=""
-for srpm in ${srpm_list}; do
-    pkg_nvr=$( basename "${srpm}" .src.rpm )
-    pkg_nv=$( "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
-    pkg_n=$( "${pkg_nv}" | sed -e 's/-[^-]*$//' )
-    # better to do this with a local copy of the package and rpm query with format
-    pkg_list="${pkg_list} ${pkg_n}"
-
-    # does it matter that this isn't choosing initial tag/target
-    # based on what they end up getting built against?
-    koji add-pkg --owner=ascendos-team sl60 "${pkg_n}"
-done
+        # does it matter that this isnt choosing initial tag/target
+        # based on what they end up getting built against?
+	koji add-pkg --owner=ascendos-team sl60 "${pkg_n}"
+    done
 
 #
 # BIG NOTE: this here is just the crudest first pass at a completely 
 #           automated build.  Interesting questions such as whether a 6.1 update
-#           should be built against the 6.0 output, or more importantly, if all
-#           the 6.0 output should be rebuilt against itself, are currently left
+#           should be built against the 6.0-stock,6.0-updated,6.1-stock or 6.1 updated
+#           repos, or if 6.0 output should be rebuilt against itself, are currently left
 #           as topics for further discussion and solidification as automation logic.
 #           myself, I'd prefer, if it turned out to be possible/feasible/practical,
 #           to make enough package changes that a bootstrap from _just_ f13, _or_
@@ -405,110 +488,109 @@ done
 #           where the code should end up at.
 #
 #           Also, I think Troy with the existing build.ascendos.org/koji had packages
-#           feeding back into the koji-external-repos, unlike here.  That gets to 
-#           the question above, and if strongly desired could be added here.  Though
-#           that seems to me to be very wonky, as envisioned by the case of dozens
-#           of koji build nodes, and trying to spawn hundreds of new package updates
-#           simultaneously, and i.e. the nondeterminism in the contents of their
-#           buildroots based on what other packages had finished before they started.
-#           Or I could still totally be misunderstanding something subtle (or even 'obvious')
+#           feeding back into the koji-external-repos, unlike here.  Or perhaps only once
+#           at a virtual 6.1 release time when he started building those packages. 
 #
+#           In any event, having the logic spelled out in code/script here, makes it
+#           rather easier to visually compare altering implementational choices/bugs.
 #
 
-pushd  "${outroot}/koji"
+    pushd  "${outroot}/koji"
 
-for srpm in ${srpm_list}; do
-    xdone=0
-    for bs_os in ${bs_os_abbrevs}; do
-	echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
-	wget "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}"
-	if $( koji build "${bs_os}" "${srpm}" ); then
-	    rm -f "${srpm}"
-	    pkg_nvr=$( basename "${srpm}" .src.rpm )
-	    koji download-build "${pkg_nvr}"
-	    echo "DEBUG: seemed to build ok..."
-	else
-	    echo "DEBUG: seemed NOT to build ..."
-	fi
+    for srpm in ${srpm_list}; do
+	xdone=0
+	for bs_os in ${bs_os_abbrevs}; do
+	    echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
+	    wget "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}"
+	    if $( koji build "${bs_os}" "${srpm}" ); then
+		rm -f "${srpm}"
+		pkg_nvr=$( basename "${srpm}" .src.rpm )
+		koji download-build "${pkg_nvr}"
+		echo "DEBUG: seemed to build ok..."
+	    else
+		echo "DEBUG: seemed NOT to build ..."
+	    fi
+	done
     done
-done
 
-popd
+    popd
+
+fi
+
 
 # TODO: iterate over input packages and use el-push to arrange into
 #       an output structure suitable for pungi here below (instead of 
 #       its current use of published builds
 
-## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
-mkdir /root/el-build-workarea
-mkdir /root/el-build-workarea/cache
-mkdir /root/el-build-workarea/output
+if ( listin "build-installer-traditional-x64" "${do_bake_phases}" ); then
 
-# TODO: see if there is a better pungi kickstart to start from in the spin-kickstarts
-#       package, versus the one currently being based on from the pungi package itself.
+    ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
 
-# TODO: share pungi arch kickstarts with %include and ksflatten 
+    # TODO: see if there is a better pungi kickstart to start from in the spin-kickstarts
+    #       package, versus the one currently being based on from the pungi package itself.
 
-pungi \
-    --cachedir=/root/el-build-workarea/cache \
-    --destdir=/root/el-build-workarea/output \
-    --name=Ascendos \
-    --ver=6.0 \
-    --bugurl=http://bugzilla.ascendos.org \
-    --fulltree \
-    --selfhosting \
-    --nosplitmedia \
-    --config="${elbuild_docroot}pungi-x86_64.ks"
+    # TODO: share pungi arch kickstarts with %include and ksflatten 
 
-# save space for now (same thing theoretically made later for i386 run)
-rm -rvf /root/el-build-workarea/output/*/source/SRPMS \
-    > /root/el-build-workarea/output/deleted.x86_64.SRPMS.txt
+    # TODO: start with abstracting bugurl away, then do the rest
+    
+    pungi \
+	--cachedir=/root/el-build-workarea/cache \
+	--destdir=/root/el-build-workarea/output \
+	--name=Ascendos \
+	--ver=6.0 \
+	--bugurl=http://bugzilla.ascendos.org \
+	--fulltree \
+	--selfhosting \
+	--nosplitmedia \
+	--config="${elbuild_docroot}pungi-x86_64.ks"
+    
+fi
 
-adduser xmock
-usermod -a -G mock xmock
-wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
-    "${elbuild_docroot}mock-for-pungi-el6-i386.cfg"
+if ( listin "build-installer-traditional-x32" "${do_bake_phases}" ); then
 
-su - xmock -c "mock -r mock-for-pungi-el6-i386 --init"
-su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget"
-su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
-# share the prior x86_64 cache with the i386 under mock run
-#  - should save a few hours time.  Probably a few more can be
-#    saved by using non-usermode qemu/kvm networking if available,
-#    or alternately just transferring the cache once as a tar file 
-#    image attached as disk.  And then also using any available free
-#    lvm space for disks instead of qemu-img ones.  But like I said,
-#    for 6x-alpha, not yet a high priority.
-mount --bind \
-    /root/el-build-workarea/cache \
-    /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
-mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
-cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
-    /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
+    adduser xmock
+    usermod -a -G mock xmock
+    wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
+	"${elbuild_docroot}mock-for-pungi-el6-i386.cfg"
+    
+    su - xmock -c "mock -r mock-for-pungi-el6-i386 --init"
+    su - xmock \
+	-c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget"
+    su - xmock \
+	-c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
+    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
+    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea
+    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
+    # share the prior x86_64 cache with the i386 under mock run
+    #  - should save a few hours time.  Probably a few more can be
+    #    saved by using non-usermode qemu/kvm networking if available,
+    #    or alternately just transferring the cache once as a tar file 
+    #    image attached as disk.  And then also using any available free
+    #    lvm space for disks instead of qemu-img ones.  But like I said,
+    #    for 6x-alpha, not yet a high priority.
+    mount --bind \
+	/root/el-build-workarea/cache \
+	/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
+    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
+    cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
+	/var/lib/mock/mock-for-pungi-el6-i386/root/root/
+    su - xmock \
+	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/python-kid-\*.rpm'"
-cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
-    /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
+    cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
+	/var/lib/mock/mock-for-pungi-el6-i386/root/root/
+    su - xmock \
+	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/repoview-\*.rpm'"
-cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
-    /var/lib/mock/mock-for-pungi-el6-i386/root/root/
-su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
+    cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
+	/var/lib/mock/mock-for-pungi-el6-i386/root/root/
+    su - xmock \
+	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/pungi-\*.rpm'"
-
-
-
-# note sure about what works for multilinebreaking here, too tired to care
-su - xmock \
-    -c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
+    
+    # note sure about what works for multilinebreaking here, too tired to care
+    su - xmock \
+	-c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
 pungi \
   --cachedir=/root/el-build-workarea/cache \
   --destdir=/root/el-build-workarea/output \
@@ -519,72 +601,89 @@ pungi \
   --selfhosting \
   --nosplitmedia \
   --config=${elbuild_docroot}pungi-i386.ks'" 
+    
+    # undo the bind mount
+    umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
 
-# undo the bind mount
-umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
+fi
 
-mkdir /root/el-build-workarea
-mkdir /root/el-build-workarea/cache
-mkdir /root/el-build-workarea/tmp
-## first livecd invocation, just minimal test for now
-pushd /root/el-build-workarea
-wget "${elbuild_docroot}livecd-desktop-i386.ks"
-## install rebootless installation goodness
-cat <<EOF >> "livecd-desktop-i386.ks"
-%post --nochroot
-rpm --root \$INSTALL_ROOT -Uvh /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
-sed -i -e "s/fedora-release/ascendos-release/g" \$INSTALL_ROOT/usr/sbin/zyx-liveinstaller-cli
-echo "Ascendos Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
-# on 6.0-alpha zli seems very slow, no need to clutter apps menu with this very,
-# alpha/experimental tool.  But still, nice to have as an option from the cli
-rm -f \$INSTALL_ROOT/usr/share/applications/zyx-liveinstaller.desktop
-EOF
-livecd-creator \
-    --verbose \
-    --cache=/root/el-build-workarea/cache \
-    --tmpdir=/root/el-build-workarea/tmp \
-    --logfile=/root/el-build-workarea/livecd-desktop-x32.log \
-    --fslabel="asc60_livecd_desktop_x32" \
-    --config=livecd-desktop-i386.ks
-mv asc60_livecd_desktop_x32.iso \
-    "${x32outroot}/6.0/i386/iso/Ascendos-6.0-i386-LiveCD-Desktop.iso"
-mv /root/el-build-workarea/livecd-desktop-x32.log \
-    "${outroot}/logs/"
-mv /root/el-build-workarea/livecd-desktop-i386.ks \
-    "${outroot}/logs/"
+if ( listin "build-installer-live-x32" "${do_bake_phases}" ); then
 
-wget "${elbuild_docroot}livecd-desktop-x86_64.ks"
-## install rebootless installation goodness
-cat <<EOF >> "livecd-desktop-x86_64.ks"
+    mkdir /root/el-build-workarea
+    mkdir /root/el-build-workarea/cache
+    mkdir /root/el-build-workarea/tmp
+
+    pushd /root/el-build-workarea
+    wget "${elbuild_docroot}livecd-desktop-i386.ks"
+    ## install rebootless installation goodness
+    cat <<EOF >> "livecd-desktop-i386.ks"
 %post --nochroot
 cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
-chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+# todo: perhaps yum localinstall is better
+/usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
 rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+
 sed -i -e "s/fedora-release/ascendos-release/g" \$INSTALL_ROOT/usr/sbin/zyx-liveinstaller-cli
 echo "Ascendos Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
 # on 6.0-alpha zli seems very slow, no need to clutter apps menu with this very,
 # alpha/experimental tool.  But still, nice to have as an option from the cli
 rm -f \$INSTALL_ROOT/usr/share/applications/zyx-liveinstaller.desktop
 EOF
-livecd-creator \
-    --verbose \
-    --cache=/root/el-build-workarea/cache \
-    --tmpdir=/root/el-build-workarea/tmp \
-    --logfile=/root/el-build-workarea/livecd-desktop-x64.log \
-    --fslabel="asc60_livecd_desktop_x64" \
-    --config=livecd-desktop-x86_64.ks
-mv asc60_livecd_desktop_x64.iso \
-    "${x64outroot}/6.0/x86_64/iso/Ascendos-6.0-x86_64-LiveCD-Desktop.iso"
-mv /root/el-build-workarea/livecd-desktop-x64.log \
-    "${outroot}/logs/"
-mv /root/el-build-workarea/livecd-desktop-x86_64.ks \
-    "${outroot}/logs/"
-popd
+    livecd-creator \
+	--verbose \
+	--cache=/root/el-build-workarea/cache \
+	--tmpdir=/root/el-build-workarea/tmp \
+	--logfile=/root/el-build-workarea/livecd-desktop-x32.log \
+	--fslabel="asc60_livecd_desktop_x32" \
+	--config=livecd-desktop-i386.ks \
+	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x32.console.log"
 
+    mkdir -p "${x32outroot}/6.0/i386/iso"
+    mv asc60_livecd_desktop_x32.iso \
+	"${x32outroot}/6.0/i386/iso/Ascendos-6.0-i386-LiveCD-Desktop.iso"
+    mv /root/el-build-workarea/livecd-desktop-x32.log \
+	"${outroot}/logs/"
+    mv /root/el-build-workarea/livecd-desktop-i386.ks \
+	"${outroot}/logs/"
 
+fi
+    
+if ( listin "build-installer-live-x64" "${do_bake_phases}" ); then
 
-mkdir -p "${outroot}"
-mkdir "${outroot}/6.0"
+    wget "${elbuild_docroot}livecd-desktop-x86_64.ks"
+    ## install rebootless installation goodness
+    cat <<EOF >> "livecd-desktop-x86_64.ks"
+%post --nochroot
+cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+# todo: perhaps yum localinstall is better
+rpm -Uvh \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.4-1.el6.noarch.rpm
+
+sed -i -e "s/fedora-release/ascendos-release/g" \$INSTALL_ROOT/usr/sbin/zyx-liveinstaller-cli
+echo "Ascendos Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
+# on 6.0-alpha zli seems very slow, no need to clutter apps menu with this very,
+# alpha/experimental tool.  But still, nice to have as an option from the cli
+rm -f \$INSTALL_ROOT/usr/share/applications/zyx-liveinstaller.desktop
+EOF
+    livecd-creator \
+	--verbose \
+	--cache=/root/el-build-workarea/cache \
+	--tmpdir=/root/el-build-workarea/tmp \
+	--logfile=/root/el-build-workarea/livecd-desktop-x64.log \
+	--fslabel="asc60_livecd_desktop_x64" \
+	--config=livecd-desktop-x86_64.ks \
+	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x64.console.log"
+
+    mkdir -p "${x64outroot}/6.0/x86_64/iso"
+    mv asc60_livecd_desktop_x64.iso \
+	"${x64outroot}/6.0/x86_64/iso/Ascendos-6.0-x86_64-LiveCD-Desktop.iso"
+    mv /root/el-build-workarea/livecd-desktop-x64.log \
+	"${outroot}/logs/"
+    mv /root/el-build-workarea/livecd-desktop-x86_64.ks \
+	"${outroot}/logs/"
+    popd
+
+fi
 
 # .composeinfo
 mv "${x64outroot}/6.0/.composeinfo" \
@@ -622,9 +721,27 @@ mv "${x64outroot}/6.0/x86_64" \
 mv "${x32outroot}/6.0/i386" \
     "${outroot}/6.0/"
 
-# sources
+## sources
 mv "${x32outroot}/6.0/source" \
     "${outroot}/6.0/"
+
+# carefully merge x32 and x64 sources
+for srpm in $( ls -1A "${x64outroot}/6.0/source/SRPMS/*.src.rpm" ); do
+    srpm_base=$( basename "${srpm}" )
+    if [ -f "{outroot}/6.0/source/SRPMS/${srpm_base}" ]; then
+	status "x32 already has x64 src.rpm of the same name: ${srpm}"
+	if ( ! diff -q "${srpm}" "${x32outroot}/6.0/source/SRPMS/${srpm_base}" ); then
+	    status "assertion failed: about to ls -l the two files"
+	    status ls -l "${srpm}" "${x32outroot}/6.0/source/SRPMS/${srpm_base}"
+	    ls -l "${srpm}" "${x32outroot}/6.0/source/SRPMS/${srpm_base}"
+	    die "danger danger: differing x32 and x64 srpms with the same name: ${srpm}"
+	fi
+    else
+	status "copying x64 only src.rpm into place: ${srpm}"
+	cp "${srpm}" "${outroot}/6.0/source/SRPMS/"
+    fi
+done
+
 
 # bug workaround (TODO a bit cleaner after the first test)
 cp /root/anaconda*.src.rpm \
