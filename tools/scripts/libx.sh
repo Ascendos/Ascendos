@@ -56,7 +56,7 @@ fi
 ##
 ## get runtime environment
 ##
-starttime="$( date +%Y%m%d%H%M%S )"
+starttime="$( date +%Y-%m-%d--%H-%M-%S )"
 rundir="$( pwd )"
 progname="$( basename $0 )"
 progdir=$( ( pushd $( dirname $( readlink -e "${0}" ) ) > /dev/null 2>&1 ; \
@@ -68,7 +68,7 @@ mypid=$$
 ## explicitly set tmpdir to default if not set
 ##
 if [ "${TMPDIR}" == "" ]; then
-    export TMPDIR=/tmp
+    export TMPDIR="/tmp"
 fi
 
 ##
@@ -78,17 +78,23 @@ if [ -f "${progdir}/../../tools/scripts/libx.sh" ]; then
     source "${progdir}/../../tools/scripts/defaults"
     source "${progdir}/../../tools/scripts/functions"
     source "${progdir}/../../tools/scripts/common"
-    x_scripts_dir="${progdir}"
     x_devenv=1
     x_devdir=$( ( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
 	pwd ; popd > /dev/null 2>&1 ) )
-    x_libdir="${x_devdir}"
+    export PATH="${x_devdir}/tools/bin:${x_devdir}/tools/scripts:${PATH}"
+elif [ -f "/root/output/devtree/Ascendos/tools/scripts/libx.sh" ]; then
+    # sad sad tired workaround.  Better to somehow run v-bake as v-bake
+    # within the extracted full devtree (with options passing)
+    source  "/root/output/devtree/Ascendos/tools/scripts/defaults"
+    source  "/root/output/devtree/Ascendos/tools/scripts/functions"
+    source  "/root/output/devtree/Ascendos/tools/scripts/common"
+    x_devenv=1
+    x_devdir=/root/output/devtree/Ascendos
     export PATH="${x_devdir}/tools/bin:${x_devdir}/tools/scripts:${PATH}"
 elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then
     source  "${x_prefix}/lib/${x_toolname}/scripts/defaults"
     source  "${x_prefix}/lib/${x_toolname}/scripts/functions"
     source  "${x_prefix}/lib/${x_toolname}/scripts/common"
-    x_scripts_dir="${X_prefix}/lib/${x_toolname}/scripts"
     x_devenv=0
     x_libdir="${x_prefix}/lib/${x_toolname}"
     export PATH="${x_prefix}/lib/${x_toolname}/tools/bin:${x_prefix}/lib/${x_toolname}/tools/scripts:${PATH}"

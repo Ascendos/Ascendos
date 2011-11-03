@@ -61,14 +61,28 @@
 #############################################################################
 #############################################################################
 ##
-## get runtime environment
+## local constant definitions
 ##
-starttime="$( date +%Y-%m-%d--%H-%M-%S )"
-progname="$( basename $0 )"
-progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 ) )
-rundir="$( pwd )"
-mypid=$$
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
 
 
 #############################################################################
@@ -76,6 +90,13 @@ mypid=$$
 ##
 ## constant and option default definitions
 ##
+
+# to enable debug messages if desired
+x_debug=0
+
+# to suppress status messages if desired
+x_quiet=0
+
 
 # excessive and/or amusing vendor name use avoidance
 tuv_name_lc_enc="erqung"
@@ -86,12 +107,6 @@ flavors="\
 6ComputeNode
 6Client
 "
-
-# to enable debug messages
-debug=1
-
-# to suppress status messages
-quiet=0
 
 
 #############################################################################
@@ -107,66 +122,6 @@ function usage {
     echo ""
     echo ""
     exit 1
-}
-
-
-#############################################################################
-#
-# usage: status <message...>
-#
-# wrapper for sending status messages to console and log
-#
-# globals used: quiet, progname, logfiles(not required)
-#
-function status {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $quiet)); then
-	echo "${progname}: ${time}: status: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: status: $@" >> $logfile
-    done
-}
-
-#############################################################################
-#
-# usage: debug <message...>
-#
-# wrapper for sending debug messages to console and log
-#
-# globals used: debug, progname, logfiles(not required)
-#
-function debug {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if (($debug)); then
-	echo "${progname}: ${time}: debug: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: debug: $@" >> $logfile
-    done
-}
-
-
-#############################################################################
-#
-# usage: die <message...>
-#
-# issue last words
-#
-function die {
-    status "$@"
-    exit 1
-}
-
-
-#############################################################################
-#
-# usage: old_school_crypto <string>
-#
-# probably overkill avoidance of explicit TUV referencing
-#
-function old_school_crypto {
-    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
 }
 
 
@@ -199,7 +154,8 @@ if [ ! -d "${inputdir}" ]; then
 fi
 
 if [ -f "${output}" ]; then
-    die "output ${output} already exists"
+#    die "output ${output} already exists"
+    mv -f "${output}" "${output}.backup.${starttime}"
 fi
 
 tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"

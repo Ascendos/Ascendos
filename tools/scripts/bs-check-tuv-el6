@@ -36,9 +36,9 @@
 #############################################################################
 #############################################################################
 ##
-## repochart-tuv-el6 \
-##     [<input>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted] \
-##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart]
+## bs-check-tuv-el6 \
+##     [<input>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart] \
+##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart.{csv,html}]
 ##
 ##
 ## DESCRIPTION
@@ -60,14 +60,28 @@
 #############################################################################
 #############################################################################
 ##
-## get runtime environment
+## local constant definitions
 ##
-starttime="$( date +%Y-%m-%d--%H-%M-%S )"
-progname="$( basename $0 )"
-progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 ) )
-rundir="$( pwd )"
-mypid=$$
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
 
 
 #############################################################################
@@ -76,11 +90,11 @@ mypid=$$
 ## constant and option default definitions
 ##
 
-# to enable debug messages
-debug=1
+# to enable debug messages if desired
+x_debug=0
 
-# to suppress status messages
-quiet=0
+# to suppress status messages if desired
+x_quiet=0
 
 
 #############################################################################
@@ -100,78 +114,12 @@ function usage {
 
 
 #############################################################################
-#
-# usage: status <message...>
-#
-# wrapper for sending status messages to console and log
-#
-# globals used: quiet, progname, logfiles(not required)
-#
-function status {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $quiet)); then
-	echo "${progname}: ${time}: status: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: status: $@" >> $logfile
-    done
-}
-
-#############################################################################
-#
-# usage: debug <message...>
-#
-# wrapper for sending debug messages to console and log
-#
-# globals used: debug, progname, logfiles(not required)
-#
-function debug {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if (($debug)); then
-	echo "${progname}: ${time}: debug: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: debug: $@" >> $logfile
-    done
-}
-
-
-#############################################################################
-#
-# usage: die <message...>
-#
-# issue last words
-#
-function die {
-    status "$@"
-    exit 1
-}
-
-
-#############################################################################
-#
-# usage: old_school_crypto <string>
-#
-# probably overkill avoidance of explicit TUV referencing
-#
-function old_school_crypto {
-    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
-}
-
-
-#############################################################################
 #############################################################################
 ##
 ## main
 ##
 
 status "initializing..."
-
-
-#############################################################################
-### calculate tree root and set up environment
-elbuild_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 )
 
 
 if [ $# -eq 0 ]; then 
@@ -192,8 +140,16 @@ if [ ! -f "${input}" ]; then
 fi
 
 
-if [ -f "${output}" ]; then
-    die "output ${output} already exists"
+if [ -f "${output}.html" ]; then
+#    die "output ${output}.html already exists"
+    mv -f "${output}.html" \
+	 "${output}.html.backup.${starttime}"
+fi
+
+if [ -f "${output}.csv" ]; then
+#    die "output ${output}.html already exists"
+    mv -f "${output}.csv" \
+	 "${output}.csv.backup.${starttime}"
 fi
 
 tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
@@ -258,7 +214,7 @@ while read line; do
     status "scanning #"$( cat "${tmpdir}/num_pkgs" | wc -l )"/${est_num_pkgs} : ${pkg_n} ..."
     # see if pkg should be in asc
     pkg_in_asc="no"
-    if ( ! grep -q "^===${pkg_n}===" "${elbuild_devroot}/Ascendos/6/6.0/configs/tuv-pkgs-not-in-asc6" ); then
+    if ( ! grep -q "^===${pkg_n}===" "${x_devdir}/6/6.0/configs/tuv-pkgs-not-in-asc6" ); then
 	pkg_in_asc="yes"
 	echo "${pkg_nvr}" >> "${tmpdir}/num_pkgs_in_asc"
     fi
@@ -319,11 +275,47 @@ while read line; do
     echo -en "\"${pkg_nvr}\"," >> "${output}.csv"
     echo -en "\"${pkg_time_date}\"," >> "${output}.csv"
     echo -en "\"${pkg_in_asc}\"," >> "${output}.csv"
-    echo -en "\"${pkg_exists_in_bs}\"," >> "${output}.csv"
-    echo -en "\"${pkg_complete_in_bs}\"," >> "${output}.csv"
+    if [ "${pkg_in_asc}" == "no" ]; then
+	echo -en "\"n/a\"," >> "${output}.csv"
+	echo -en "\"n/a\"," >> "${output}.csv"
+    else
+	pkg_nvr_minus_el6suffix=$( echo "${pkg_nvr}" | sed -e 's/\.el6.*$//' )
+	status "pkg_nvr_minus_el6suffix is ${pkg_nvr_minus_el6suffix} ..."
+	if [ -d "${x_devdir}/packages/${pkg_nvr}" ]; then
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	elif [ -d "${x_devdir}/packages/${pkg_nv}" ]; then
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	elif [ -d "${x_devdir}/packages/${pkg_n}" ]; then
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	elif [ -d "${x_devdir}/packages/${pkg_nvr_minus_el6suffix}" ]; then
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output}.csv"
+	else
+	    if [ "${pkg_exists_in_bs}" == "no" ]; then
+		echo -en "\"<b>NO</b>\"," >> "${output}.csv"
+	    else
+		echo -en "\"${pkg_exists_in_bs}\"," >> "${output}.csv"
+	    fi
+	    if [ "${pkg_complete_in_bs}" == "no" ]; then
+		echo -en "\"<b>NO</b>\"," >> "${output}.csv"
+	    else
+		echo -en "\"${pkg_complete_in_bs}\"," >> "${output}.csv"
+	    fi
+	fi
+    fi
+    # end if pkg_in_asc else ...
+
     echo -en "${in_repo_status_csv}" >> "${output}.csv"
-    echo -en "\"${build_target}\"," >> "${output}.csv"
-    echo -en "\"${tags}\"," >> "${output}.csv"
+    if [ "${pkg_in_asc}" == "no" ]; then
+	echo -en "\"n/a\"," >> "${output}.csv"
+	echo -en "\"n/a\"," >> "${output}.csv"
+    else
+	echo -en "\"${build_target}\"," >> "${output}.csv"
+	echo -en "\"${tags}\"," >> "${output}.csv"
+    fi
     echo -en "\n" >> "${output}.csv"
 
 done < "${tmpdir}/revinput"
@@ -352,10 +344,12 @@ echo -en "\n" >> "${output}.csv"
 cp "${output}.csv" "${tmpdir}/pkg_big_board.csv"
 
 pushd "${tmpdir}" 2>&1 > /dev/null
-"${elbuild_devroot}/Ascendos/tools/csv2html.pl" \
+"${x_devdir}/tools/scripts/csv2html.pl" \
     -b -e -d \
     -i "pkg_big_board.csv" \
-    -o "pkg_big_board.html"
+    -o "pkg_big_board.html" \
+    -t "PackageBigBoard" \
+    > "${tmpdir}/csv2html.out" 2>&1
 popd "${tmpdir}" 2>&1 > /dev/null
 
 mv "${tmpdir}/pkg_big_board.html" "${output}.html"

@@ -50,6 +50,9 @@
 ## koji list-untagged
 ## (foreach pkg-nvr from above lists) koji buildinfo <pkg-nvr>
 ##
+## note: that misses some obsoleted versions needed for gen-big-board,
+##       thus next step is to investigate koji search build \* instead
+##
 #############################################################################
 
 
