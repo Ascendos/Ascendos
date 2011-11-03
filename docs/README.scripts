@@ -16,8 +16,42 @@ The same goes for most of the scripts themselves too.
 #############################################################################
 #############################################################################
 ##
-## the big board: an html status table highlighting missing package builds
+## main build tools
 ##
+
+# the wrapper script, dispatches work to subcommand scripts
+el-build
+
+# the main build tool at the moment.  
+#  - currently inputs from koji and outputs composed repos.
+#  - will eventually use koji to take input from gen-tdv-srpm-repo
+bake
+
+# the actual workhorse script run inside the throwaway vm that el-build
+# creates.  It invokes pungi/mock/livecd-creator/koji
+v-bake
+
+# a tool to automate the pushing of individual packages from an
+# unsigned state in koji, to a signed state in a staging area.
+el-push
+
+# unfinished/in-progress tool for taking the output of koji, pungi, and
+# livecd-creator and using to populate a staging area suitable for
+# subsequent mirroring to the masses.  Support for user modules defining
+# specific layout logic is being implemented from the start.
+populate-staging-repo
+
+
+#############################################################################
+#############################################################################
+##
+## the big board: an html status table highlighting missing package builds
+##                and other useful package statistics
+##
+
+# the main bigboard tool, you can just run it if you like and are patient
+# (it invokes the rest, note: it will cause a tuv srpm mirror to happen)
+gen-big-board
 
 # tool for running on the koji server to output healthy set of metadata for
 # subsequent parsing
@@ -54,10 +88,10 @@ sigcheck-tdv-srpms-el6
 sigcheck-tuv-srpms-el6
 
 # generates the list of changed srpms between two repos
-src-pkg-repo-diff--gen-min-srpm-list
+gen-min-srpm-list
 
 # generates elbuild format deltas suitable for initial import
-src-pkg-repo-diff--gen-debug-output
+src-pkg-repo-diff
 
 # builds the new srpm repo from deltas and tuv srpm repo
 gen-tdv-srpm-repo
@@ -79,35 +113,6 @@ iso-x
 # python -m SimpleHTTPDServer.py but uses an existing apache install
 #  - used by el-build to support offline builds against cached repos
 user-httpd
-
-
-#############################################################################
-#############################################################################
-##
-## main build tools
-##
-
-# the wrapper script, dispatches work to subcommand scripts
-el-build
-
-# the main build tool at the moment.  
-#  - currently inputs from koji and outputs composed repos.
-#  - will eventually use koji to take input from gen-tdv-srpm-repo
-bake
-
-# a tool to automate the pushing of individual packages from an
-# unsigned state in koji, to a signed state in a staging area.
-el-push
-
-# the actual workhorse script run inside the throwaway vm that el-build
-# creates.  It invokes pungi/mock/livecd-creator (todo: /koji).
-isobuild-internal
-
-# unfinished tool for taking the output of koji/pungi/livecd-creator and
-# using to populate a staging area suitable for subsequent mirroring to
-# the masses.  Support for user modules defining specific layout logic
-# is being implemented up front.
-populate-staging-repo
 
 # temporary automation script making up for deficiencies in prior scripts
 rename-isos
