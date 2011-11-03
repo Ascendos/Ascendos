@@ -1,6 +1,6 @@
 ========================================================================
 ========================================================================
-Douglas McClendon's misc ascendos notes
+Douglas McClendon's misc Ascendos/DescendOS notes
 ========================================================================
 ========================================================================
 
@@ -18,18 +18,14 @@ layout.  Issue being pursued on -dev,wiki,bugzilla
 
 upcoming beta tasks
 -------------------
-need to handle the 3 6.0 package issues, and the ~100 6.1 packages
-that need being built.  I'd like a script, ala gen-el6-pkg-list that
-looks at the updates .src.rpms, and generates the complete list of
-target output binary rpm file names, diffing with what is available
-from us, and run/exposed via cron/web.  I.e. a running counter that
-will get down to 0, and go up as new updates from tuv are released.
-Need to do the rpmcompare script enhancements described on -dev,
-and get those running, first against SL just for development, then
-have contributors run against tuv giving us checksum manifests.
+need to handle the 6.0 package off-spec release naming issues, and the 
+~200? 6.1 packages that need being built.  The current gen-big-board
+script is already a long way towards being able to submit the missing
+builds in an automated way.  Currently it needs an updated bugfix for
+the koji-dump-buildinfo script.  
 
 
-build2
+build3
 ------
 being able to recreate everything that was on build.ascendos.org when
 Troy left and I started as lead developer, i.e. koji and its output.
@@ -37,9 +33,14 @@ I got through something like ~1950/2017 of the 6.0 package builds that
 could build without problem against an sl60 buildroot.  The remaining
 packages are from the troubledpackage list on the wiki and need some
 special, but not complex handling. The vm build2.ascendos.org had to
-be freed due to resource constraint, but I'll get the project finished
-on my local k/vm at home.  Then take everything I did and script it
-fold it into the makeAscendos-6.0 script
+be freed due to resource constraint, but I've launched a personal 
+build3 vm which is more slowly going through the packages, including
+the now in-v-bake script logic for the aforementioned trouble package
+handling.  Though I expect that logic to have some bugs yet to be
+discovered and fixed as a first complete and successful long run is
+attempted.  At some point adding the pxe configuration such that the 
+long run can automatically bring up any willing koji builder nodes on
+the network will help speed things up considerably.
 
 maintenance process
 -------------------
@@ -57,10 +58,29 @@ build.a.o/linux/ascendos
 
 2011-10-05: added /GPG/RPM-GPG-KEY-ascendos-alpha-dmc
 2011-10-05: repochange: added zsh, libxml2, perl-Sys-Virt, and XXXXXX-logos(containing our branding) to 6.0/SRPMS/ 
-TODO: create/build/add ascendos-release46.0.asc.2 with fixed /etc/ascendos-release and new key
 
-- see koji, new ascendos-release, -logos
+- koji: new ascendos-release
+- koji: new X-logos
+- koji: new zsh (related to above, in see bz#...)
 
+-------------
+
+# below is for a script to enumerate the unified srpm
+# list by its release version(6.?) and type(base/updates)
+# (then beyond that generating a build order.  I'd like
+#  to try that before falling back to the week-by-week
+#  breakdown which I as yet don't fully understand)
+note: tuv-6.0 reldate: 2010-11-10
+note: tuv-6.1 reldate: 2011-05-19
+
+2011-10-26: removed off-off-spec obsoleted
+
+checksums for one-off-line backups
+----------------------------------
+
+::old bao backup::
+::4405bb1ac202f8440667e693777dd2f0d0dfff2ecbf594c5fc514c91b635aaf9::
 
 ========================================================================
 ========================================================================
+
