@@ -1,0 +1,159 @@
+#!/usr/bin/env python
+#############################################################################
+#############################################################################
+#
+# mirrorlist: an enterprise linux mirrorlist generator
+#
+#############################################################################
+#
+# Copyright 2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+import os
+import sys
+import urlparse
+import random
+
+mirror_roots = ['http://eu1.mirror.ascendos.org',
+                'http://us1.mirror.ascendos.org/distributions/ascendos']
+
+required_parameters = ['release',
+                       'arch',
+                       'repo']
+
+valid_release_values = ['5',
+                        '6',
+                        '6.0',
+                        '6.1']
+
+valid_arch_values = ['x86_64',
+                     'i386']
+
+valid_repo_values = ['os',
+                     'updates']
+
+valid_test_values = ['alpha',
+                     'beta']
+
+
+test_path_component=''
+test_version_suffix=''
+
+random.shuffle(mirror_roots)
+
+url = urlparse.urlparse(os.environ["REQUEST_URI"])
+# note: I wanted to use urlsplit, thinking it would help with urls like this-
+# http://example.com/mirrorlist?arg1=abc&arg2=def/.treeinfo
+# but it doesn't seem to actually help with that??
+if url[4] == "":
+    print "Content-Type: text/plain\n"
+    print "error_no_parameters_specified\n"
+    sys.exit(0)
+
+parameter_chunks = url[4].split('/', 1)
+
+url_suffix_path = ''
+if len(parameter_chunks) == 2:
+    url_suffix_path = '/' + parameter_chunks[1]
+
+parameters_string = parameter_chunks[0]
+
+parameters = dict(
+    [part.split('=') for part in parameters_string.split('&')]
+    )
+
+for required_parameter in required_parameters:
+    if required_parameter not in parameters:
+        print "Content-Type: text/plain\n"
+        print "error_no_" + required_parameter + "_specified\n"
+        sys.exit(0)
+
+if parameters['release'] not in valid_release_values:
+    print "Content-Type: text/plain\n"
+    print "error_invalid_release_value_specified\n"
+    sys.exit(0)
+
+if parameters['arch'] not in valid_arch_values:
+    print "Content-Type: text/plain\n"
+    print "error_invalid_arch_value_specified\n"
+    sys.exit(0)
+
+if parameters['repo'] not in valid_repo_values:
+    print "Content-Type: text/plain\n"
+    print "error_invalid_repo_value_specified\n"
+    sys.exit(0)
+
+if parameters['release'] == '6.0':
+    parameters['release'] = '6'
+if parameters['release'] == '6.1':
+    parameters['release'] = '6'
+
+if 'test' in parameters:
+    if parameters['test'] not in valid_test_values:
+        print "Content-Type: text/plain\n"
+        print "error_invalid_test_value_specified\n"
+        sys.exit(0)
+    if parameters['test'] == 'alpha':
+        test_path_component='/test'
+        test_version_suffix='-Alpha'
+
+if url_suffix_path != '':
+    if parameters['repo'] == 'os':
+        print "Location: " + \
+            mirror_roots[0] + \
+            "/experimental/dmc-proposed-layout-1/releases" + \
+            test_path_component + '/' + \
+            parameters['release'] + \
+            test_version_suffix + '/' + \
+            "os" + '/' + \
+            parameters['arch'] + url_suffix_path
+        print "\n\n"
+        sys.exit(0)
+    elif parameters['repo'] == 'updates':
+        print "Location: " + \
+            mirror_roots[0] + \
+            "/experimental/dmc-proposed-layout-1/updates" + \
+            test_path_component + '/' + \
+            parameters['release'] + \
+            test_version_suffix + '/' + \
+            parameters['arch'] + url_suffix_path
+        print "\n\n"
+        sys.exit(0)
+
+print "Content-Type: text/plain\n"
+for mirror_root in mirror_roots:
+    if parameters['repo'] == 'os':
+        print mirror_root + \
+            "/experimental/dmc-proposed-layout-1/releases" + \
+            test_path_component + '/' + \
+            parameters['release'] + \
+            test_version_suffix + '/' + \
+            "os" + '/' + \
+            parameters['arch'] + url_suffix_path
+
+    elif parameters['repo'] == 'updates':
+        print mirror_root + \
+            "/experimental/dmc-proposed-layout-1/updates" + \
+            test_path_component + '/' + \
+            parameters['release'] + \
+            test_version_suffix + '/' + \
+            parameters['arch'] + url_suffix_path
