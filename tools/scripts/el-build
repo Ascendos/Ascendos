@@ -47,6 +47,11 @@
 #############################################################################
 
 
+# TODO: this wrapper should be pythonified with optional simple gui
+#       integrated for at least the simplest bake case, i.e. distroname
+#       and distrologo input, then a progress meter and logfile watcher.
+
+
 #############################################################################
 #############################################################################
 ##
