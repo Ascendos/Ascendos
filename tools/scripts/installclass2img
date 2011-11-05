@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# installclass2img: create anadonda 'product.img' format output from a .py
+#
+#############################################################################
+#
+# Copyright 2007-2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## installclass2img
+##
+##
+## DESCRIPTION
+##
+## convert an installclass .py file into a suitably formatted product.img
+## used by os repos to enhance a traditional netinstall experience.
+##
+##
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## local constant definitions
+##
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# to enable debug messages if desired
+x_debug=0
+
+# to suppress status messages if desired
+x_quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo "    [command options...]"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+if ((! $#)); then
+    usage
+fi
+
+installclass=$( readlink -f "${1}" )
+outputimage=$( readlink -f "${2}" )
+
+if [ ! -f "${installclass}" ]; then
+    die "installclass file not found"
+fi
+
+if [ -f "${outputimage}" ]; then
+    die "output image file ${outputimage} already exists"
+fi
+
+if $( ! dd if=/dev/zero \
+    of="${outputimage}" \
+    bs=1k count=77 > /dev/null 2>&1 ); then
+    die "failed to initialize output image"
+fi
+
+# note: x86_64 w/ hw-virt support only, thanks tuv </sarcasm>
+# comment: viros' qfakeroot does not have the above limitation, and was
+#          implemented over a year before guestfish/libguestfs with the
+#          same basic architecture (generate a utility initramfs, then use
+#          qemu to do previously root-only things with filesystems).  But
+#          alas guestfish is the right tool for the job here, if for no other
+#          reason than it has no doubt had more sufficient enterprise-worthy
+#          code review and evolution.  Seriously, if libvirt would just be
+#          happy falling back to qemu for i686 and no-hwvirt situations, and
+#          thusly allowing guestfish to work anywhere, I'd wouldn't be quite
+#          so pained to use it. 
+guestfish \
+    --add "${outputimage}" \
+    run : \
+    mkfs ext2 /dev/sda : \
+    mount /dev/sda / : \
+    mkdir /installclasses : \
+    upload "${installclass}" /installclasses/product.py : \
+    quit
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#
+#
