@@ -128,6 +128,7 @@ distrover_def="6.0"
 offline_def="no"
 do_bake_phases_def="all"
 bake_flags_def=""
+test_package_list_def=""
 distrorelname_def="nameless"
 # presumption is to first check in ./, then x_devdir/6/distrover/
 config_x64_def="pungi-x86_64.ks"
@@ -192,6 +193,7 @@ function usage {
     echo "    [offline=${offline_def}] \\"
     echo "    [do_bake_phases=${do_bake_phases_def}] \\"
     echo "    [bake_flags=${bake_flags_def}] \\"
+    echo "    [test_package_list=${test_package_list_def}] \\"
     echo "    [distrorelname=${distrorelname_def}] \\"
     echo "    [config_x64=${config_x64_def}] \\"
     echo "    [config_x32=${config_x32_def}] \\"
@@ -232,6 +234,7 @@ distrover="${distrover_def}"
 offline="${offline_def}"
 do_bake_phases="${do_bake_phases_def}"
 bake_flags="${bake_flags_def}"
+test_package_list="${test_package_list_def}"
 clear_bootstrapos_repodata="${clear_bootstrapos_repodata}"
 distrorelname="${distrorelname_def}"
 config_x64="${config_x64_def}"
@@ -467,12 +470,12 @@ sleep 2
 
 if [ "${do_bake_phases}" == "all" ]; then
     do_bake_phases="\
-sources-recompile
-build-installer-traditional-x32
-build-installer-traditional-x64
-build-installer-live-x32
-build-installer-live-x64
-staging-layout
+compile-sources
+installer-traditional-x32
+installer-traditional-x64
+installer-live-x32
+installer-live-x64
+stage-layout
 "
 fi
 
@@ -483,12 +486,20 @@ for bake_phase in $( echo "${do_bake_phases}" ); do
 done
 do_bake_phases="${new_bake_phases}"
 
+# support both space and comma seperated lists as input for do_bake_phases
+new_list=""
+for test_package in $( echo "${test_package_list}" ); do
+    new_list="${new_list} $( echo ${test_package} | sed -e 's/,/ /g' )"
+done
+testing_package_list="${new_list}"
+
 # expose baking options to the inner/v-bake script
 # TODO: probably a cleaner way
 # ?: will this even work, or will multiline above cause problems?
 cat <<EOF > "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/v-bake.options" 
 do_bake_phases="${do_bake_phases}"
 bake_flags="${bake_flags}"
+test_package_list="${test_package_list}"
 EOF
 
 status "do_bake_phases option being passed to v-bake is: ${do_bake_phases} ..."
@@ -528,6 +539,11 @@ wget
 %end
 
 %post --log=/root/min-ks.post.log.log
+
+# 1G of swapfile
+dd if=/dev/zero of=/.swapfile bs=1M count=1024 2>&1 | tee -a /var/log/mkswap.log
+mkswap /.swapfile 2>&1 | tee -a /var/log/mkswap.log
+
 ## services
 /sbin/chkconfig --level=3 NetworkManager
 
@@ -538,23 +554,29 @@ wget
 #
 cat << FOO >> /etc/rc.d/rc.local
 
+# disable selinux enforcement for makeworld/koji/pungi
+setenforce 0
+
+# enable swapfile
+swapon /.swapfile
+
 # let the user see terminal output if they happen to be watching a console
 rhgb-client --quit
 # disable console blanking since this will be a VM, not a real monitor
 setterm -blank 0
 
 # only do x-run once, not every boot
-if [ ! -f /tmp/x-run ]; then
+if [ ! -f /root/x-run ]; then
 
     # tell x-run that it is OK to overwrite /dev/sdb with its output
     touch /tmp/disk-sdb-is-going-to-get-overwritten
 
     # pull task to run from qemu-kvm host running el-build spawned httpd on port 8421
-    wget -O /tmp/x-run http://10.0.2.2:8421/x-run
-    chmod +x /tmp/x-run
+    wget -O /root/x-run http://10.0.2.2:8421/x-run
+    chmod +x /root/x-run
     # TODO: x-run uses the installed yum.repos.d, which do not yet utilize
     #       available mirrors (cough, vmirmog, cough)
-    ( ( /tmp/x-run ; init 0 ) 2>&1 | tee -a /root/x-run.log ) &
+    ( ( /root/x-run ; init 0 ) 2>&1 | tee -a /root/x-run.log ) &
 fi
 
 FOO

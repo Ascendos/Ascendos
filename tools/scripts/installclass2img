@@ -131,17 +131,7 @@ if $( ! dd if=/dev/zero \
     die "failed to initialize output image"
 fi
 
-# note: x86_64 w/ hw-virt support only, thanks tuv </sarcasm>
-# comment: viros' qfakeroot does not have the above limitation, and was
-#          implemented over a year before guestfish/libguestfs with the
-#          same basic architecture (generate a utility initramfs, then use
-#          qemu to do previously root-only things with filesystems).  But
-#          alas guestfish is the right tool for the job here, if for no other
-#          reason than it has no doubt had more sufficient enterprise-worthy
-#          code review and evolution.  Seriously, if libvirt would just be
-#          happy falling back to qemu for i686 and no-hwvirt situations, and
-#          thusly allowing guestfish to work anywhere, I'd wouldn't be quite
-#          so pained to use it. 
+# todo: support x32 and non-hw-virt with non-guestfish qemu fallback mode
 guestfish \
     --add "${outputimage}" \
     run : \

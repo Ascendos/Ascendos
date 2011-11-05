@@ -115,6 +115,7 @@ setterm -blank 0
 mkdir -p "${outroot}"
 cd "${outroot}"
 mkdir 6.0
+mkdir workarea
 mkdir logs
 mkdir koji
 mkdir devtree
@@ -122,6 +123,7 @@ mkdir devtree
 mkdir /root/el-build-workarea
 mkdir /root/el-build-workarea/cache
 mkdir /root/el-build-workarea/output
+cd "${outroot}/workarea"
 
 
 #############################################################################
@@ -173,13 +175,12 @@ wget -O "${outroot}/logs/v-bake.options" \
     "${elbuild_docroot}v-bake.options"
 # enumerated here for early reference, overridden by options sourcing below
 do_bake_phases="\
-sources-recompile-test
-sources-recompile
-build-installer-traditional-x32
-build-installer-traditional-x64
-build-installer-live-x32
-build-installer-live-x64
-staging-layout
+compile-sources
+installer-traditional-x32
+installer-traditional-x64
+installer-live-x32
+installer-live-x64
+stage-layout
 "
 source "${outroot}/logs/v-bake.options"
 
@@ -219,7 +220,7 @@ yum -y install zlib-devel
 # for general utility 
 yum -y install lftp
 
-# for chroot (no doubt pulled in my something else, but
+# for chroot (no doubt pulled in by something else, but
 #             currently having chroot not found issues)
 yum -y install coreutils
 
@@ -349,7 +350,7 @@ setenforce 0
 #       and see about selectively mirroring/precaching
 
 # TODO: this and similar below should be broken into additional called scripts
-if ( listin "sources-recompile" "${do_bake_phases}" ); then
+if ( listin "compile-sources" "${do_bake_phases}" ); then
 
     mkfs.ext3 -O sparse_super /dev/sdc
     mkdir /mnt/space
@@ -376,8 +377,8 @@ if ( listin "sources-recompile" "${do_bake_phases}" ); then
     #      such that this list could be reduced to ideally a single entry
     dependent_bootstrap_os_list="\
 sl60:http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0/\$arch/os/
-f13:http://archives.fedoraproject.org:/pub/archive/fedora/linux/releases/13/Everything/\$arch/os/
-f12:http://archives.fedoraproject.org:/pub/archive/fedora/linux/releases/12/Everything/\$arch/os/
+f13:http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/\$arch/os/
+f12:http://archives.fedoraproject.org/pub/archive/fedora/linux/releases/12/Everything/\$arch/os/
 rhel6beta:ftp://mirrors.kernel.org:/pub/redhat/redhat/rhel/beta/6/\arch/os/
 "
 
@@ -386,6 +387,9 @@ rhel6beta:ftp://mirrors.kernel.org:/pub/redhat/redhat/rhel/beta/6/\arch/os/
 	add-external-repo \
 	ascendos-build \
 	http://build.ascendos.org/linux/ascendos/build/\$arch/
+
+    # experimental
+    koji add-tag "ascendos-initial-tag"
 
     bs_os_abbrevs=""
     # create a build target for each dependent bootstrapping os
@@ -398,7 +402,7 @@ rhel6beta:ftp://mirrors.kernel.org:/pub/redhat/redhat/rhel/beta/6/\arch/os/
 	koji add-tag --arches "i686,x86_64" "${os_abbrev}-build"
 	koji add-target "${os_abbrev}" "${os_abbrev}-build" "${os_abbrev}"
 	koji add-group "${os_abbrev}-build" build
-        # todo: obvious listification
+        # todo: abstract into target-distro-specifying configurations somewhere
 	buildroot_minbuild_pkgset="\
 bash
 bzip2
@@ -427,42 +431,62 @@ buildsys-macros-el6
 "
 # note: system-release is an experimental replacement for sl-release
 
-	koji add-group-pkg "${os_abbrev}-build" build "${buildroot_minbuild_pkgset}"
+	newlist=""
+	for item in ${buildroot_minbuild_pkgset}; do
+	    newlist="${newlist} ${item}"
+	done
+	buildroot_minbuild_pkgset="${newlist}"
+
+	koji \
+	    add-group-pkg \
+	    "${os_abbrev}-build" \
+	    build \
+	    "${buildroot_minbuild_pkgset}"
 
         # create the repo
+	status koji add-external-repo "${os_abbrev}-base" "${os_repo}"
 	koji add-external-repo "${os_abbrev}-base" "${os_repo}"
 
         # cause it to be used for builds with abbrev-build build tag (src or dest, I forget)
+	status koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
 	koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
 
         # cause the ascendos-build repo to be used for each of the build-targets
+	status koji add-external-repo ascendos-build -t "${os_abbrev}-build"
 	koji add-external-repo ascendos-build -t "${os_abbrev}-build"
 
     done
 
     # todo, this repo needs to get generated from the new gen-tdv-srpm-repo script, 
     # and the list with the reverse builddate sorting
-    srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org___linux__ascendos__SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
-    echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
 
-    if ( listin "source-recompile-test" "${bake_flags}" ); then
-        # FIXME:initial dev/debug
-	srpm_list="\
-libXfixes-4.0.4-1.el6.src.rpm
-"
+    if [ "${test_package_list}" != "" ]; then
+	srpm_list="${test_package_list}"
+    else
+        srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org___linux__ascendos__SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
     fi
+
+    echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
 
     pkg_list=""
     for srpm in ${srpm_list}; do
+	status "preprocessing package ... ${srpm} ..."
 	pkg_nvr=$( basename "${srpm}" .src.rpm )
-	pkg_nv=$( "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
-	pkg_n=$( "${pkg_nv}" | sed -e 's/-[^-]*$//' )
+	pkg_nv=$( echo "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+	pkg_n=$( echo "${pkg_nv}" | sed -e 's/-[^-]*$//' )
         # better to do this with a local copy of the package and rpm query with format
 	pkg_list="${pkg_list} ${pkg_n}"
 
-        # does it matter that this isnt choosing initial tag/target
-        # based on what they end up getting built against?
-	koji add-pkg --owner=ascendos-team sl60 "${pkg_n}"
+	status koji \
+	    add-pkg \
+	    --owner=ascendos-team \
+	    ascendos-initial-tag \
+	    "${pkg_n}"
+	koji \
+	    add-pkg \
+	    --owner=ascendos-team \
+	    ascendos-initial-tag \
+	    "${pkg_n}"
     done
 
 #
@@ -494,21 +518,51 @@ libXfixes-4.0.4-1.el6.src.rpm
 #           In any event, having the logic spelled out in code/script here, makes it
 #           rather easier to visually compare altering implementational choices/bugs.
 #
+#           2k11/11/03-dmc: from inspection of the unbuilt(?trouble?) grub update just 
+#                           subsequent to a python 6.0-updates era srpm, it appears troy
+#                           was building 6.0 updates against asc6.0 (with the slight
+#                           cheating that a handful of packages were not yet in 6.0).  One
+#                           can also presume that at the 6.1 updates level it is time to
+#                           build against 6.0.  That all makes sense, and I think the intent
+#                           is not to as suggested above have more frequent feedback events
+#                           (rather, only at release time, not with each package).  I think
+#                           the only thing I miss, which may for all I know exist in the 
+#                           current koji history, is seeing all of 6.0 built against an official
+#                           dogfood pass.  But hey, thats what the below script is for facilitating
+#                           in a very simple manner.  TODO: paraphrase this comment block
+#                           into better documentation and/or comments.
+#
 
     pushd  "${outroot}/koji"
 
     for srpm in ${srpm_list}; do
 	xdone=0
+	wget "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}"
 	for bs_os in ${bs_os_abbrevs}; do
-	    echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
-	    wget "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}"
-	    if $( koji build "${bs_os}" "${srpm}" ); then
-		rm -f "${srpm}"
-		pkg_nvr=$( basename "${srpm}" .src.rpm )
-		koji download-build "${pkg_nvr}"
-		echo "DEBUG: seemed to build ok..."
-	    else
-		echo "DEBUG: seemed NOT to build ..."
+	    if ((! ${xdone})); then
+		status koji \
+		    add-pkg \
+		    --owner=ascendos-team \
+		    "${bs_os}" \
+		    "${pkg_n}"
+		koji \
+		    add-pkg \
+		    --owner=ascendos-team \
+		    "${bs_os}" \
+		    "${pkg_n}"
+		echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
+		status "DEBUG: about to try building ${srpm} against ${bs_os} ..."
+		status build --wait "${bs_os}" "${srpm}" 
+		if $( koji build --wait "${bs_os}" "${srpm}" 2>&1 | tee -a "${outroot}/logs/${srpm}.kojibuild.log" ); then
+#		rm -f "${srpm}"
+		    mv "${srpm}" "${srpm}".pre-compile-phase
+		    pkg_nvr=$( basename "${srpm}" .src.rpm )
+		    koji download-build "${pkg_nvr}"
+		    echo "DEBUG: seemed to build ok..."
+		    xdone=1
+		else
+		    echo "DEBUG: seemed NOT to build ..."
+		fi
 	    fi
 	done
     done
@@ -522,7 +576,7 @@ fi
 #       an output structure suitable for pungi here below (instead of 
 #       its current use of published builds
 
-if ( listin "build-installer-traditional-x64" "${do_bake_phases}" ); then
+if ( listin "installer-traditional-x64" "${do_bake_phases}" ); then
 
     ## run pungi non-mock for x86_64 (TODO: may as well run it under mock for consistency)
 
@@ -546,7 +600,7 @@ if ( listin "build-installer-traditional-x64" "${do_bake_phases}" ); then
     
 fi
 
-if ( listin "build-installer-traditional-x32" "${do_bake_phases}" ); then
+if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
 
     adduser xmock
     usermod -a -G mock xmock
@@ -607,7 +661,7 @@ pungi \
 
 fi
 
-if ( listin "build-installer-live-x32" "${do_bake_phases}" ); then
+if ( listin "installer-live-x32" "${do_bake_phases}" ); then
 
     mkdir /root/el-build-workarea
     mkdir /root/el-build-workarea/cache
@@ -648,7 +702,7 @@ EOF
 
 fi
     
-if ( listin "build-installer-live-x64" "${do_bake_phases}" ); then
+if ( listin "installer-live-x64" "${do_bake_phases}" ); then
 
     wget "${elbuild_docroot}livecd-desktop-x86_64.ks"
     ## install rebootless installation goodness
