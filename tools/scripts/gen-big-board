@@ -3,7 +3,8 @@
 #############################################################################
 #############################################################################
 #
-# hello-world: a template el-build subcommand script
+# gen-big-board: generates a big status board of available upstream source
+#                packages, and their correlating downstream status
 #
 #############################################################################
 #
@@ -33,12 +34,12 @@
 #############################################################################
 #############################################################################
 ##
-## hello-world
+## gen-big-board
 ##
 ##
 ## DESCRIPTION
 ##
-## just a template to use for building new el-build subcommands with bash
+## A simple wrapper for the current hardcoded workflow
 ##
 ##
 #############################################################################
