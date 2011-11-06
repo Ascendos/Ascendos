@@ -95,7 +95,7 @@ function normalize_path {
 # globals used: x_quiet, progname, logfiles(not required)
 #
 function status {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    time="$( date +%Y/%m/%d-%H:%M:%S )"
     if ((! "${x_quiet}")); then
 	echo "${progname}: ${time}: status: $@"
     fi
@@ -114,7 +114,7 @@ function status {
 # globals used: x_debug, progname, logfiles(not required)
 #
 function debug {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
+    time="$( date +%Y/%m/%d-%H:%M:%S )"
     if (("${x_debug}")); then
 	echo "${progname}: ${time}: debug: $@"
     fi
