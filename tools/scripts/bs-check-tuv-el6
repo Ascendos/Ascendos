@@ -139,7 +139,6 @@ if [ ! -f "${input}" ]; then
     die "input data file ${1} does not exist"
 fi
 
-
 if [ -f "${output}.html" ]; then
 #    die "output ${output}.html already exists"
     mv -f "${output}.html" \
@@ -155,6 +154,11 @@ fi
 tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
 
 mkdir -p "${tmpdir}"
+
+status "fetching koji buildinfo dump from build.ascendos.org ..."
+wget -q -O - http://build.ascendos.org/linux/development/dmc/koji-buildinfo-dumps/asc-bs-info-dump-latest.tar.bz2 \
+    | tar -C "${tmpdir}" -xjlpsf -
+bi_dir=$( ls -1d "${tmpdir}/asc-bs-info-dump-"* )
 
 tac "${input}" > "${tmpdir}/revinput"
 
@@ -227,7 +231,7 @@ while read line; do
     # this doesn't really work, but the motivating issue was, e.g. plymouth-bla.asc.src.rpm where the .asc replaced the .el6, which
     # seems to go against package naming convention.
 #    pkg_nvr_short=$( echo "${pkg_nvr}" | sed -e 's/\.el6.*$//g' )
-    pkg_dir_if_exists=$( ls --sort=version -1Ad "${HOME}/.el-build/cache/koji-dump-output/buildinfo/${pkg_nvr}"* 2> /dev/null | tail -1 )
+    pkg_dir_if_exists=$( ls --sort=version -1Ad "${bi_dir}/buildinfo/${pkg_nvr}"* 2> /dev/null | tail -1 )
     if [ -d "${pkg_dir_if_exists}" ]; then
 	pkg_exists_in_bs="yes"
 	echo "${pkg_nvr}" >> "${tmpdir}/num_pkgs_in_asc_on_bs"
