@@ -108,13 +108,25 @@ function usage {
 
 status "initializing..."
 
-last_bake_virt_machine=$( virsh list --all | awk '{print $2}' | grep "^bake" | sort | tail -1 )
+if (($#)); then
+    tailnum="${1}"
+else
+    tailnum=1
+fi
+
+last_bake_virt_machine=$( virsh list --all \
+    | awk '{print $2}' \
+    | grep "^bake" \
+    | sort \
+    | tail "-${tailnum}" )
 
 status "starting ${last_bake_virt_machine} ..."
-virsh start "${last_bake_virt_machine}"
+virsh start "${last_bake_virt_machine}" \
+    > /dev/null 2>&1
 
 status "viewing ${last_bake_virt_machine} ..."
-vncviewer $( virsh vncdisplay "${last_bake_virt_machine}" )
+vncviewer $( virsh vncdisplay "${last_bake_virt_machine}" ) \
+    > /dev/null 2>&1
 
 status "done."
 
