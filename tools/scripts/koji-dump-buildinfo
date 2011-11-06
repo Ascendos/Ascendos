@@ -101,13 +101,18 @@ koji list-tags \
 
 koji list-untagged > "${outputdir}/pkg.list.unfiltered.txt"
 
-for tag in $( < "${outputdir}/tag.list.txt" ); do
-    koji latest-pkg --all "${tag}" \
-	| grep -v "^Build.*Tag.*Built" \
-	| grep -v "^-------" \
-	| awk '{print $1}' \
-	>> "${outputdir}/pkg.list.unfiltered.txt"
-done
+## old el-stupido way
+#for tag in $( < "${outputdir}/tag.list.txt" ); do
+#    koji latest-pkg --all "${tag}" \
+#	| grep -v "^Build.*Tag.*Built" \
+#	| grep -v "^-------" \
+#	| awk '{print $1}' \
+#	>> "${outputdir}/pkg.list.unfiltered.txt"
+#done
+
+# much simpler way
+koji search build \* \
+    >> "${outputdir}/pkg.list.unfiltered.txt"
 
 cat "${outputdir}/pkg.list.unfiltered.txt" \
     | sort \
