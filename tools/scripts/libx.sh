@@ -88,6 +88,7 @@ elif [ -f "/root/output/devtree/Ascendos/tools/scripts/libx.sh" ]; then
     source  "/root/output/devtree/Ascendos/tools/scripts/defaults"
     source  "/root/output/devtree/Ascendos/tools/scripts/functions"
     source  "/root/output/devtree/Ascendos/tools/scripts/common"
+    source  "/tmp/v-bake.options"
     x_devenv=1
     x_devdir=/root/output/devtree/Ascendos
     export PATH="${x_devdir}/tools/bin:${x_devdir}/tools/scripts:${PATH}"
