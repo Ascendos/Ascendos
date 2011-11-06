@@ -56,6 +56,13 @@
 #  - all very hardcoded for initial asc workflow, improve flexibility/utility
 #  - definitely should support diffing sl6/etc... as well against tuv, for
 #    sanity comparison and reference value
+#  - could support a 'trait script' that is basically a filter against the
+#    src.rpm.  I.e. one for httpd(sans version or release), which checks for
+#    an index.html, and if it finds it, replaces it.  Sort of a slighly more
+#    thoughtful version than assuming one will be in the same spot forever
+#    and dropping into place under that assumption.  Perhaps an unamazing example,
+#    but I think the flexibility may well be considered useful in addition to
+#    the existing patch/overlay method options.
 
 
 #############################################################################
