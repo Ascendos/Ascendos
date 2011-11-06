@@ -27,20 +27,15 @@ the koji-dump-buildinfo script.
 
 build3
 ------
-being able to recreate everything that was on build.ascendos.org when
-Troy left and I started as lead developer, i.e. koji and its output.
-I got through something like ~1950/2017 of the 6.0 package builds that
-could build without problem against an sl60 buildroot.  The remaining
-packages are from the troubledpackage list on the wiki and need some
-special, but not complex handling. The vm build2.ascendos.org had to
-be freed due to resource constraint, but I've launched a personal 
-build3 vm which is more slowly going through the packages, including
-the now in-v-bake script logic for the aforementioned trouble package
-handling.  Though I expect that logic to have some bugs yet to be
-discovered and fixed as a first complete and successful long run is
-attempted.  At some point adding the pxe configuration such that the 
-long run can automatically bring up any willing koji builder nodes on
-the network will help speed things up considerably.
+goal: recreating build.ascendos.org contents in a more automated way
+i.e. koji and its output.
+
+(prior build2 run went to ~1950)
+current status: ~300/~2800
+
+todo: need to add pxe live image serving configuration such that
+any willing builder nodes on the local net are utilized
+
 
 maintenance process
 -------------------
@@ -75,11 +70,24 @@ note: tuv-6.1 reldate: 2011-05-19
 
 2011-10-26: removed off-off-spec obsoleted
 
+notes: it seems the ascendos-60 target had its repos switched from sl60 to asc60 at some point
+       (presumably datable by looking at koji history --all)
+
 checksums for one-off-line backups
 ----------------------------------
 
 ::old bao backup::
 ::4405bb1ac202f8440667e693777dd2f0d0dfff2ecbf594c5fc514c91b635aaf9::
+
+sl6 bootstrapping categories
+----------------------------
+ftp.scientificlinux.org:/linux/scientific/6rolling/build/koji/targets/Targets.txt
+
+misc todo
+---------
+need to go through and clean quiet/verbose/debug functionality, perhaps
+even an eval wrapper, such that complex, and even simple commands like
+view-last-bake-vm have less chaotic terminal output (except when requested)
 
 ========================================================================
 ========================================================================
