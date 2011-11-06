@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 #############################################################################
+#############################################################################
 #
 # user-httpd: serve a user's dir on a specified port, with the system apache
 #
@@ -25,7 +26,13 @@
 #    along with X.  If not, see <http://www.gnu.org/licenses/>.
 #
 #############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
 
+
+#############################################################################
+#############################################################################
+##
 ## user-httpd
 ##
 ## usage: user-httpd <port> <docroot> <confdir> <start|stop>
@@ -42,17 +49,48 @@
 ##       EL6 era curl/anaconda bug that prevents that from working (byte
 ##       range support not in pySHS, but curl wrongly presumes it works)
 
+#############################################################################
+#############################################################################
 ##
-## constant definitions
+## local constant definitions
+##
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
 ##
 
 
+#############################################################################
+#############################################################################
 ##
 ## functions
 ##
 
 ##
-## override libvopt.sh usage function
+## override libx.sh usage function
 ##
 function usage {
     echo ""
@@ -1116,6 +1154,8 @@ EOF
 }
 
 
+#############################################################################
+#############################################################################
 ##
 ## process command line arguments
 ##
@@ -1124,25 +1164,19 @@ if [ $# -ne 4 ]; then
     usage
 fi
 
-port=$1
-docroot=$( readlink -f $2 )
-confdir=$( readlink -f $3 )
-mode=$4
+port="${1}"
+docroot=$( readlink -f "${2}" )
+confdir=$( readlink -f "${3}" )
+mode="${4}"
 
 httpdserverroot="${confdir}/webserver_conf"
 
+
+#############################################################################
+#############################################################################
 ###
 ### local functions
 ###
-
-function die {
-    echo "user-httpd: fatal error: $@"
-    exit 1
-}
-
-function status {
-    echo "user-httpd: status: $@"
-}
 
 function launch_webserver {
 
@@ -1153,13 +1187,13 @@ function launch_webserver {
 #	die "port ${port} is not available"
 #    fi
 
-    if [ ! -d ${docroot} ]; then
+    if [ ! -d "${docroot}" ]; then
 	die "docroot ${docroot} is not accessable"
     fi
     
     # make tmp config directory
     
-     if $(! mkdir -p ${httpdserverroot} > /dev/null 2>&1 ); then
+     if $(! mkdir -p "${httpdserverroot}" > /dev/null 2>&1 ); then
 	die "could not make config dir ${httpdserverroot}"
     fi
     
@@ -1167,24 +1201,25 @@ function launch_webserver {
     ## create temporary test file
     ##
 
-    mkdir ${httpdserverroot}/testdir
-    date > ${httpdserverroot}/testdir/testfile
+    mkdir "${httpdserverroot}/testdir"
+    date > "${httpdserverroot}/testdir/testfile"
 
-    cp ${httpdserverroot}/testdir/testfile ${docroot}/testfile
+    cp "${httpdserverroot}/testdir/testfile" \
+	"${docroot}/testfile"
     
     ##
     ## create apache confdir in tempdir 
     ##
 
-    mkdir -p ${httpdserverroot}
-    mkdir -p ${httpdserverroot}/run
-    mkdir -p ${httpdserverroot}/logs
-    mkdir -p ${httpdserverroot}/conf
-    mkdir -p ${httpdserverroot}/conf.d
+    mkdir -p "${httpdserverroot}"
+    mkdir -p "${httpdserverroot}/run"
+    mkdir -p "${httpdserverroot}/logs"
+    mkdir -p "${httpdserverroot}/conf"
+    mkdir -p "${httpdserverroot}/conf.d"
     if [ "$( uname -i )" == "x86_64" ]; then
-	ln -s /usr/lib64/httpd/modules ${httpdserverroot}/
+	ln -s /usr/lib64/httpd/modules "${httpdserverroot}/"
     else
-	ln -s /usr/lib/httpd/modules ${httpdserverroot}/
+	ln -s /usr/lib/httpd/modules "${httpdserverroot}/"
     fi
     
     ##
@@ -1203,7 +1238,7 @@ function launch_webserver {
     ##
     status "starting special http server..."
 
-    /usr/sbin/httpd -f ${httpdserverroot}/conf/httpd.conf 
+    /usr/sbin/httpd -f "${httpdserverroot}/conf/httpd.conf"
     sleep 3
 
     ##
@@ -1211,43 +1246,61 @@ function launch_webserver {
     ##
     status "testing special http server..."
 
-    wget -q -O ${httpdserverroot}/testdir/retrievedfile \
-	http://localhost:${port}/testfile
+    wget -q -O "${httpdserverroot}/testdir/retrievedfile" \
+	"http://localhost:${port}/testfile"
 
-    if $( diff -q ${httpdserverroot}/testdir/testfile ${httpdserverroot}/testdir/retrievedfile > /dev/null 2>&1 ); then
+    if $( \
+	diff -q \
+	"${httpdserverroot}/testdir/testfile" \
+	"${httpdserverroot}/testdir/retrievedfile" \
+	> /dev/null 2>&1 ); then
+
 	status "test passed: user httpd server is working correctly"
     else
 	die "TEST FAILED: user httpd server is not working"
     fi
 
-    rm -f ${docroot}/testfile
+    rm -f "${docroot}/testfile"
     return 0
 }
 
 function destroy_webserver {
     /usr/sbin/httpd \
-	-f ${httpdserverroot}/conf/httpd.conf -k graceful-stop \
+	-f "${httpdserverroot}/conf/httpd.conf" -k graceful-stop \
 	> /dev/null 2>&1
     /usr/sbin/httpd \
-	-f ${httpdserverroot}/conf/httpd.conf -k stop \
+	-f "${httpdserverroot}/conf/httpd.conf" -k stop \
 	> /dev/null 2>&1
-#    rm -rf ${httpdserverroot}
+#    rm -rf "${httpdserverroot}"
 }
 
 ###
 ### end local functions
 ###
+#############################################################################
 
+
+#############################################################################
+#############################################################################
 ###
 ### main
 ###
 
-if [ "$mode" = "start" ]; then
+if [ "${mode}" = "start" ]; then
     launch_webserver
-elif [ "$mode" = "stop" ]; then
+elif [ "${mode}" = "stop" ]; then
     destroy_webserver
 else
     die "unknown mode $mode"
 fi
 
+status "done."
 exit 0
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#
+#
+
