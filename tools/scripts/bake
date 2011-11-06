@@ -47,11 +47,9 @@
 ##
 ## LONG TERM ROADMAP
 ##
-## the input pipeline will be expanded to include:
-## - taking advantage of gen-tdv-srpm-repos ability to create the input
-##   srpms from the buildtools tree.
-## - then invoking makeworld/koji to generate what is the current input
-##   to bake-isos
+## - the input pipeline will be expanded to include:
+##  - use gen-tdv-srpm-repos to create the input srpms from the dev/git tree
+##  - invoking makeworld/koji to generate what is the current input
 ##
 ##
 ## NOTES
@@ -61,19 +59,8 @@
 ##   and later koji).
 ##
 ## - el-build host requirements (or, what the devoloper has)
-##  - x86_64 2 core system, 2G of ram
-##  - the first quasi-dogfood2 (32&64bit pungi) run required 
-##   - 18 hours build time (yeah, yeah, patches welcome, but aint no shame 
-##        in taking your time doing it right/automated/deterministic
-##        (more time will be taken with 2 added livecd-creator invocations)
-##   - 36G for mirrors/cache
-##   - 36G for vm sysroot at max, 23G is first output
-##   - 23G for vm output disk (temporary, but only deletable at max/end)
-##   - 23G for final user output
-##  - i.e. about 120G, for 23G of output, the rest being trashable
-##         at the end (but you'll probably want to keep your mirrorcache,
-##         and el-build developers will often want to keep their sysroot for
-##         subsequent inspection and debugging).
+##  - x86_64 2 core system, 4G of ram
+##  - 200G tmp disk space, 30G for final output
 ##
 #############################################################################
 
@@ -82,8 +69,9 @@
 #############################################################################
 ##
 ## TODO
-# - factor main into several large independent functions
-# - ? add option bootstrap_distro_tree=...sl60x64
+# - factor main into several large independent functions, 1 per bake phase
+# - add option bootstrap_distro_tree=...sl60x64
+#  - and in general factor all configuration into proper configuration
 # - ...
 #
 
@@ -115,30 +103,28 @@ else
 fi
 
 
-
 #############################################################################
 #############################################################################
 ##
 ## constant and option default definitions
 ##
 
-builtrepo_def="http://build.ascendos.org/linux/ascendos/${distrover}"
-distroname_def="Ascendos"
-distrover_def="6.0"
-offline_def="no"
-do_bake_phases_def="all"
-bake_flags_def=""
-test_package_list_def=""
-distrorelname_def="nameless"
+builtrepo_def="${x_bake_builtrepo}"
+distroname_def="${x_bake_distroname}"
+distrover_def="${x_bake_distrover}"
+offline_def="${x_bake_offline}"
+do_bake_phases_def="${x_bake_do_bake_phases}"
+bake_flags_def="${x_bake_bake_flags}"
+test_package_list_def="${x_bake_test_package_list}"
+distrorelname_def="${x_bake_distrorelname}"
 # presumption is to first check in ./, then x_devdir/6/distrover/
-config_x64_def="pungi-x86_64.ks"
-config_x32_def="pungi-i386.ks"
-outputdir_def="${rundir}/${progname}-output"
-#homedotdir_def="${HOME}/.${progname}"
-homedotdir_def="${HOME}/.${x_toolname}"
-cachedir_def="${homedotdir_def}/cache"
-bake_tmpdir_def="${homedotdir_def}/tmp"
-clear_bootstrapos_repodata_def="no"
+config_x64_def="${x_bake_config_x64}"
+config_x32_def="${x_bake_config_x32}"
+outputdir_def="${x_bake_outputdir}"
+homedotdir_def="${x_bake_homedotdir}"
+cachedir_def="${x_bake_cachedir}"
+bake_tmpdir_def="${x_bake_tmpdir}"
+clear_bootstrapos_repodata_def="${x_bake_clear_bootstrapos_repodata}"
 
 # a rather internally hardcoded list for the first pass
 # TODO: add a method for specifying a mirror to use if desired for any entry
@@ -149,10 +135,6 @@ ftp://ftp.scientificlinux.org/linux/scientific/6.0/i386/os
 http://build.ascendos.org/linux/ascendos/SRPMS
 http://build.ascendos.org/linux/ascendos/6.0
 "
-
-# dev/debug
-#mirror_dirs="\
-#"
 
 pigz_version="2.1.6-1"
 mock_version="1.1.15-1"
@@ -282,8 +264,52 @@ done
 #status "distroname is ${distroname}"
 
 if ( ! mkdir -p "${outputdir}" > /dev/null 2>&1 ); then
-    die "output directory - ${outputdir} - could not be used/made"
+    die "output directory - ${outputdir} - could not be made"
 fi
+
+bvm_tmpdir="${bake_tmpdir}/${starttime}.${mypid}.vm"
+if ( ! mkdir -p "${bvm_tmpdir}" > /dev/null 2>&1 ); then
+    die "temp directory - ${bvm_tmpdir} - could not be made"
+fi
+
+
+#############################################################################
+#
+## clean stale state from prior runs
+#
+
+status "cleaning away residue from prior cooks ..."
+
+num_bakers=$( virsh list --all \
+    | awk '{print $2}' \
+    | grep "^bake" \
+    | wc -l )
+
+num_stale_bakes=$( \
+    echo "${num_bakers} - ${x_keep_old_baker_vm_definitions}" \
+    | bc -l )
+
+stale_bakes=$( virsh list --all \
+    | awk '{print $2}' \
+    | grep "^bake" \
+    | sort \
+    | head "-${num_stale_bakes}" )
+
+for stale_bake in ${stale_bakes}; do
+
+    status "saving xml for stale bake vm ${stale_bake} ..."
+    virsh \
+	dumpxml \
+	"${stale_bake}" \
+	> "${bvm_tmpdir}/.stale.baker_vm.${stale_baker}.xml" 2>&1
+
+    status "undefining stale bake vm ${stale_bake} ..."
+    virsh \
+	undefine \
+	"${stale_bake}" \
+	> "${bvm_tmpdir}/.stale.baker_vm.${stale_baker}.undef.log" 2>&1
+
+done
 
 #############################################################################
 #
@@ -450,13 +476,13 @@ ln -s ../../cache \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/cache"
 
 status "launching user (non-root) httpd as a service for the inner processing vm ..."
-# this could no doubt be narrowed, lazy big hammer for the first pass
+# TODO: this should no doubt be narrowed, lazy big hammer for the first pass
 killall httpd > /dev/null 2>&1
 sleep 2
 killall -KILL httpd > /dev/null 2>&1
 sleep 2
 # launch the httpd daemon
-"${x_devdir}/tools/scripts/user-httpd" \
+user-httpd \
     "${x_builder_user_httpd_port}" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc" \
@@ -502,8 +528,13 @@ bake_flags="${bake_flags}"
 test_package_list="${test_package_list}"
 EOF
 
-status "do_bake_phases option being passed to v-bake is: ${do_bake_phases} ..."
-status "bake_flags option being passed to v-bake is: ${bake_flags} ..."
+# todo: make the list of vars a list and iterate here and above
+export do_bake_phases
+export bake_flags
+export test_package_list
+
+debug "do_bake_phases option being passed to v-bake is: ${do_bake_phases} ..."
+debug "bake_flags option being passed to v-bake is: ${bake_flags} ..."
 
 ## expose inner processing script (x-run/v-bake) in the docroot
 cp "${x_devdir}/tools/scripts/v-bake" \
@@ -519,8 +550,8 @@ cp "${x_devdir}/6/6.0/configs/mock-"*.cfg \
 
 
 ### create throwaway vm's .ks from template, placed in docroot
-cp "${x_devdir}/6/6.0/configs/min-el60-x64.ks" \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
+cp "${x_devdir}/${x_builder_vm_kickstart}" \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks" 
 
 status "preparing a full copy of the build tools devtree for the inner-vm to use ..."
 ### give a full copy of the devtree to the vm
@@ -532,7 +563,7 @@ tar -C $( dirname "${x_devdir}" ) -cjf \
 #
 ## processing container/vm kickstart additions (to a minimal kickstart)
 #
-cat <<EOF >> "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks"
+cat <<EOF >> "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks"
 %packages --default
 # for retrieving files from the host httpd server and/or the internet
 wget
@@ -615,22 +646,30 @@ sed -i \
 # TODO more general/flexible mirror support ala viros' vmirmog etc...  (too complex for now)
 sed -i \
     -e 's|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os|' \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks"
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks"
 
 
 #############################################################################
 #
 ## create throwaway vm disk image
 #
-mkdir -p "${bake_tmpdir}/${starttime}.${mypid}.vm"
 
 status "creating new system disk image files for the inner-vm ..."
-# TODO: hide output (I want to bring in viros' libvsys.sh veva wrapper, but
-#       probably better to wait at least till a pythonified el-build wrapper
-#       sets up environment with debug logfilenames if such was enabled
-qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" 77G
-qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/output.img" 77G
-qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" 77G
+# TODO: x_eval wrapper for logging (ala viros' 'veva' function)
+qemu-img create \
+    "${bvm_tmpdir}/sysroot.img" \
+    "${x_builder_vm_root_fs_size}" \
+    >> "${bvm_tmpdir}/qemu-img-create.log" 2>&1
+
+qemu-img create \
+    "${bvm_tmpdir}/output.img" \
+    "${x_builder_vm_output_fs_size}" \
+    >> "${bvm_tmpdir}/qemu-img-create.log" 2>&1
+
+qemu-img create \
+    "${bvm_tmpdir}/scratch.img" \
+    "${x_builder_vm_scratch_fs_size}" \
+    >> "${bvm_tmpdir}/qemu-img-create.log" 2>&1
 
 
 #############################################################################
@@ -640,36 +679,40 @@ qemu-img create "${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" 77G
 
 # see if cached copy exists by calculating filename based on sha256 checksum
 vm_cfg_checksum=$( sha256sum \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/min-el60-x64.ks" \
+    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks" \
     | awk '{print $1}')
 
 if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
+
     status "found acceptable cached system image, duplicating ..."
-    rm -f "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
+
+    rm -f "${bvm_tmpdir}/sysroot.img"
+
     cp -a --sparse=always \
 	"${cachedir}/vm-${vm_cfg_checksum}.img" \
-	"${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img"
-    touch "${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img.fromcache"
+	"${bvm_tmpdir}/sysroot.img"
+
+    touch "${bvm_tmpdir}/sysroot.img.fromcache"
+
     virt-install \
 	--import \
 	--name="${progname}-${starttime}-${mypid}" \
-	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/output.img" \
-	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" \
+	--disk="${bvm_tmpdir}/sysroot.img" \
+	--disk="${bvm_tmpdir}/output.img" \
+	--disk="${bvm_tmpdir}/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
-	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks" \
-	> "${bake_tmpdir}/${starttime}.${mypid}.vm/virt-install.log" 2>&1
+	--wait=-1 \
+	--noautoconsole \
+	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/baker.ks" \
+	> "${bvm_tmpdir}/virt-install.log" 2>&1
+
 else
 
 #############################################################################
 #
 ## run netinst(all) on/to throwaway vm disk image
 #
-
-# TODO: not actually cleaning anything up yet, up to the user
-#virsh destroy "${progname}-${starttime}-${mypid}"
-#virsh undefine "${progname}-${starttime}-${mypid}"
 
 # TODO: add standard qemu (not provided by tuv's repos) as fallback for
 #       an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
@@ -680,27 +723,32 @@ else
 #       for the netinst here (just boot.iso? or does virt-install pull the
 #       kernel and initrd from PXE/pxeboot directories?)
 
-    status "launching inner-vm installation ..."
+# TODO: make --noautoconsole a --quiet/--debug/--verbose kind of thing
+
+    status "launching inner-vm installation (domain:${progname}-${starttime}-${mypid}) ..."
+    status "note: use 'el-build view-last-bake-vm' to get a console view of the installation ..."
     virt-install \
 	--name="${progname}-${starttime}-${mypid}" \
 	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
-	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
-	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/output.img" \
-	--disk="${bake_tmpdir}/${starttime}.${mypid}.vm/scratch.img" \
+	--disk="${bvm_tmpdir}/sysroot.img" \
+	--disk="${bvm_tmpdir}/output.img" \
+	--disk="${bvm_tmpdir}/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
+	--wait=-1 \
 	--noautoconsole \
-	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/min-el60-x64.ks" \
-	> "${bake_tmpdir}/${starttime}.${mypid}.vm/virt-install.log" 2>&1
-# TODO: make --noautoconsole a --quiet/--debug/--verbose kind of thing
+	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/baker.ks" \
+	> "${bvm_tmpdir}/virt-install.log" 2>&1
+
 
     # cache a pristine copy for future runs
     # note: could use qemu-img or other snapshots, but those may have performance issues
     status "stashing a duplicate of the freshly installed vm in the cache ..."
     cp -a --sparse=always \
-	"${bake_tmpdir}/${starttime}.${mypid}.vm/sysroot.img" \
+	"${bvm_tmpdir}/sysroot.img" \
 	"${cachedir}/vm-${vm_cfg_checksum}.img"
 fi
+
 
 #############################################################################
 #
@@ -709,31 +757,58 @@ fi
 
 ## todo: have all virt runs log through simple text channel to console, i.e.
 ##       console over serial port, or ssh/netcat logfile streaming...
-status "launching inner-vm's processing phase ..."
-virsh start "${progname}-${starttime}-${mypid}"
 
-sleep 60
+status "saving inner-vm's virtualization domain information ..."
+virsh \
+    dumpxml \
+    "${progname}-${starttime}-${mypid}" \
+    > "${bvm_tmpdir}/vdomain.xml"
+
+status "launching inner-vm's processing phase ..."
+virsh \
+    start \
+    "${progname}-${starttime}-${mypid}" \
+    > "${bvm_tmpdir}/virt-run.log" 2>&1
+
+status "waiting a few seconds for inner-vm to come online ..."
+sleep 24
 
 # TODO: make this a --debug only thing
-vncviewer $( virsh vncdisplay "${progname}-${starttime}-${mypid}" ) \
-    > "${bake_tmpdir}/${starttime}.${mypid}.vm/vncviewer.log" 2>&1
+status "debug/viewing inner-vm console ..."
+view-last-bake-vm &
 
+status "waiting for inner-vm to finish processing ..."
 # wait until processing is complete
 xdone=0
-while ((! $xdone)); do
+while ((! ${xdone})); do
     sleep "${x_builder_vm_shutdown_polling_frequency}"
     if $( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
 	xdone=1
     fi
 done
 
+
 #############################################################################
 #
 ## arrange output for user, clean up, and exit
 #
-pushd "${outputdir}" > /dev/null 2>&1
-tar xvf "${bake_tmpdir}/${starttime}.${mypid}.vm/output.img"
-popd > /dev/null 2>&1
+
+status "arranging output for the user ..."
+tar \
+    -C "${outputdir}" \
+    -xvf "${bvm_tmpdir}/output.img"
+
+status "cleaning up ..."
+
+# leave it around for development/debugging, it'll get cleaned out
+# by a subsequent run (see x_keep_old_baker_vm_definitions default)
+#virsh \
+#    undefine \
+#    "${progname}-${starttime}-${mypid}"
+
+
+status "done."
+exit 0
 
 #############################################################################
 ## end script - only notes below

@@ -171,8 +171,10 @@ fi
 
 #############################################################################
 ## fetch baking options from the wrapper script
-wget -O "${outroot}/logs/v-bake.options" \
+wget -O /tmp/v-bake.options \
     "${elbuild_docroot}v-bake.options"
+cp /tmp/v-bake.options \
+    "${outroot}/logs/v-bake.options"
 # enumerated here for early reference, overridden by options sourcing below
 do_bake_phases="\
 compile-sources
@@ -236,6 +238,9 @@ yum -y install python-devel
 # for running pungi
 yum -y install anaconda-runtime
 
+# SHOWSTOPPER TODO: just mirror some major chunk of epel along with the
+#       other already fairly large bootsrap os repos
+
 # for running pungi to yield i386 media on x86_64 host
 #yum -y install epel-release
 #yum -y install mock
@@ -265,8 +270,7 @@ rpm --import RPM-GPG-KEY-EPEL-6
 #wget "${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
 wget "${cache_root}one-off-files/python-kid-0.9.6-6.fc13.src.rpm"
 if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
-    echo "${progname}: fatal error, python-kid signature could not be verified as correct"
-    exit 1
+    die "python-kid signature could not be verified as correct"
 fi
 rpmbuild --rebuild python-kid-0.9.6-6.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
@@ -275,8 +279,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 #wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
 wget "${cache_root}one-off-files/repoview-0.6.5-1.fc13.src.rpm"
 if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
-    echo "${progname}: fatal error, repoview signature could not be verified as correct"
-    exit 1
+    die "repoview signature could not be verified as correct"
 fi
 rpmbuild --rebuild repoview-0.6.5-1.fc13.src.rpm 
 rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
@@ -292,8 +295,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 #       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
 wget "${cache_root}one-off-files/pungi-2.0.21-1.fc13.src.rpm"
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
-    echo "${progname}: fatal error, pungi signature could not be verified as correct"
-    exit 1
+    die "pungi signature could not be verified as correct"
 fi
 rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
@@ -302,8 +304,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 #wget "ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-${livecdtools_version}.el6.src.rpm"
 wget "${cache_root}one-off-files/livecd-tools-${livecdtools_version}.el6.src.rpm"
 if ( ! rpm --checksig "livecd-tools-${livecdtools_version}.el6.src.rpm" ); then
-    echo "${progname}: fatal error, livecd-tools signature could not be verified as correct"
-    exit 1
+    die "livecd-tools signature could not be verified as correct"
 fi
 rpmbuild --rebuild "livecd-tools-${livecdtools_version}.el6.src.rpm"
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
@@ -314,8 +315,7 @@ rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 #wget "${fedora_mirror_root}/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm"
 wget "${cache_root}one-off-files/zyx-liveinstaller-0.2.4-1.fc13.src.rpm"
 if ( ! rpm --checksig zyx-liveinstaller-0.2.4-1.fc13.src.rpm ); then
-    echo "${progname}: fatal error, zyx-liveinstaller signature could not be verified as correct"
-    exit 1
+    die "zyx-liveinstaller signature could not be verified as correct"
 fi
 rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 
@@ -324,8 +324,7 @@ rpmbuild --rebuild zyx-liveinstaller-0.2.4-1.fc13.src.rpm
 #wget ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-2.1.6-1.el6.src.rpm
 wget "${cache_root}one-off-files/pigz-${pigz_version}.el6.src.rpm"
 if ( ! rpm --checksig "pigz-${pigz_version}.el6.src.rpm" ); then
-    echo "${progname}: fatal error, pigz signature could not be verified as correct"
-    exit 1
+    die "pigz signature could not be verified as correct"
 fi
 rpmbuild --rebuild "pigz-${pigz_version}.el6.src.rpm"
 rpm -Uvh "/rpmbuild/RPMS/x86_64/pigz-${pigz_version}.el6.x86_64.rpm"
@@ -334,8 +333,7 @@ rpm -Uvh "/rpmbuild/RPMS/x86_64/pigz-${pigz_version}.el6.x86_64.rpm"
 #wget "ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-${mock_version}.el6.src.rpm"
 wget "${cache_root}one-off-files/mock-${mock_version}.el6.src.rpm"
 if ( ! rpm --checksig "mock-${mock_version}.el6.src.rpm" ); then
-    echo "${progname}: fatal error, mock signature could not be verified as correct"
-    exit 1
+    die "mock signature could not be verified as correct"
 fi
 rpmbuild --rebuild "mock-${mock_version}.el6.src.rpm"
 rpm -Uvh "/rpmbuild/RPMS/noarch/mock-${mock_version}.el6.noarch.rpm"
@@ -389,19 +387,38 @@ rhel6beta:ftp://mirrors.kernel.org:/pub/redhat/redhat/rhel/beta/6/\arch/os/
 	http://build.ascendos.org/linux/ascendos/build/\$arch/
 
     # experimental
-    koji add-tag "ascendos-initial-tag"
+    koji \
+	add-tag \
+	"ascendos-initial-tag"
 
     bs_os_abbrevs=""
     # create a build target for each dependent bootstrapping os
     for dependent_bootstrap_os in ${dependent_bootstrap_os_list}; do
+
 	os_repo=$( echo "${dependent_bootstrap_os}" | sed -e 's/[^:]*://' )
 	os_abbrev=$( echo "${dependent_bootstrap_os}" | sed -e 's/:.*//' )
 	bs_os_abbrevs="${bs_os_abbrevs} ${os_abbrev}"
 	
-	koji add-tag "${os_abbrev}"
-	koji add-tag --arches "i686,x86_64" "${os_abbrev}-build"
-	koji add-target "${os_abbrev}" "${os_abbrev}-build" "${os_abbrev}"
-	koji add-group "${os_abbrev}-build" build
+	koji \
+	    add-tag \
+	    "${os_abbrev}"
+
+	koji \
+	    add-tag \
+	    --arches "i686,x86_64" \
+	    "${os_abbrev}-build"
+
+	koji \
+	    add-target \
+	    "${os_abbrev}" \
+	    "${os_abbrev}-build" \
+	    "${os_abbrev}"
+
+	koji \
+	    add-group \
+	    "${os_abbrev}-build" \
+	    build
+
         # todo: abstract into target-distro-specifying configurations somewhere
 	buildroot_minbuild_pkgset="\
 bash
@@ -437,6 +454,13 @@ buildsys-macros-el6
 	done
 	buildroot_minbuild_pkgset="${newlist}"
 
+	status "about to add-group-pkg for ${os_abbrev} ..."
+	status \
+	koji \
+	    add-group-pkg \
+	    "${os_abbrev}-build" \
+	    build \
+	    "${buildroot_minbuild_pkgset}"
 	koji \
 	    add-group-pkg \
 	    "${os_abbrev}-build" \
@@ -445,15 +469,24 @@ buildsys-macros-el6
 
         # create the repo
 	status koji add-external-repo "${os_abbrev}-base" "${os_repo}"
-	koji add-external-repo "${os_abbrev}-base" "${os_repo}"
+	koji \
+	    add-external-repo \
+	    "${os_abbrev}-base" \
+	    "${os_repo}"
 
         # cause it to be used for builds with abbrev-build build tag (src or dest, I forget)
 	status koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
-	koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
+	koji \
+	    add-external-repo \
+	    "${os_abbrev}-base" \
+	    -t "${os_abbrev}-build"
 
         # cause the ascendos-build repo to be used for each of the build-targets
 	status koji add-external-repo ascendos-build -t "${os_abbrev}-build"
-	koji add-external-repo ascendos-build -t "${os_abbrev}-build"
+	koji \
+	    add-external-repo \
+	    ascendos-build \
+	    -t "${os_abbrev}-build"
 
     done
 
@@ -470,7 +503,9 @@ buildsys-macros-el6
 
     pkg_list=""
     for srpm in ${srpm_list}; do
+
 	status "preprocessing package ... ${srpm} ..."
+
 	pkg_nvr=$( basename "${srpm}" .src.rpm )
 	pkg_nv=$( echo "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
 	pkg_n=$( echo "${pkg_nv}" | sed -e 's/-[^-]*$//' )
@@ -490,54 +525,46 @@ buildsys-macros-el6
     done
 
 #
-# BIG NOTE: this here is just the crudest first pass at a completely 
-#           automated build.  Interesting questions such as whether a 6.1 update
-#           should be built against the 6.0-stock,6.0-updated,6.1-stock or 6.1 updated
-#           repos, or if 6.0 output should be rebuilt against itself, are currently left
-#           as topics for further discussion and solidification as automation logic.
-#           myself, I'd prefer, if it turned out to be possible/feasible/practical,
-#           to make enough package changes that a bootstrap from _just_ f13, _or_
-#           centos5x was possible.  But that is all post-beta fodder if not post 
-#           main release.
+# NOTE:  The build order algorithm here is currently as follows.  It may
+#        well have bugs, or otherwise in use of improvements.  Please discuss
+#        any suggestions on the ascendos-dev mailinglist.
 #
-#           What is here for this first pass represents what I think Troy expected
-#           would work as a general algorithm.  I.e. try sl60, then f13, then f12,
-#           then rhel6beta, and if one of those latter ones works, that is fine to
-#           use instead of alternately trying to modify the src.rpm.  Personally,
-#           it just feels wrong to me mixing binaries built against these radically
-#           different buildroots, but I'll grant the best path is to get that full
-#           working as a deployable release to the masses, and if desired, worrying
-#           about simplified bootstrapping post-release.  Or the quite real possibility
-#           that as I grok things better, it wil radically change my impression of
-#           where the code should end up at.
+#        0 note: even this outline is not quite yet fully implemented in logic below,
+#                e.g. need to glue in gen-big-board outputs/inputs to this process
 #
-#           Also, I think Troy with the existing build.ascendos.org/koji had packages
-#           feeding back into the koji-external-repos, unlike here.  Or perhaps only once
-#           at a virtual 6.1 release time when he started building those packages. 
+#        1 the full 'superset' of srpms are collected from tuv's well known published
+#          sources (see mirrors.kernel.org/...).  They are reverse sorted by package
+#          build order, and epochs between major point releases are noted.
 #
-#           In any event, having the logic spelled out in code/script here, makes it
-#           rather easier to visually compare altering implementational choices/bugs.
+#        2 first, the full set of .0 packages are built.  For each package, it is
+#          attempted to be built against sl60, then f13, then f12, then rhel6beta.
+#          whichever works first wins (near future: hard coded config lists will 
+#          be established, presumably not changing frequently)
 #
-#           2k11/11/03-dmc: from inspection of the unbuilt(?trouble?) grub update just 
-#                           subsequent to a python 6.0-updates era srpm, it appears troy
-#                           was building 6.0 updates against asc6.0 (with the slight
-#                           cheating that a handful of packages were not yet in 6.0).  One
-#                           can also presume that at the 6.1 updates level it is time to
-#                           build against 6.0.  That all makes sense, and I think the intent
-#                           is not to as suggested above have more frequent feedback events
-#                           (rather, only at release time, not with each package).  I think
-#                           the only thing I miss, which may for all I know exist in the 
-#                           current koji history, is seeing all of 6.0 built against an official
-#                           dogfood pass.  But hey, thats what the below script is for facilitating
-#                           in a very simple manner.  TODO: paraphrase this comment block
-#                           into better documentation and/or comments.
+#        2b note: no current 'dogfooding' pass _yet_ of the sources rebuilt again their
+#                own first output instead of the original bootstrapping repos.
 #
+#        3 then updates up to the next epoch are built against that previous output
+#          instead of the 4 bootstrap os repos (todo: see if this actually works even
+#          for the 'trouble' packages.
+#
+#        4 then a pointrelease is composed, jump back to 3, repeat ad infinitum
+#
+#
+# BOTTOM LINE: having the logic spelled out in code/script here, makes it much
+#              easier to visually compare altering implementational choices/bugs.
+#
+
 
     pushd  "${outroot}/koji"
 
     for srpm in ${srpm_list}; do
+
 	xdone=0
+
+	# SHOWSTOPPER TODO: then need to by default get pulled from SRPMS.generated or such
 	wget "http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS/${srpm}"
+
 	for bs_os in ${bs_os_abbrevs}; do
 	    if ((! ${xdone})); then
 		status koji \
@@ -550,18 +577,17 @@ buildsys-macros-el6
 		    --owner=ascendos-team \
 		    "${bs_os}" \
 		    "${pkg_n}"
-		echo "DEBUG: about to try building ${srpm} against ${bs_os} ..."
-		status "DEBUG: about to try building ${srpm} against ${bs_os} ..."
+		status "about to try building ${srpm} against ${bs_os} ..."
 		status build --wait "${bs_os}" "${srpm}" 
 		if $( koji build --wait "${bs_os}" "${srpm}" 2>&1 | tee -a "${outroot}/logs/${srpm}.kojibuild.log" ); then
 #		rm -f "${srpm}"
 		    mv "${srpm}" "${srpm}".pre-compile-phase
 		    pkg_nvr=$( basename "${srpm}" .src.rpm )
 		    koji download-build "${pkg_nvr}"
-		    echo "DEBUG: seemed to build ok..."
+		    status "seemed to build ok..."
 		    xdone=1
 		else
-		    echo "DEBUG: seemed NOT to build ..."
+		    status "seemed to *NOT* build ok..."
 		fi
 	    fi
 	done
@@ -572,9 +598,9 @@ buildsys-macros-el6
 fi
 
 
-# TODO: iterate over input packages and use el-push to arrange into
+# SHOWSTOPPER TODO: iterate over input packages and use el-push to arrange into
 #       an output structure suitable for pungi here below (instead of 
-#       its current use of published builds
+#       its current use of published builds) (note, need a devtest nosign opt for el-push)
 
 if ( listin "installer-traditional-x64" "${do_bake_phases}" ); then
 
@@ -602,8 +628,11 @@ fi
 
 if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
 
+    mockroot=/var/lib/mock/mock-for-pungi-el6-i386/root
+
     adduser xmock
     usermod -a -G mock xmock
+
     wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
 	"${elbuild_docroot}mock-for-pungi-el6-i386.cfg"
     
@@ -612,32 +641,39 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget"
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
-    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root
-    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea
-    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
-    # share the prior x86_64 cache with the i386 under mock run
-    #  - should save a few hours time.  Probably a few more can be
-    #    saved by using non-usermode qemu/kvm networking if available,
-    #    or alternately just transferring the cache once as a tar file 
-    #    image attached as disk.  And then also using any available free
-    #    lvm space for disks instead of qemu-img ones.  But like I said,
-    #    for 6x-alpha, not yet a high priority.
+
+    mkdir -p "${mockroot}/root"
+    mkdir -p "${mockroot}/root/el-build-workarea"
+    mkdir -p "${mockroot}/root/el-build-workarea/cache"
+
+    # potential runtime enhancements to be explored:
+    #  - share the prior x86_64 cache with the i386 under mock run
+    #  - use non-usermode qemu/kvm networking if available,
+    #   - or xfer the cache once as a tar file image attached as disk.
+    #  - using any available free lvm space for disks instead of qemu-img ones.
+    #   - i.e. el-build can-use /dev/sdb (vg_elbuild would be automatically used if avail)
+    # (ortho: and a 'el-build set-workarea' to auto move ~/.el-build 
+    #         e.g. under a dift mountpoint)
     mount --bind \
 	/root/el-build-workarea/cache \
-	/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
-    mkdir -p /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
+	"${mockroot}/root/el-build-workarea/cache"
+
+    mkdir -p "${mockroot}/root/el-build-workarea/output"
+
     cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
-	/var/lib/mock/mock-for-pungi-el6-i386/root/root/
+	"${mockroot}/root/"
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/python-kid-\*.rpm'"
+
     cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
-	/var/lib/mock/mock-for-pungi-el6-i386/root/root/
+	"${mockroot}/root/"
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/repoview-\*.rpm'"
+
     cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
-	/var/lib/mock/mock-for-pungi-el6-i386/root/root/
+	"${mockroot}/root/"
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/pungi-\*.rpm'"
@@ -657,7 +693,7 @@ pungi \
   --config=${elbuild_docroot}pungi-i386.ks'" 
     
     # undo the bind mount
-    umount /var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache
+    umount "${mockroot}/root/el-build-workarea/cache"
 
 fi
 
@@ -768,6 +804,12 @@ mv "${x64outroot}/work/"* \
     "${outroot}/work/"
 mv "${x32outroot}/work/"* \
     "${outroot}/work/"
+
+#
+# main output arangement
+#
+# SHOWSTOPPER TODO: need pluggable modules here to provide one or more user specifyable
+#                   final output arrangements (using hardlinks)
 
 # main stuffs
 mv "${x64outroot}/6.0/x86_64" \

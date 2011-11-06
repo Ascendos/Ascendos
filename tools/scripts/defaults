@@ -17,4 +17,13 @@ x_builder_user_httpd_port=8421
 # seconds between checks to see if processing in the vm completed
 x_builder_vm_shutdown_polling_frequency=30
 
+# size of builder's filesystem sizes (need to be 'big enough(tm)')
+x_builder_vm_root_fs_size=77G
+x_builder_vm_scratch_fs_size=77G
+x_builder_vm_output_fs_size=77G
 
+# which kickstart to use for the baking vm
+x_builder_vm_kickstart="6/6.0/configs/min-el60-x64.ks"
+
+# how many old baker vm definitions to clog up virsh with
+x_keep_old_baker_vm_definitions=3
