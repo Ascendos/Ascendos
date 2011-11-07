@@ -1,0 +1,12 @@
+Ascendos: this file is distributed on ftp.scientificlinux.org
+---
+RHEL6 wasn't build on RHEL6, except for a few last packages.  In order to get the most compatability, it is best to rebuild the source rpm's on the distribution RHEL build their packages on.
+There were four main build platforms.  Fedora 12, Fedora 13, RHEL6 Beta, and RHEL6.  
+
+The files here list which packages (from the original source rpm's of the final RHEL6.0) need to get build on which targets.
+
+
+Fedora 12 - f12.txt
+Fedora 13 - f13.txt
+RHEL6 Beta - rh6beta.txt
+RHEL 6.0 - rh60.txt
