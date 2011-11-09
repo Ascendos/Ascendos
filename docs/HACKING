@@ -1,0 +1,52 @@
+#############################################################################
+#############################################################################
+## 
+## How to hack (or even just begin to use) the build tools v0.1
+##
+#############################################################################
+#############################################################################
+
+until better documentation gets written-
+
+
+el-build invocation (AND WARNINGS ABOUT *HEAVY* EL-BUILD INTERNET USAGE!!!)
+===================
+
+The simplest thing would be-
+
+./tools/bin/el-build bake outputdir=/some/path
+
+But be warned, this will currently fetch *100G* of publicly available 
+open source software to use as a bootstrap environment.  If you'd rather
+wait until the overkill caching is enhanced to only download the maybe 5GB
+of needed stuff, then please do.  It won't be that long before that gets
+fixed.
+
+OTOH if like the lead developer you have a cheap and relatively fast 
+net connection with no bandwidth caps, and equivalently abundant disk
+space, then go for it if your ~/.el-build/cache directory can hold 100G
+
+subsequent runs with offline=yes will then not touch the internets at all,
+which is actually an important security feature enabling offline builds.
+
+
+el-build configuration
+======================
+
+configuration comes first from tools/scripts/defaults
+
+if tools/scripts/localconfig exists, it can be used override those
+
+if ~/.el-build/config exists, it can be used override those
+
+Presently el-build is not yet sufficiently complete to fork tuv *el6 with
+as simple an invocation as-
+
+el-build bake distroname=HelloWorldOS
+
+but it's definately gettin' there...
+
+peace...
+
+-dmc
+
