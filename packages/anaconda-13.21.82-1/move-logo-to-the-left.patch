@@ -1,0 +1,15 @@
+diff -Naur anaconda-13.21.82.orig/ui/anaconda.glade anaconda-13.21.82/ui/anaconda.glade
+--- anaconda-13.21.82.orig/ui/anaconda.glade	2010-08-30 14:31:47.000000000 -0500
++++ anaconda-13.21.82/ui/anaconda.glade	2011-11-06 13:23:39.189856720 -0600
+@@ -33,9 +33,9 @@
+       <child>
+ 	<widget class="GtkImage" id="headerImage">
+ 	  <property name="visible">True</property>
+-	  <property name="xalign">0.5</property>
++	  <property name="xalign">0.0</property>
+ 	  <property name="yalign">0.5</property>
+-	  <property name="xpad">0</property>
++	  <property name="xpad">10</property>
+ 	  <property name="ypad">0</property>
+ 	</widget>
+ 	<packing>
