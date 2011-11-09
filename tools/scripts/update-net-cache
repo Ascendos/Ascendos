@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# update-net-cache: fetch needed build (open)sources from the internets
+#
+#############################################################################
+#
+# Copyright 2007-2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## update-net-cache
+##
+##
+## DESCRIPTION
+##
+## fetch needed build (open)sources from the internets 
+##
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## local constant definitions
+##
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# to enable debug messages if desired
+x_debug=0
+
+# to suppress status messages if desired
+x_quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo "    <net-cache-dir>  e.g. ~/.el-build/cache"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+status "initializing..."
+
+cachedir=$( readlink -f "${1}" )
+
+if [ ! -d "${cachedir}" ]; then
+    die "cache directory ${cachedir} does not exist"
+fi
+
+# TODO: I'm sure I went with the __ = / convention a long time ago
+#       for some reason, but worth another pass to maybe add more
+#       logic such that things can be stored in normal looking 
+#       directory trees.  I think the original reason was the scripts
+#       which need to munge things into using available mirrored 
+#       directories.  But they could get their info from a generated/
+#       maintained config file instead of encoded into the directory names.
+
+# fetch remote directories so as to use a local mirror, possibly offline
+for mirror_dir in ${x_mirror_dirs}; do
+    status "updating mirror: ${mirror_dir}"
+    
+    mirror_hostpath=$( echo "${mirror_dir}" | sed -e 's/[^\/]*\/\///' )
+    mirror_urltype=$( echo "${mirror_dir}" | sed -e 's/:\/\/.*//' )
+    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
+    mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
+    mirror_path_parent=$( dirname "${mirror_path}" )
+    mirror_path_child=$( basename "${mirror_path}" )
+    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
+    mirror_dir_xmog="${mirror_host}___${mirror_path_xmog}"
+    debug "mirror_dir_xmog is ${mirror_dir_xmog}"
+    
+    mirror_dest_path="${cachedir}/${mirror_dir_xmog}"
+    if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
+	die "could not mkdir ${mirror_dest_path}"
+    fi
+    
+    lftp -e "\
+cd /${mirror_path_parent} ; \
+mirror \
+--parallel=2 \
+--use-cache \
+--ignore-time \
+--continue \
+--delete \
+${mirror_path_child} \
+${mirror_dest_path} \
+; \
+quit" \
+	"${mirror_urltype}://${mirror_host}"
+    
+done
+
+# fetch one off files
+mkdir -p "${cachedir}/one-off-files"
+for mirror_file in ${x_mirror_files}; do
+    status "caching file: ${mirror_file}"
+
+    # break the url up into fields to aid in fetching and placement
+    mirror_hostpath=$( echo "${mirror_file}" | sed -e 's/[^\/]*\/\///' )
+    mirror_urltype=$( echo "${mirror_file}" | sed -e 's/:\/\/.*//' )
+    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
+    mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
+    mirror_path_parent=$( dirname "${mirror_path}" )
+    mirror_path_child=$( basename "${mirror_path}" )
+    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
+    mirror_file_xmog="${mirror_host}___${mirror_path_xmog}"
+    debug "mirror_file_xmog is ${mirror_file_xmog}"
+    
+    # for now, just clobber
+    # TODO: have finer grained actual caching behavior
+    rm -f "${cachedir}/one-off-files/${mirror_path_child}"
+    wget -q -O "${cachedir}/one-off-files/${mirror_path_child}" \
+	"${mirror_file}"
+    
+done
+
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#  catalog: do by default at end of v-bake, place in output
+#  grep "\"GET \/\/cache\/"
+#  sed -e 's/.*\"GET \/\/cache\///'
+#  awk '{print $1}'
+#  (unfortunately for now (sans random port usage) -
+#  a subsequent parallel bake could interfere with full/complete log gen
+#  then for min-u-n-c iterate over that ivoking appropriately rsync/lftp/wget
