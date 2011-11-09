@@ -6,7 +6,7 @@
 ========================================================================
 ========================================================================
 
-This is a the Ascendos development tree.  From its small (<30MB) set
+This is the Ascendos development tree.  From its small (<30MB) set
 of scripts and deltas, you can (in the future easily) rebuild the entire
 Ascendos binary enterprise linux distribution.
 
@@ -16,6 +16,11 @@ The general structure at the moment should be fairly self explanatory-
 ./Ascendos
 
 tree root
+
+------------------------------------------------------------------------
+./Ascendos/6/docs/
+
+documentation related to our *el build tools
 
 ------------------------------------------------------------------------
 ./Ascendos/tools
@@ -28,31 +33,33 @@ explore our website, especially the wiki, and the development
 mailinglist archives, and of course the code and git commit comments.
 
 ------------------------------------------------------------------------
-./Ascendos/6
+./Ascendos/packages/
+
+our package deltas from upstream, abstracted into expanded source
+package quasi-patch-overlay directories.  See the as yet non-existant
+README.deltas for detailed information on format semantics.
+
+------------------------------------------------------------------------
+./Ascendos/6/
 
 area for things specific to our *el6 versions
 
 ------------------------------------------------------------------------
-./Ascendos/6/build
-
-primarily koji setup scripts
-
-------------------------------------------------------------------------
-./Ascendos/6/qa
-
-primarily the rpmcompare.sh tool
-
-------------------------------------------------------------------------
-./Ascendos/6/6.0
-./Ascendos/6/6.0/configs
+./Ascendos/6/6.0/
+./Ascendos/6/6.0/configs/
 
 generally the configuration files used to generate our forthcoming 6.0
 release.
 
 ------------------------------------------------------------------------
-./Ascendos/6/docs
+./Ascendos/6/build/
 
-documentation related to our *el6 release
+primarily koji setup scripts
+
+------------------------------------------------------------------------
+./Ascendos/6/qa/
+
+primarily the rpmcompare.sh tool
 
 ========================================================================
 
