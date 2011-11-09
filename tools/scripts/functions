@@ -127,6 +127,18 @@ function debug {
 #############################################################################
 #############################################################################
 #
+# usage: showvar variable
+#
+# shows a variables value
+#
+function showvar {
+    eval "debug \"showing variable:: ${1} :: has value :: \$${1} ::\""
+}
+
+
+#############################################################################
+#############################################################################
+#
 # usage: die <message...>
 #
 # issue last words
@@ -190,6 +202,22 @@ function listreverse {
     for (( i=numwords ; ${i} > 0 ; i=$(( ${i} - 1 )) )); do
 	echo "${wordlist[${i}]}"
     done
+}
+
+
+#############################################################################
+#
+# usage: uncomma_list [items..]
+#
+# interprets items in a list that include a ',' to mean multiple items
+#
+function uncomma_list {
+    new_list=""
+    for item in $@; do
+	append_entry=$( echo "${item}" | sed -e 's/,/ /g' )
+	new_list="${new_list} ${append_entry}"
+    done
+    echo "${new_list}"
 }
 
 

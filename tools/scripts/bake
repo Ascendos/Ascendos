@@ -126,33 +126,6 @@ cachedir_def="${x_bake_cachedir}"
 bake_tmpdir_def="${x_bake_tmpdir}"
 clear_bootstrapos_repodata_def="${x_bake_clear_bootstrapos_repodata}"
 
-# a rather internally hardcoded list for the first pass
-# TODO: add a method for specifying a mirror to use if desired for any entry
-mirror_dirs="\
-ftp://ftp.scientificlinux.org/linux/scientific/6x/SRPMS
-ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os
-ftp://ftp.scientificlinux.org/linux/scientific/6.0/i386/os
-http://build.ascendos.org/linux/ascendos/SRPMS
-http://build.ascendos.org/linux/ascendos/6.0
-"
-
-pigz_version="2.1.6-1"
-mock_version="1.1.15-1"
-livecdtools_version="13.4-1"
-
-# another hardcoded internal list
-mirror_files="\
-ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/i386/os/RPM-GPG-KEY-fedora-13-primary
-ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/fedora/linux/updates/13/SRPMS/zyx-liveinstaller-0.2.4-1.fc13.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/epel/RPM-GPG-KEY-EPEL-6
-ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/pigz-${pigz_version}.el6.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/mock-${mock_version}.el6.src.rpm
-ftp://ftp.linux.ncsu.edu/pub/epel/6/SRPMS/livecd-tools-${livecdtools_version}.el6.src.rpm
-"
-
 # to enable debug messages if desired
 x_debug=1
 
@@ -202,9 +175,8 @@ function usage {
 
 status "initializing..."
 
-
 # note: presumption is that el-build is run from within it's own
-#       developtment tree, e.g. 
+#       developtment tree, or a symlink to it.  e.g. 
 # $ ./relative/path/to/Ascendos/tools/el-build/el-build or $ ./el-build
 
 #############################################################################
@@ -258,10 +230,6 @@ for option in "$@"; do
     debug "opt is $option"
 done
 
-
-# todo: fill out list or get more abstract (ala viros' libvopt.sh)
-#status "outputdir is ${outputdir}"
-#status "distroname is ${distroname}"
 
 if ( ! mkdir -p "${outputdir}" > /dev/null 2>&1 ); then
     die "output directory - ${outputdir} - could not be made"
@@ -317,12 +285,11 @@ done
 #
 status "updating cache / mirrors..."
 
-# TODO: build.a.o needs to be mirrored, and thus de-referenced here
-#       (due to bandwidth use, etc...)
-
 # TODO: the bootstrapping OS needn't be full mirrored
 #       (a script to mirror the needed parts of a repo from a .ks
 #        would be very appreciated.  hint hint)
+#       (or alternately and much more likely I'll just have a postprocessor
+#        generated manifest subset of the current overkill mirror)
 
 # use lftp for mirroring
 
@@ -356,63 +323,9 @@ else
 	status "can't ping mirrors.kernel.org, falling back to trying an offline from-cache build ..."
 	offline=yes
     else
-	# this should get factored into its own function/script
 
-	for mirror_dir in ${mirror_dirs}; do
-	    status "updating mirror: ${mirror_dir}"
-	    
-	    mirror_hostpath=$( echo "${mirror_dir}" | sed -e 's/[^\/]*\/\///' )
-	    debug "mirror_hostpath is ${mirror_hostpath}"
-	    mirror_urltype=$( echo "${mirror_dir}" | sed -e 's/:\/\/.*//' )
-	    debug "mirror_urltype is ${mirror_urltype}"
-	    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
-	    debug "mirror_host is ${mirror_host}"
-	    mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
-	    debug "mirror_path is ${mirror_path}"
-	    mirror_path_parent=$( dirname "${mirror_path}" )
-	    debug "mirror_path_parent is ${mirror_path_parent}"
-	    mirror_path_child=$( basename "${mirror_path}" )
-	    debug "mirror_path_child is ${mirror_path_child}"
-	    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
-	    mirror_dir_xmog="${mirror_host}___${mirror_path_xmog}"
-	    debug "mirror_dir_xmog is ${mirror_dir_xmog}"
-
-	    mirror_dest_path="${cachedir}/${mirror_dir_xmog}"
-	    if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
-		die "could not mkdir ${mirror_dest_path}"
-	    fi
-	    
-	    lftp -e "cd ${mirror_path_parent} ; mirror --parallel=2 --use-cache --ignore-time --continue --delete ${mirror_path_child} ${mirror_dest_path}; quit" "${mirror_urltype}://${mirror_host}"
-	    
-	done
-	
-	mkdir -p "${cachedir}/one-off-files"
-	for mirror_file in ${mirror_files}; do
-	    status "caching file: ${mirror_file}"
-	    
-	    mirror_hostpath=$( echo "${mirror_file}" | sed -e 's/[^\/]*\/\///' )
-	    debug "mirror_hostpath is ${mirror_hostpath}"
-	    mirror_urltype=$( echo "${mirror_file}" | sed -e 's/:\/\/.*//' )
-	    debug "mirror_urltype is ${mirror_urltype}"
-	    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
-	    debug "mirror_host is ${mirror_host}"
-	    mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
-	    debug "mirror_path is ${mirror_path}"
-	    mirror_path_parent=$( dirname "${mirror_path}" )
-	    debug "mirror_path_parent is ${mirror_path_parent}"
-	    mirror_path_child=$( basename "${mirror_path}" )
-	    debug "mirror_path_child is ${mirror_path_child}"
-	    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
-	    mirror_file_xmog="${mirror_host}___${mirror_path_xmog}"
-	    debug "mirror_file_xmog is ${mirror_file_xmog}"
-	    
-            # for now, just clobber
-            # TODO: have finer grained actual caching behavior
-	    rm -f "${cachedir}/one-off-files/${mirror_path_child}"
-	    wget -q -O "${cachedir}/one-off-files/${mirror_path_child}" \
-		"${mirror_file}"
-	    
-	done
+	status "invoking update-net-cache ${cachedir} ..."
+	update-net-cache "${cachedir}"
 
         # note: ugly(?) temporary workaround that will be obsolete no later than the 
         #       time when koji/makeworld show up in el-build
@@ -426,34 +339,111 @@ else
 	    -g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
 	    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
 
-        ## create multiarch repo structure usable by koji
-        # TODO: total temporary hack, long term the first thing that comes to mind
-        #       is having this mirroring code, seperated out into a seperate script,
-        #       and using a config file for target directories, and encoding effectively
-        #       the entire url (including scheme, e.g. rsync/http/ftp) and target directory.
-        #       I.e. an evolution beyond what viros' does with vmirmog to resolve the 
-        #       issue of making it simple to seperate the phases of 'pull stuff from net'
-        #       and 'convert that stuff to the output'.
-        mkdir -p \
-    	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0"
-	mkdir -p \
-	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386"
-	mkdir -p \
-	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64"
-	ln -s \
-	    ../../ftp.scientificlinux.org___linux__scientific__6.0__i386__os \
-	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/i386/os"
-	ln -s \
-	    ../../ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os \
-	    "${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0/x86_64/os"
+	# hmm?
+	# ? workaround for mirroring epel at the wrong instant? (got a bad repodata error)
+	createrepo \
+	    "${cachedir}/mirrors.kernel.org___pub__fedora-epel__6__SRPMS"
+	createrepo \
+	    "${cachedir}/mirrors.kernel.org___pub__fedora-epel__6__i386"
+	createrepo \
+	    "${cachedir}/mirrors.kernel.org___pub__fedora-epel__6__x86_64"
+	
+
     fi
 
 fi
 
-# trust our own copies of the keys, instead of theoretical mitm 
-# during the download of the src.rpms from the same server
-cp "${x_devdir}/security/keys/RPM-GPG-KEY-"* \
-    "${cachedir}/one-off-files/"
+
+
+#############################################################################
+#
+## create multiarch repo structure usable by koji
+#
+
+# aka
+debug "workaround around yum variable limitations ..."
+
+
+# SHOWSTOPPER: hugh sigh, need to iterate over mirror dirs,
+# and for each, look at each dep_bs_os, and see if it is
+# a prefix/subset of self.  If it is, grab the dirname of 
+# the suffix (e.g dirname(os/Packages) in the \$arch/os/ case,
+# is os).  Then mkdir -p that parent directory under the 
+# cachedir multiarchroot for that specific dep_bs_os.  Then
+# make a symlink from the child, _still_ having to depth count
+# for the sake of correct relative path.  Ack!
+
+# TODO: make this less gross
+mo_dependent_bootstrap_os_list="\
+${x_dependent_bootstrap_os_list}
+bao:http://build.ascendos.org/linux/ascendos/build/\$arch/
+"
+
+for dependent_bootstrap_os in ${mo_dependent_bootstrap_os_list}; do
+    
+    os_abbrev=$( echo "${dependent_bootstrap_os}" \
+	| sed -e 's/:.*//' )
+    showvar os_abbrev
+    
+    os_repo=$( echo "${dependent_bootstrap_os}" \
+	| sed -e 's/[^:]*://' )
+    showvar os_repo
+    
+    os_multiarch_repo_root=$( echo "${os_repo}" \
+	| sed -e 's/\/$arch.*$//' )
+    showvar os_multiarch_repo_root
+    
+    os_repo_suffix=$( echo "${os_repo}" \
+	| sed -e 's/^.*$arch//' \
+	| sed -e 's/__/\//g' \
+	| sed -e 's/^\///' \
+	| sed -e 's/\/$//' )
+    showvar os_repo_suffix
+    os_repo_suffix_xmog=$( echo "${os_repo_suffix}" \
+	| sed -e 's/\//__/g' )
+    showvar os_repo_suffix_xmog
+    
+    os_x32_repo=$( echo "${os_repo}" \
+	| sed -e 's/$arch/i386/g' )
+    showvar os_x32_repo
+    
+    os_x64_repo=$( echo "${os_repo}" \
+	| sed -e 's/$arch/x86_64/g' )
+    showvar os_x64_repo
+    
+    showvar os_multiarch_repo_root
+
+    # TODO: make this less ugly
+    mirror_dir=$( echo "${os_multiarch_repo_root}" \
+	| sed -e 's#^http://10.0.2.2:8421/cache/##g' )
+    showvar mirror_dir
+
+    # TODO: last line is ugliness due to tiredness
+    mirror_dir_xmog=$( echo "${mirror_dir}" \
+	| sed -e 's/^.*:\/\///' \
+	| sed -e 's/\//__/g' \
+	| sed -e 's/__/___/' )
+
+    showvar mirror_dir_xmog
+
+    debug "special cache multiarch link root is: ${cachedir}/${mirror_dir_xmog} ..."
+
+    rm -rf \
+    	"${cachedir}/${mirror_dir_xmog}"
+    mkdir -p \
+    	"${cachedir}/${mirror_dir_xmog}"
+    mkdir -p \
+    	"${cachedir}/${mirror_dir_xmog}/i386"
+    mkdir -p \
+    	"${cachedir}/${mirror_dir_xmog}/x86_64"
+    # TODO: sigh, number of ../ here needs to be generated/calculated
+    ln -s \
+	"../../${mirror_dir_xmog}__i386__${os_repo_suffix_xmog}" \
+	"${cachedir}/${mirror_dir_xmog}/i386/${os_repo_suffix}"
+    ln -s \
+	"../../${mirror_dir_xmog}__x86_64__${os_repo_suffix_xmog}" \
+	"${cachedir}/${mirror_dir_xmog}/x86_64/${os_repo_suffix}"
+done
 
 
 #############################################################################
@@ -505,23 +495,13 @@ stage-layout
 "
 fi
 
-# support both space and comma seperated lists as input for do_bake_phases
-new_bake_phases=""
-for bake_phase in $( echo "${do_bake_phases}" ); do
-    new_bake_phases="${new_bake_phases} $( echo ${bake_phase} | sed -e 's/,/ /g' )"
-done
-do_bake_phases="${new_bake_phases}"
 
-# support both space and comma seperated lists as input for do_bake_phases
-new_list=""
-for test_package in $( echo "${test_package_list}" ); do
-    new_list="${new_list} $( echo ${test_package} | sed -e 's/,/ /g' )"
-done
-testing_package_list="${new_list}"
+do_bake_phases=$( uncomma_list "${do_bake_phases}" )
+bake_flags=$( uncomma_list "${bake_flags}" )
+test_package_list=$( uncomma_list "${test_package_list}" )
 
 # expose baking options to the inner/v-bake script
 # TODO: probably a cleaner way
-# ?: will this even work, or will multiline above cause problems?
 cat <<EOF > "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/v-bake.options" 
 do_bake_phases="${do_bake_phases}"
 bake_flags="${bake_flags}"
@@ -535,22 +515,16 @@ export test_package_list
 
 debug "do_bake_phases option being passed to v-bake is: ${do_bake_phases} ..."
 debug "bake_flags option being passed to v-bake is: ${bake_flags} ..."
+debug "test_package_list option being passed to v-bake is: ${test_package_list} ..."
 
 ## expose inner processing script (x-run/v-bake) in the docroot
 cp "${x_devdir}/tools/scripts/v-bake" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
 
-## expose kickstarts for pungi and livecd-creator in the docroot
-cp "${x_devdir}/6/6.0/configs/"*.ks \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
-
-## expose pungi i386 mock config in the docroot
-cp "${x_devdir}/6/6.0/configs/mock-"*.cfg \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/" 
-
+# TODO: now that devtree is passed down to vm, use it, ala other recent opt="6/6.0/...ks"
 
 ### create throwaway vm's .ks from template, placed in docroot
-cp "${x_devdir}/${x_builder_vm_kickstart}" \
+cp "${x_devdir}/${x_builder_vm_ks_config}" \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks" 
 
 status "preparing a full copy of the build tools devtree for the inner-vm to use ..."
@@ -558,6 +532,7 @@ status "preparing a full copy of the build tools devtree for the inner-vm to use
 tar -C $( dirname "${x_devdir}" ) -cjf \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/devtree.tar.bz2" \
     $( basename "${x_devdir}" )
+
 
 #############################################################################
 #
@@ -619,34 +594,16 @@ FOO
 %end
 EOF
 
-#
-## end processing container/vm kickstart additions
-#
-#############################################################################
-
-#############################################################################
-#
-## processing target distro output kickstart (for pungi)
-#
-
-# nothing dynamic yet, put probably sooner or later
-sed -i \
-    -e 's/example/example/g' \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/${config_x64}" 
-sed -i \
-    -e 's/example/example/g' \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/${config_x32}" 
-
-#
-## end processing target distro output kickstart (for pungi)
-#
-#############################################################################
-
 # TODO perhaps improve with definable/option for bootstrap_repotree
 # TODO more general/flexible mirror support ala viros' vmirmog etc...  (too complex for now)
 sed -i \
     -e 's|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os|' \
     "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks"
+
+#
+## end processing container/vm kickstart additions
+#
+#############################################################################
 
 
 #############################################################################
@@ -704,7 +661,6 @@ if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
 	--noreboot \
 	--wait=-1 \
 	--noautoconsole \
-	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/baker.ks" \
 	> "${bvm_tmpdir}/virt-install.log" 2>&1
 
 else
@@ -717,19 +673,40 @@ else
 # TODO: add standard qemu (not provided by tuv's repos) as fallback for
 #       an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
 
-# TODO: is the root of security/pristineness here that the locally cached
-#       copy of the pungi-bootstrap os was not corrupt?  I.e. perhaps add
-#       some sort of check against our copy of hashes for the files used
 #       for the netinst here (just boot.iso? or does virt-install pull the
 #       kernel and initrd from PXE/pxeboot directories?)
+#
+# TODO: or as an interim measure to the above, and not a bad idea otherwise,
+#       just checksum the entire net cache directory and include that in the
+#       build logs tarball somewhere, and add a checksum of the build logs
+#       tarball to the main output checksums which get signed.
 
 # TODO: make --noautoconsole a --quiet/--debug/--verbose kind of thing
+
+# TODO: factor --location into x_baker_os config var or such    
+
+    os_location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os"
+
+    # note: I have a feeling SL may change out these files from time to time.  Hopefully
+    #       they are done changing 6.0, but if they do update it in the future, some better
+    #       mechanism should be used.  Perhaps the simplest would be to verify against the
+    #       dated in filename netinst .iso and extract the vmlinuz and initrd.img from there
+    #       overwriting the pxe ones currently used.
+    status "verifying hash/signatures of baker os installation kernel and initramfs ..."
+    if [ "$( sha512sum ${os_location}/images/pxeboot/vmlinuz | awk '{print $1}' )" != \
+	"${x_bake_vm_os_installer_kernel_hash}" ]; then
+	die "baker os installation kernel had the wrong hash/signature (see note in bake script code)"
+    fi
+    if [ "$( sha512sum ${os_location}/images/pxeboot/initrd.img | awk '{print $1}' )" != \
+	"${x_bake_vm_os_installer_initramfs_hash}" ]; then
+	die "baker os installation initramfs had the wrong hash/signature (see note in bake script code)"
+    fi
 
     status "launching inner-vm installation (domain:${progname}-${starttime}-${mypid}) ..."
     status "note: use 'el-build view-last-bake-vm' to get a console view of the installation ..."
     virt-install \
 	--name="${progname}-${starttime}-${mypid}" \
-	--location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os" \
+	--location="${os_location}" \
 	--disk="${bvm_tmpdir}/sysroot.img" \
 	--disk="${bvm_tmpdir}/output.img" \
 	--disk="${bvm_tmpdir}/scratch.img" \
@@ -764,6 +741,10 @@ virsh \
     "${progname}-${starttime}-${mypid}" \
     > "${bvm_tmpdir}/vdomain.xml"
 
+# TODO: get logging to native terminal/logfile via some pipe.
+#       i.e. could listen with netcat or ssh and have inner-vm
+#       send its x-run.log output via that.
+
 status "launching inner-vm's processing phase ..."
 virsh \
     start \
@@ -797,6 +778,8 @@ status "arranging output for the user ..."
 tar \
     -C "${outputdir}" \
     -xvf "${bvm_tmpdir}/output.img"
+
+# todo: invoke populate-staging-repo here, or perhaps within v-bake
 
 status "cleaning up ..."
 

@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-
-######## WARNING: CURRENTLY HARDCODED TO 6.0 current alpha semantics
-
 #
 #############################################################################
 #############################################################################
@@ -51,6 +48,7 @@
 ##
 ## NOTES
 ##
+######## WARNING: CURRENTLY HARDCODED TO 6.0 current alpha semantics
 ## -
 ##
 #############################################################################
@@ -65,14 +63,28 @@
 #############################################################################
 #############################################################################
 ##
-## get runtime environment
+## local constant definitions
 ##
-starttime="$( date +%Y%m%d%H%M%S )"
-progname="$( basename $0 )"
-progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 ) )
-rundir="$( pwd )"
-mypid=$$
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
 
 
 #############################################################################
@@ -83,18 +95,19 @@ mypid=$$
 
 ## constants (variable options to be)
 signing_user_def="none"
-build_area_def="${HOME}/.asc"
+build_area_def="${HOME}/.el-build/push-workarea"
 
-# unused or used for tags/targets names, need somewhat better defined
-# (or understood) schema for tags/targets
-dist_name_def="ascendos"
+dev_staging_root="/srv/external/ascendos"
+
 dist_version_major_def="6"
 dist_version_minor_def="0"
 disttest_def="alpha"
 
-quiet_def=0
-debug_def=0
+# to enable debug messages if desired
+x_debug=1
 
+# to suppress status messages if desired
+x_quiet=0
 
 ## derived values
 
@@ -125,60 +138,10 @@ function usage {
 
 #############################################################################
 #
-# usage: status <message...>
-#
-# wrapper for sending status messages to console and log
-#
-# globals used: quiet, progname, logfiles(not required)
-#
-function status {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $quiet)); then
-	echo "${progname}: ${time}: status: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: status: $@" >> $logfile
-    done
-}
-
-#############################################################################
-#
-# usage: debug <message...>
-#
-# wrapper for sending debug messages to console and log
-#
-# globals used: debug, progname, logfiles(not required)
-#
-function debug {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $debug)); then
-	echo "${progname}: ${time}: debug: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: debug: $@" >> $logfile
-    done
-}
-
-
-#############################################################################
-#
-# usage: die <message...>
-#
-# issue last words
-#
-function die {
-    status "$@"
-    exit 1
-}
-
-
-#############################################################################
-#
 ## set option value defaults
 #
 signing_user="${signing_user_def}"
 build_area="${build_area_def}"
-dist_name="${dist_name_def}"
 dist_version_major="${dist_version_major_def}"
 dist_version_minor="${dist_version_minor_def}"
 disttest="${disttest_def}"
@@ -194,24 +157,10 @@ debug="${debug_def}"
 
 status "initializing..."
 
-#############################################################################
-### calculate tree root and set up environment
-
-# pre git commit
-if [ "${progdir}" == "/home/builder/.asc-tmp/bin" ]; then
-elpush_devroot="/home/builder/.asc-tmp/git/Ascendos"
-else
-elpush_devroot=$( pushd "${progdir}/../.." > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 )
-fi
-
-debug "devroot is ${elpush_devroot}"
-echo "devroot is ${elpush_devroot}"
-debug "devroot is ${elpush_devroot}"
 
 # note: presumption is that el-build is run from within it's own
 #       developtment tree, e.g. 
-# $ ./relative/path/to/Ascendos/tools/el-build/el-push or $ ./el-push
+# $ ./relative/path/to/Ascendos/tools/scripts/el-push or $ ./el-push
 
 
 #############################################################################
@@ -259,7 +208,6 @@ secret_dir="${build_area}/.keys-${signing_user}"
 
 #noarch-debuginfo-rpm
 # note, this should map/mirror to mroot/development or the like, not mroot
-dev_staging_root="/srv/external/ascendos"
 
 
 # note: existing structure leaves src out of everything.  good reasons??
@@ -296,27 +244,29 @@ ${dev_staging_root}/debuginfo
 ${dev_staging_root}/everything
 "
 
+# TODO: also support signing with autogenerated one-time throwaway key
+if [ "${signing_user}" != "none" ]; then
 
+    # if signing, user must have a private key to sign with
+    if [ ! -d "${secret_dir}" ]; then
+	die "user keydir ${secret_dir} for user ${signing_user} does not exist"
+    fi
 
+    # make sure not to step on users files while doing signing
+    if [ -d "${HOME}/.gnupg" ]; then
+	mv "${HOME}/.gnupg" "${HOME}/.gnupg.${tmp_orig_str}.$$"
+    fi
+    if [ -f "${HOME}/.rpmmacros" ]; then
+	mv "${HOME}/.rpmmacros" "${HOME}/.rpmmacros.${tmp_orig_str}.$$"
+    fi
+    
+    # TODO: use GNUPGHOME 
+    cp -a "${secret_dir}" "${HOME}/.gnupg"
+    # TODO: use ?how do I easily override ~/.rpmmacros?
+    cp -a "${secret_dir}.rpmmacros" "${HOME}/.rpmmacros"
 
-
-## make sure not to step on users files
-
-if [ -d "${HOME}/.gnupg" ]; then
-    mv "${HOME}/.gnupg" "${HOME}/.gnupg.${tmp_orig_str}.$$"
 fi
 
-if [ -f "${HOME}/.rpmmacros" ]; then
-    mv "${HOME}/.rpmmacros" "${HOME}/.rpmmacros.${tmp_orig_str}.$$"
-fi
-
-
-if [ ! -d "${secret_dir}" ]; then
-    die "user keydir ${secret_dir} for user ${signing_user} does not exist"
-fi
-# todo: probably better to use GNUPGHOME or such
-cp -a "${secret_dir}" "${HOME}/.gnupg"
-cp -a "${secret_dir}.rpmmacros" "${HOME}/.rpmmacros"
 
 # the package name, as in the .src.rpm submitted to koji
 # e.g. zsh-4.3.10-4.1.el6.asc for
@@ -329,9 +279,11 @@ for package in ${pkg_list}; do
     # this supports either input as a .src.rpm name or a package/ver name
     pkg_name=$( echo "$( basename ${package} )" | sed -e 's/\.src\.rpm//' )
 
-    # TODO: check to see if pkg is in bao/linux/ascendos/everything
-    # TODO: write logic to determine non-everything placement, 
-    # i.e. which point-rel and update/not
+    # TODO: check to see if pkg is in bao/linux/ascendos/everything 
+    # todo: clarify/generalize the above comment
+
+    # TODO: integrate gen-big-board logic to determine non-everything placement, 
+    #       i.e. which point-rel and update/not
 
     status "pulling package from build system: ${pkg_name} ..."
 
@@ -358,12 +310,17 @@ for package in ${pkg_list}; do
 	die "could not koji download the package"
     fi
     
-    status "signing packages..."
-    rpm --addsign *.rpm
+    if [ "${signing_user}" != "none" ]; then
+	# TODO: need to add packages to a list to be signed en-mass outside iteration
+	status "signing packages..."
+	rpm --addsign *.rpm
+    else
+	status "NOT signing packages..."
+    fi
 
-    # TODO: also need to detect base/updates based on e.g. .el6_0. and for base, build dates 
-    #       to map to pointrel
-
+    # TODO: integrate gen-big-board pointrel/updates detection logic
+    # TODO: add option to use hardlinks for all multiple placements
+    
     for rpm in $( ls -1A *.src.rpm 2> /dev/null ); do
 	status "processing src_rpm: ${rpm}"
 	for newhome in ${src_rpm_homes}; do
@@ -424,14 +381,16 @@ done
 
 ## clean up and return things to order
 
-rm -rf "${HOME}/.gnupg"
-rm -f "${HOME}/.rpmmacros"
+if [ "${signing_user}" != "none" ]; then
+    rm -rf "${HOME}/.gnupg"
+    rm -f "${HOME}/.rpmmacros"
 
-if [ -f "${HOME}/.rpmmacros.${tmp_orig_str}.$$" ]; then
-    mv "${HOME}/.rpmmacros.${tmp_orig_str}.$$" "${HOME}/.rpmmacros"
-fi
-if [ -d "${HOME}/.gnupg.${tmp_orig_str}.$$" ]; then
-    mv "${HOME}/.gnupg.${tmp_orig_str}.$$" "${HOME}/.gnupg"
+    if [ -f "${HOME}/.rpmmacros.${tmp_orig_str}.$$" ]; then
+	mv "${HOME}/.rpmmacros.${tmp_orig_str}.$$" "${HOME}/.rpmmacros"
+    fi
+    if [ -d "${HOME}/.gnupg.${tmp_orig_str}.$$" ]; then
+	mv "${HOME}/.gnupg.${tmp_orig_str}.$$" "${HOME}/.gnupg"
+    fi
 fi
 
 
