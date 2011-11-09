@@ -135,5 +135,6 @@ status "done."
 #############################################################################
 #
 #
-#
-
+# probable todo: rename to get-bake-console, and have get-bake-shell, and
+#                get-bake-kojiweb(ztw opens ff pointing at bake vms koji), 
+#                and update-bake (which presumes a possibly updated devtree)
