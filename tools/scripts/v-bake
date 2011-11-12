@@ -535,9 +535,6 @@ glibc-static.i686
 	os_repo_prefix=$( echo "${os_repo}" \
 	    | sed -e 's/\/\$arch.*//' )
 	showvar os_repo_prefix
-	os_repo_prefix_xmog=$( echo "${os_repo_prefix}" \
-	    | sed -e 's/\////g' )
-	showvar os_repo_prefix_xmog
 	os_repo_suffix=$( echo "${os_repo}" \
 	    | sed -e 's/.*\$arch\///' )
 
@@ -645,7 +642,7 @@ glibc-static.i686
 	# TODO: obviously need to abstract away the hostname/path here 
 	# NOTE: ... at the same time that gen-tdv-srpm-repo appears in this script
 	if [ "${x_bake_input_srpm_repo}" == "" ]; then
-	    x_bake_input_srpm_repo="http://10.0.2.2:8421/cache/build.ascendos.org/linux/ascendos/SRPMS.generated"
+	    x_bake_input_srpm_repo="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache/tdv.SRPMS"
 	fi
 	wget "${x_bake_input_srpm_repo}/${srpm}"
 

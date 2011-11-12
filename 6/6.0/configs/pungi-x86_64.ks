@@ -12,8 +12,8 @@
 #part iso --size=4998
 
 # Add the repos you wish to use to compose here.  At least one of them needs group data.
-repo --name=ascendos60 --baseurl=http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__6.0/os/x86_64
-repo --name=ascendos60-source --baseurl=http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS
+repo --name=ascendos60 --baseurl=http://10.0.2.2:8421/cache/build.ascendos.org/linux/ascendos/6.0/os/x86_64
+repo --name=ascendos60-source --baseurl=http://10.0.2.2:8421/cache/build.ascendos.org/linux/ascendos/SRPMS
 
 
 # Package manifest for the compose.  Uses repo group metadata to translate groups.
