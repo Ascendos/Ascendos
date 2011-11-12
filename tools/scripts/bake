@@ -399,11 +399,7 @@ bs-check-tuv-el6
 ## networkcache of upstream source rpms.
 
 status "generating a set of downstream source rpms from the given defaults and user configuration ..."
-gen-tdv-srpm-repo \
-    "${cachedir}/tdv-generated-SRPMS" \
-    "${x_devdir}/packages" \
-    "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS"
-
+gen-tdv-srpm-repo
 
 #############################################################################
 #

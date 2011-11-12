@@ -146,8 +146,15 @@ fi
 
 if [ -f "${output_html}" ]; then
 #    die "output ${output_html} already exists"
-    mv -f "${output_html}" \
-	 "${output_html}.backup.${starttime}"
+    newerfile=$( find \
+	"${output_html}" \
+	-newer "${input}" )
+    if [ "${newerfile}" == "${output_html}" ]; then
+	status "most recently generated output is newer than the last input update, no work to be done ..."
+	exit 0
+    else
+	mv -f "${output_html}" "${output_html}.backup.${starttime}"
+    fi
 fi
 
 if [ -f "${output_csv}" ]; then

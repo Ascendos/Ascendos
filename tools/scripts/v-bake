@@ -77,11 +77,6 @@ x_prefix=/usr
 ##
 ## constant and option default definitions
 ##
-# 10.0.2.2 is the ip address the containing qemu-kvm uses to expose the
-# host, which in this case is running apache on port 8421 as non-root
-elbuild_docroot="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/"
-cache_root="${elbuild_docroot}cache/"
-
 x64outroot=/root/el-build-workarea/output
 x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
 outroot=/root/output
@@ -135,16 +130,27 @@ mv /etc/yum.repos.d /etc/yum.repos.d.orig
 
 mkdir /etc/yum.repos.d
 
+# todo: this is more than a little ugly
+#  - circular dependency
+#   - wget depends on yum config
+#    - yum config depends on elbuild_docroor and cache_root defninitions here
+#     - but defs as they should be depend on devtree downloaded
+#      - and devtree downloading depends on wget..........
+#   - could be considered resolved by presuming success of el-build bake in
+#     providing baking vm with wget, as it in fact goes to ks lengths to do
+elbuild_doc_root="http://10.0.2.2:8421"
+elbuild_cache_root="${elbuild_doc_root}/cache"
+
 cat <<EOF > /etc/yum.repos.d/el-build-baking.repo
 
 [sl]
 name=Scientific Linux \$releasever - \$basearch
 # yumvars seem pretty stupid, needing to be full directory entries, i.e. this doesn't work,
 # nor does \${releasever} work...
-#baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os/
-#baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os/
+#baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os/
+#baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os/
 # note: but it had to be worked around in the cache for koji anyway
-baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/6.0/\$basearch/os/
+baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/\$basearch/os/
 enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
@@ -155,7 +161,7 @@ name=Scientific Linux \$releasever Alpha - Source
 #                http://ftp1.scientificlinux.org/linux/scientific/\$releasever/SRPMS/
 #                http://ftp2.scientificlinux.org/linux/scientific/\$releasever/SRPMS/
 #                ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/SRPMS/
-baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/6x/SRPMS/
+baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/6x/SRPMS/
 enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
@@ -165,7 +171,7 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KE
 name=Extra Packages for Enterprise Linux 6 - \$basearch
 #baseurl=http://download.fedoraproject.org/pub/epel/6/\$basearch
 #mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=\$basearch
-baseurl=${cache_root}ftp/mirrors.kernel.org/pub/fedora-epel/6/x86_64/
+baseurl=${elbuild_cache_root}/ftp/mirrors.kernel.org/pub/fedora-epel/6/x86_64/
 failovermethod=priority
 enabled=1
 gpgcheck=1
@@ -176,7 +182,7 @@ name=Extra Packages for Enterprise Linux 6 - \$basearch - Source
 #baseurl=http://download.fedoraproject.org/pub/epel/6/SRPMS
 #mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-source-6&arch=\$basearch
 
-baseurl=${cache_root}ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/
+baseurl=${elbuild_cache_root}/ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/
 failovermethod=priority
 enabled=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-6
@@ -190,7 +196,7 @@ EOF
 yum -y install wget
 wget -q \
     -O "${outroot}/workarea/devtree.tar.bz2" \
-    "${elbuild_docroot}devtree.tar.bz2"
+    "${elbuild_doc_root}/devtree.tar.bz2"
 tar \
     -C "${outroot}/devtree" \
     -xvf "${outroot}/workarea/devtree.tar.bz2"
@@ -211,9 +217,17 @@ fi
 
 
 #############################################################################
+### derived constants (sigh...)
+# 10.0.2.2 is the ip address the containing qemu-kvm uses to expose the
+# host, which in this case is running apache on port 8421 as non-root
+elbuild_doc_root="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}"
+elbuild_cache_root="${elbuild_doc_root}/cache"
+
+
+#############################################################################
 ## fetch baking options from the wrapper script
 wget -O /tmp/v-bake.options \
-    "${elbuild_docroot}v-bake.options"
+    "${elbuild_doc_root}/v-bake.options"
 cp /tmp/v-bake.options \
     "${outroot}/logs/v-bake.options"
 # enumerated here for early reference, overridden by options sourcing below
@@ -233,7 +247,7 @@ source "${outroot}/logs/v-bake.options"
 cat <<EOF > /etc/yum.repos.d/asc-src.repo
 [asc-src]
 name=Ascendos - sources
-baseurl=${cache_root}http/build.ascendos.org/linux/ascendos/SRPMS.generated/
+baseurl=${elbuild_cache_root}/tdv.SRPMS/
 enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
@@ -251,10 +265,10 @@ yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
 #    /etc/yum.repos.d/sl.repo
 #
 #sed -i \
-#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|g" \
+#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|g" \
 #    /etc/yum.repos.d/sl.repo
 #sed -i \
-#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|g" \
+#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|g" \
 #    /etc/yum.repos.d/sl.repo
 
 
@@ -301,7 +315,7 @@ rpm --import \
 ##
 
 ## get python-kid installed, needed by repoview
-wget "${cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
+wget "${elbuild_cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
 if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
     die "python-kid signature could not be verified as correct"
 fi
@@ -309,8 +323,7 @@ rpmbuild --rebuild python-kid-0.9.6-6.fc13.src.rpm
 rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 
 ## get repoview installed, needed by pungi
-#wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
-wget "${cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm"
+wget "${elbuild_cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm"
 if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
     die "repoview signature could not be verified as correct"
 fi
@@ -325,7 +338,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 # todo: check to see if f14/++ versions of pungi work without modification and/or have important
 #       enhancements or bugfixes.  It's reasonable to start with f13 as that is likely what
 #       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
-wget "${cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm"
+wget "${elbuild_cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm"
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     die "pungi signature could not be verified as correct"
 fi
@@ -339,7 +352,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 ##
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
-wget "${cache_root}/ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/livecd-tools-${x_livecdtools_version}.el6.src.rpm"
+wget "${elbuild_cache_root}/ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/livecd-tools-${x_livecdtools_version}.el6.src.rpm"
 if ( ! rpm --checksig "livecd-tools-${x_livecdtools_version}.el6.src.rpm" ); then
     die "livecd-tools signature could not be verified as correct"
 fi
@@ -352,7 +365,7 @@ rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 ##
 if (("${x_enable_rebootless_liveos_installer_installation}")); then
     #wget "http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8-1.src.rpm"
-    wget "${cache_root}one-off-files/zyx-liveinstaller-0.2.8-1.src.rpm"
+    wget "${elbuild_cache_root}one-off-files/zyx-liveinstaller-0.2.8-1.src.rpm"
     # not gpg signed yet, for now, el-build and zyx-liveinstaller lead-devs the same person
     if ( ! rpm --checksig zyx-liveinstaller-0.2.8-1.src.rpm ); then
 	die "zyx-liveinstaller signature could not be verified as correct"
@@ -409,7 +422,7 @@ if ( listin "compile-sources" "${do_bake_phases}" ); then
 	/etc/mock/site-defaults.cfg.prebake
     # TODO: its a start, worry about 6.1 when 6.0 fully works
     # TODO: also abstract away appropriately(AAA)
-    cp "${outroot}/devtree/6/6.0/configs/mock.site-defaults.cfg" \
+    cp "${outroot}/devtree/Ascendos/6/6.0/configs/mock.site-defaults.cfg" \
 	/etc/mock/site-defaults.cfg
     popd
 
@@ -422,7 +435,7 @@ if ( listin "compile-sources" "${do_bake_phases}" ); then
     koji \
 	add-external-repo \
 	ascendos-build \
-	"${cache_root}http/build.ascendos.org/linux/ascendos/build/\\\$arch"
+	"${elbuild_cache_root}/http/build.ascendos.org/linux/ascendos/build/\\\$arch"
 
     # experimental
     koji \
@@ -518,7 +531,7 @@ glibc-static.i686
 	    "${buildroot_minbuild_pkgset}"
 
 	# TODO: perhaps allow non-cached builds by only doing this munging
-	#       if a mirror-status-flagfile can be retrieved
+	#   if a mirror-status-flagfile can be retrieved
 	os_repo_prefix=$( echo "${os_repo}" \
 	    | sed -e 's/\/\$arch.*//' )
 	showvar os_repo_prefix
@@ -528,7 +541,9 @@ glibc-static.i686
 	os_repo_suffix=$( echo "${os_repo}" \
 	    | sed -e 's/.*\$arch\///' )
 
-	os_repo_for_koji="${cache_root}${os_repo_prefix_xmog}\\\$arch/${os_repo_suffix}"
+	os_repo_for_koji=$( get_cached_path \
+	    "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache" \
+	    "${os_repo}" )
 	showvar os_repo_for_koji
 
         # create the repo
@@ -539,7 +554,8 @@ glibc-static.i686
 	    "${os_repo_for_koji}"
 	    
 
-        # cause it to be used for builds with abbrev-build build tag (src or dest, I forget)
+        # cause it to be used for builds with abbrev-build build tag 
+	#  (src or dest, I forget)
 	status koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
 	koji \
 	    add-external-repo \
@@ -714,7 +730,7 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
     usermod -a -G mock xmock
 
     wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
-	"${elbuild_docroot}mock-for-pungi-el6-i386.cfg"
+	"${elbuild_doc_root}/mock-for-pungi-el6-i386.cfg"
     
     su - xmock -c "mock -r mock-for-pungi-el6-i386 --init"
     su - xmock \

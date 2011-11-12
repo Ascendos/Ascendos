@@ -137,19 +137,15 @@ status "initializing..."
 
 if [ $# -eq 0 ]; then 
     output_tdv_srpm_repo=$( readlink -f "${x_cached_generated_srpm_repo}" )
-    tdv_delta_repo=$( readlink -e "${x_devdir}/packages" )
-    tuv_srpm_repo=$( readlink -e "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    tdv_delta_repo=$( readlink -f "${x_devdir}/packages" )
+    tuv_srpm_repo=$( readlink -f "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 1 ]; then 
-    output_tdv_srpm_repo=$( readlink -f "${1}" )
-    tdv_delta_repo=$( readlink -e "${x_devdir}/packages" )
-    tuv_srpm_repo=$( readlink -e "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    usage
 elif [ $# -eq 2 ]; then 
-    tdv_delta_repo=$( readlink -e "${1}" )
-    output_tdv_srpm_repo=$( readlink -f "${2}" )
-    tuv_srpm_repo=$( readlink -e "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    usage
 elif [ $# -eq 3 ]; then 
-    tdv_delta_repo=$( readlink -e "${1}" )
-    output_tdv_srpm_repo=$( readlink -f "${2}" )
+    output_tdv_srpm_repo=$( readlink -f "${1}" )
+    tdv_delta_repo=$( readlink -f "${2}" )
     tuv_srpm_repo=$( readlink -f "${3}" )
 else
     usage
@@ -158,7 +154,8 @@ fi
 #############################################################################
 ### validate args
 if [ -d "${output_tdv_srpm_repo}" ]; then
-    die "output dir ${output_file} already exists"
+    # TODO: need flags and partial updates...
+    die "output dir ${output_tdv_srpm_repo} already exists"
 else
     mkdir -p "${output_tdv_srpm_repo}" 
 fi
@@ -171,7 +168,13 @@ if [ ! -d "${tuv_srpm_repo}" ]; then
     die "tuv_srpm_repo directory ${tuv_srpm_repo} does not exist"
 fi
 
+#############################################################################
+### tmpdir
+tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
+mkdir -p "${tmpdir}"
 
+#############################################################################
+### backup existing rpm dev homestuffs
 if [ -f "${HOME}/.rpmmacros" ]; then
     mv "${HOME}/.rpmmacros" \
 	"${HOME}/.rpmmacros.orig.${mypid}"
@@ -181,11 +184,14 @@ if [ -d "${HOME}/rpmbuild" ]; then
 	"${HOME}/rpmbuild.orig.${mypid}"
 fi
 
+#############################################################################
+### generate dynamic rpm dev homestuffs
 rpmdev-setuptree
 cat <<EOF > "${HOME}/.rpmmacros"
 %vendor Ascendos
 EOF
 
+#############################################################################
 ## for each tuv srpm, not in non.in.asc list, rebuild as initial contents
 for srpm in $( ls -1A "${tuv_srpm_repo}/"*.src.rpm ); do
     buildit=1
@@ -198,14 +204,25 @@ for srpm in $( ls -1A "${tuv_srpm_repo}/"*.src.rpm ); do
 	fi
     done
     if ((${buildit})); then
-	rpm -i "${tuv_srpm_repo}/${srpm_filename}"
-	rpmbuild -bs --rmspec --rmsource "${HOME}/rpmbuild/SPECS/"*.spec
+
+	rpm \
+	    -i \
+	    "${tuv_srpm_repo}/${srpm_filename}" \
+	    > "${tmpdir}/${progname}.verbose.log" 2>&1
+
+	rpmbuild \
+	    -bs \
+	    --rmspec \
+	    --rmsource "${HOME}/rpmbuild/SPECS/"*.spec \
+	    > "${tmpdir}/${progname}.verbose.log" 2>&1
+
 	mv "${HOME}/rpmbuild/SRPMS/"*.src.rpm \
 	    "${output_tdv_srpm_repo}/"
     fi
 
 done
 
+#############################################################################
 ## process each delta directory
 for target_pkg_name in $( find "${tdv_delta_repo}" -mindepth 1 -maxdepth 1 -type d -print | sed -e 's/.*\///' ); do
     status "processing package with tdv delta: ${target_pkg_name} ..."
@@ -215,7 +232,8 @@ for target_pkg_name in $( find "${tdv_delta_repo}" -mindepth 1 -maxdepth 1 -type
     # extract *TUV* original package if it exists
     if [ -f "${tuv_srpm_repo}/${target_pkg_name}.el6.src.rpm" ]; then
 	rpm2cpio "${tuv_srpm_repo}/${target_pkg_name}.el6.src.rpm" \
-	    | cpio --quiet --extract --make-directories
+	    | cpio --quiet --extract --make-directories \
+	    > "${tmpdir}/${progname}.verbose.log" 2>&1
     fi
     popd > /dev/null 2>&1
 
@@ -240,6 +258,7 @@ for target_pkg_name in $( find "${tdv_delta_repo}" -mindepth 1 -maxdepth 1 -type
 	fi
     done
     
+#############################################################################
     # second pass for everything else 
     for file in $( find . -type f -print ); do
 	if ( echo "${file}" | grep -q "\.elbuild_patchable\$" ); then
@@ -273,15 +292,19 @@ for target_pkg_name in $( find "${tdv_delta_repo}" -mindepth 1 -maxdepth 1 -type
     mv "${HOME}/rpmbuild/SOURCES/"*.spec \
 	"${HOME}/rpmbuild/SPECS/"
 
-    rpmbuild -bs --rmspec --rmsource "${HOME}/rpmbuild/SPECS/"*.spec 
+    rpmbuild \
+	-bs \
+	--rmspec \
+	--rmsource \
+	"${HOME}/rpmbuild/SPECS/"*.spec \
+    > "${tmpdir}/${progname}.verbose.log" 2>&1
+
     mv "${HOME}/rpmbuild/SRPMS/"*.src.rpm \
 	"${output_tdv_srpm_repo}/"
 done
 
-#############################################################################
-### tmpdir
-tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
-mkdir -p "${tmpdir}"
+
+createrepo "${output_tdv_srpm_repo}/"
 
 #############################################################################
 ### ...

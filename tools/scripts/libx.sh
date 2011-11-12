@@ -63,7 +63,7 @@ fi
 ##
 starttime="$( date +%Y-%m-%d--%H-%M-%S )"
 rundir="$( pwd )"
-progname="$( basename $0 )"
+progname="$( basename $0 2> /dev/null )"
 progdir=$( ( pushd $( dirname $( readlink -e "${0}" ) ) > /dev/null 2>&1 ; \
     pwd ; popd > /dev/null 2>&1 ) )
 rundir=$( pwd )
