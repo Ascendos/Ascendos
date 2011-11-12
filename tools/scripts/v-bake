@@ -79,7 +79,7 @@ x_prefix=/usr
 ##
 # 10.0.2.2 is the ip address the containing qemu-kvm uses to expose the
 # host, which in this case is running apache on port 8421 as non-root
-elbuild_docroot="http://10.0.2.2:8421/"
+elbuild_docroot="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/"
 cache_root="${elbuild_docroot}cache/"
 
 x64outroot=/root/el-build-workarea/output
@@ -101,13 +101,13 @@ outroot=/root/output
 
 # for the parent vm to quiesce(sp?)
 clear
-status "giving host a minute just in case..."
+status "giving host a minute just in case ..."
 sleep 30
 clear
-status "initializing environment..."
+status "initializing environment ..."
 
 # keep screen from blanking (perhaps this should be in el-build only)
-status "disabling terminal blanking/screensaver..."
+status "disabling terminal blanking/screensaver ..."
 setterm -blank 0
 
 #############################################################################
@@ -141,10 +141,10 @@ cat <<EOF > /etc/yum.repos.d/el-build-baking.repo
 name=Scientific Linux \$releasever - \$basearch
 # yumvars seem pretty stupid, needing to be full directory entries, i.e. this doesn't work,
 # nor does \${releasever} work...
-#baseurl=${cache_root}ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os/
-#baseurl=${cache_root}ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/
+#baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os/
+#baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os/
 # note: but it had to be worked around in the cache for koji anyway
-baseurl=${cache_root}ftp.scientificlinux.org___linux__scientific__6.0/\$basearch/os/
+baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/6.0/\$basearch/os/
 enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
@@ -155,7 +155,7 @@ name=Scientific Linux \$releasever Alpha - Source
 #                http://ftp1.scientificlinux.org/linux/scientific/\$releasever/SRPMS/
 #                http://ftp2.scientificlinux.org/linux/scientific/\$releasever/SRPMS/
 #                ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/SRPMS/
-baseurl=${cache_root}ftp.scientificlinux.org___linux__scientific__6x__SRPMS/
+baseurl=${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/6x/SRPMS/
 enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
@@ -165,7 +165,7 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KE
 name=Extra Packages for Enterprise Linux 6 - \$basearch
 #baseurl=http://download.fedoraproject.org/pub/epel/6/\$basearch
 #mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-6&arch=\$basearch
-baseurl=${cache_root}mirrors.kernel.org___pub__fedora-epel__6__x86_64/
+baseurl=${cache_root}ftp/mirrors.kernel.org/pub/fedora-epel/6/x86_64/
 failovermethod=priority
 enabled=1
 gpgcheck=1
@@ -175,7 +175,8 @@ gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-6
 name=Extra Packages for Enterprise Linux 6 - \$basearch - Source
 #baseurl=http://download.fedoraproject.org/pub/epel/6/SRPMS
 #mirrorlist=https://mirrors.fedoraproject.org/metalink?repo=epel-source-6&arch=\$basearch
-baseurl=${cache_root}mirrors.kernel.org___pub__fedora-epel__6__SRPMS/
+
+baseurl=${cache_root}ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/
 failovermethod=priority
 enabled=0
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-6
@@ -232,7 +233,7 @@ source "${outroot}/logs/v-bake.options"
 cat <<EOF > /etc/yum.repos.d/asc-src.repo
 [asc-src]
 name=Ascendos - sources
-baseurl=${cache_root}build.ascendos.org___linux__ascendos__SRPMS/
+baseurl=${cache_root}http/build.ascendos.org/linux/ascendos/SRPMS.generated/
 enabled=0
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
@@ -250,8 +251,12 @@ yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
 #    /etc/yum.repos.d/sl.repo
 #
 #sed -i \
-#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp.scientificlinux.org___linux__scientific__\$releasever__\$basearch__os|g" \
+#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|g" \
 #    /etc/yum.repos.d/sl.repo
+#sed -i \
+#    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|${cache_root}ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os|g" \
+#    /etc/yum.repos.d/sl.repo
+
 
 # for rpmbuild(--rebuild) and rpmdev-setuptree
 yum -y install rpm-build
@@ -296,7 +301,7 @@ rpm --import \
 ##
 
 ## get python-kid installed, needed by repoview
-wget "${cache_root}/archive.fedoraproject.org___pub__archive__fedora__linux__releases__13__Everything__source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
+wget "${cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
 if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
     die "python-kid signature could not be verified as correct"
 fi
@@ -305,7 +310,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
 
 ## get repoview installed, needed by pungi
 #wget ${fedora_mirror_root}/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm
-wget "${cache_root}/archive.fedoraproject.org___pub__archive__fedora__linux__releases__13__Everything__source/SRPMS/repoview-0.6.5-1.fc13.src.rpm"
+wget "${cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm"
 if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
     die "repoview signature could not be verified as correct"
 fi
@@ -316,11 +321,11 @@ rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
 ## get pungi
 # note: the f13-updates version of pungi seems to only include a single esoteric one line change
 #       which seems needed if and only if some python update has also been applied (e.g. using
-#       SL60__+updates__ for the bootstrap repo, which is not currently the default here)
+#       SL60/+updates/ for the bootstrap repo, which is not currently the default here)
 # todo: check to see if f14/++ versions of pungi work without modification and/or have important
 #       enhancements or bugfixes.  It's reasonable to start with f13 as that is likely what
 #       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
-wget "${cache_root}/archive.fedoraproject.org___pub__archive__fedora__linux__releases__13__Everything__source/SRPMS/pungi-2.0.21-1.fc13.src.rpm"
+wget "${cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm"
 if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
     die "pungi signature could not be verified as correct"
 fi
@@ -334,7 +339,7 @@ rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
 ##
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
-wget "${cache_root}/mirrors.kernel.org___pub__fedora-epel__6__SRPMS/livecd-tools-${x_livecdtools_version}.el6.src.rpm"
+wget "${cache_root}/ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/livecd-tools-${x_livecdtools_version}.el6.src.rpm"
 if ( ! rpm --checksig "livecd-tools-${x_livecdtools_version}.el6.src.rpm" ); then
     die "livecd-tools signature could not be verified as correct"
 fi
@@ -417,7 +422,7 @@ if ( listin "compile-sources" "${do_bake_phases}" ); then
     koji \
 	add-external-repo \
 	ascendos-build \
-	"${cache_root}build.ascendos.org___linux__ascendos__build/\\\$arch"
+	"${cache_root}http/build.ascendos.org/linux/ascendos/build/\\\$arch"
 
     # experimental
     koji \
@@ -518,7 +523,7 @@ glibc-static.i686
 	    | sed -e 's/\/\$arch.*//' )
 	showvar os_repo_prefix
 	os_repo_prefix_xmog=$( echo "${os_repo_prefix}" \
-	    | sed -e 's/\//__/g' )
+	    | sed -e 's/\////g' )
 	showvar os_repo_prefix_xmog
 	os_repo_suffix=$( echo "${os_repo}" \
 	    | sed -e 's/.*\$arch\///' )
@@ -556,7 +561,7 @@ glibc-static.i686
     if [ "${test_package_list}" != "" ]; then
 	srpm_list="${test_package_list}"
     else
-        srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org___linux__ascendos__SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
+        srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org/linux/ascendos/SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
     fi
 
     echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
@@ -624,7 +629,7 @@ glibc-static.i686
 	# TODO: obviously need to abstract away the hostname/path here 
 	# NOTE: ... at the same time that gen-tdv-srpm-repo appears in this script
 	if [ "${x_bake_input_srpm_repo}" == "" ]; then
-	    x_bake_input_srpm_repo="http://10.0.2.2:8421/cache/build.ascendos.org___linux__ascendos__SRPMS.generated"
+	    x_bake_input_srpm_repo="http://10.0.2.2:8421/cache/build.ascendos.org/linux/ascendos/SRPMS.generated"
 	fi
 	wget "${x_bake_input_srpm_repo}/${srpm}"
 
@@ -660,9 +665,9 @@ glibc-static.i686
 	    mv "${srpm}" "${srpm}".pre-compile-phase
 	    pkg_nvr=$( basename "${srpm}" .src.rpm )
 	    koji download-build "${pkg_nvr}"
-	    status "seemed to build ok..."
+	    status "seemed to build ok ..."
 	else
-	    status "seemed to *NOT* build ok..."
+	    status "seemed to *NOT* build ok ..."
 	fi
 
     done
@@ -816,12 +821,12 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
 	--cache=/root/el-build-workarea/cache \
 	--tmpdir=/root/el-build-workarea/tmp \
 	--logfile=/root/el-build-workarea/livecd-desktop-x32.log \
-	--fslabel="asc60_livecd_desktop_x32" \
+	--fslabel="x_live_os" \
 	--config=livecd-desktop-i386.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x32.console.log"
 
     mkdir -p "${x32outroot}/6.0/i386/iso"
-    mv asc60_livecd_desktop_x32.iso \
+    mv x_live_os.iso \
 	"${x32outroot}/6.0/i386/iso/Ascendos-6.0-i386-LiveCD-Desktop.iso"
     mv /root/el-build-workarea/livecd-desktop-x32.log \
 	"${outroot}/logs/"
@@ -844,12 +849,12 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
 	--cache=/root/el-build-workarea/cache \
 	--tmpdir=/root/el-build-workarea/tmp \
 	--logfile=/root/el-build-workarea/livecd-desktop-x64.log \
-	--fslabel="asc60_livecd_desktop_x64" \
+	--fslabel="x_live_os" \
 	--config=livecd-desktop-x86_64.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x64.console.log"
 
     mkdir -p "${x64outroot}/6.0/x86_64/iso"
-    mv asc60_livecd_desktop_x64.iso \
+    mv x_live_os.iso \
 	"${x64outroot}/6.0/x86_64/iso/Ascendos-6.0-x86_64-LiveCD-Desktop.iso"
     mv /root/el-build-workarea/livecd-desktop-x64.log \
 	"${outroot}/logs/"

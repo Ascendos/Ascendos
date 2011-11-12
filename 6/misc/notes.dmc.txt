@@ -39,14 +39,7 @@ any willing builder nodes on the local net are utilized
 
 maintenance process
 -------------------
-need to go over the rest of Troy's buildscripts and get them entirely
-centrally documented.  I.e. combine that with the 15 item workflow
-that Troy posted to ascendos-dev awhile back.  Ideally converting that
-workflow into a visual flowchart with the dia tool.  Then start 
-planning for how to distribute the maintenance workload amongst devs.
-I.e. time shifts for responsibility for handling incoming updates, as
-there will no doubt be a final human action to release a new update
-into the public repos
+need to start documenting candidate mainenance workflows, preferably with dia
 
 build.a.o/linux/ascendos
 ------------------------
@@ -60,28 +53,7 @@ build.a.o/linux/ascendos
 
 -------------
 
-# below is for a script to enumerate the unified srpm
-# list by its release version(6.?) and type(base/updates)
-# (then beyond that generating a build order.  I'd like
-#  to try that before falling back to the week-by-week
-#  breakdown which I as yet don't fully understand)
-note: tuv-6.0 reldate: 2010-11-10
-note: tuv-6.1 reldate: 2011-05-19
-
 2011-10-26: removed off-off-spec obsoleted
-
-notes: it seems the ascendos-60 target had its repos switched from sl60 to asc60 at some point
-       (presumably datable by looking at koji history --all)
-
-checksums for one-off-line backups
-----------------------------------
-
-::old bao backup::
-::4405bb1ac202f8440667e693777dd2f0d0dfff2ecbf594c5fc514c91b635aaf9::
-
-sl6 bootstrapping categories
-----------------------------
-ftp.scientificlinux.org:/linux/scientific/6rolling/build/koji/targets/Targets.txt
 
 misc todo
 ---------

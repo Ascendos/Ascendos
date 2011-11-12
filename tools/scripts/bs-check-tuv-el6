@@ -3,10 +3,11 @@
 #############################################################################
 #############################################################################
 #
-# bs-check-tuv-el6 looks at an el6 repochart, and checks against a (koji)
-#                  buildserver to see if a complete package build is
-#                  available, and add tags and buildtargets associated with
-#                  it to an expanded repochart.
+# bs-check-tuv-el6
+#
+# looks at an el6 repochart, and checks against a (koji) buildserver to see
+# if a complete package build is available, and add tags and buildtargets
+# associated with it to an expanded repochart.
 #
 #############################################################################
 #
@@ -37,8 +38,9 @@
 #############################################################################
 ##
 ## bs-check-tuv-el6 \
-##     [<input>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart] \
-##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart.{csv,html}]
+##     [<input>=${x_bake_cachedir}/tuv.srpms.repochart.txt] \
+##     [<output_csv>=${x_bake_cachedir}/tuv.srpms.bigboard.csv] \
+##     [<output_html>=${x_bake_cachedir}/tuv.srpms.bigboard.html] \
 ##
 ##
 ## DESCRIPTION
@@ -123,14 +125,17 @@ status "initializing..."
 
 
 if [ $# -eq 0 ]; then 
-    input=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart" )
-    output=$( readlink -f "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.bsinfochart" )
+    input=$( readlink -e "${x_bake_cachedir}/tuv.srpms.repochart.txt" )
+    output_csv=$( readlink -e "${x_bake_cachedir}/tuv.srpms.bigboard.csv" )
+    output_html=$( readlink -e "${x_bake_cachedir}/tuv.srpms.bigboard.html" )
 elif [ $# -eq 1 ]; then 
-    input=$( readlink -e "${1}" )
-    output="-"
+    usage
 elif [ $# -eq 2 ]; then 
+    usage
+elif [ $# -eq 3 ]; then 
     input=$( readlink -e "${1}" )
-    output=$( readlink -f "${2}" )
+    output_csv=$( readlink -f "${2}" )
+    output_html=$( readlink -f "${3}" )
 else
     usage
 fi
@@ -139,24 +144,26 @@ if [ ! -f "${input}" ]; then
     die "input data file ${1} does not exist"
 fi
 
-if [ -f "${output}.html" ]; then
-#    die "output ${output}.html already exists"
-    mv -f "${output}.html" \
-	 "${output}.html.backup.${starttime}"
+if [ -f "${output_html}" ]; then
+#    die "output ${output_html} already exists"
+    mv -f "${output_html}" \
+	 "${output_html}.backup.${starttime}"
 fi
 
-if [ -f "${output}.csv" ]; then
-#    die "output ${output}.html already exists"
-    mv -f "${output}.csv" \
-	 "${output}.csv.backup.${starttime}"
+if [ -f "${output_csv}" ]; then
+#    die "output ${output_csv} already exists"
+    mv -f "${output_csv}" \
+	 "${output_csv}.backup.${starttime}"
 fi
 
-tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+# todo: this will not pick of localconfig/~/.el-build/config changes
+tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
 
 mkdir -p "${tmpdir}"
 
-status "fetching koji buildinfo dump from build.ascendos.org ..."
-wget -q -O - http://build.ascendos.org/linux/development/dmc/koji-buildinfo-dumps/asc-bs-info-dump-latest.tar.bz2 \
+status "fetching koji buildinfo dump data: ${x_asc_koji_dump_file} ..."
+# todo: clean up distasteful hardcodedness, and tmpdir stuff, bla...
+wget -q -O - $( get_cached_path "${HOME}/.el-build/cache" "${x_asc_koji_dump_file}" )
     | tar -C "${tmpdir}" -xjlpsf -
 bi_dir=$( ls -1d "${tmpdir}/asc-bs-info-dump-"* )
 
@@ -185,15 +192,15 @@ for (( i=0 ; i <= "${max_pointrel_minor}" ; i=$(( $i + 1 )) )); do
     in_repo_header_csv="${in_repo_header_csv}\"${max_pointrel_major}.${i}-base\",\"${max_pointrel_major}.${i}-updates\","
 done
 
-echo -en '"package name - version - release",' >> "${output}.csv"
-echo -en '"src-package build date",' >> "${output}.csv"
-echo -en '"in ascendos",' >> "${output}.csv"
-echo -en '"on buildserver",' >> "${output}.csv"
-echo -en '"build complete",' >> "${output}.csv"
-echo -en "${in_repo_header_csv}" >> "${output}.csv"
-echo -en '"koji build target",' >> "${output}.csv"
-echo -en '"koji build tags",' >> "${output}.csv"
-echo -en "\n" >> "${output}.csv"
+echo -en '"package name - version - release",' >> "${output_csv}"
+echo -en '"src-package build date",' >> "${output_csv}"
+echo -en '"in ascendos",' >> "${output_csv}"
+echo -en '"on buildserver",' >> "${output_csv}"
+echo -en '"build complete",' >> "${output_csv}"
+echo -en "${in_repo_header_csv}" >> "${output_csv}"
+echo -en '"koji build target",' >> "${output_csv}"
+echo -en '"koji build tags",' >> "${output_csv}"
+echo -en "\n" >> "${output_csv}"
 
 est_num_pkgs=$( cat "${input}" | wc -l )
 
@@ -276,85 +283,85 @@ while read line; do
 	in_repo_status_csv="${in_repo_status_csv}\"${in_pointrel_base[$i]}\",\"${in_pointrel_updates[$i]}\","
     done
 
-    echo -en "\"${pkg_nvr}\"," >> "${output}.csv"
-    echo -en "\"${pkg_time_date}\"," >> "${output}.csv"
-    echo -en "\"${pkg_in_asc}\"," >> "${output}.csv"
+    echo -en "\"${pkg_nvr}\"," >> "${output_csv}"
+    echo -en "\"${pkg_time_date}\"," >> "${output_csv}"
+    echo -en "\"${pkg_in_asc}\"," >> "${output_csv}"
     if [ "${pkg_in_asc}" == "no" ]; then
-	echo -en "\"n/a\"," >> "${output}.csv"
-	echo -en "\"n/a\"," >> "${output}.csv"
+	echo -en "\"n/a\"," >> "${output_csv}"
+	echo -en "\"n/a\"," >> "${output_csv}"
     else
 	pkg_nvr_minus_el6suffix=$( echo "${pkg_nvr}" | sed -e 's/\.el6.*$//' )
 	status "pkg_nvr_minus_el6suffix is ${pkg_nvr_minus_el6suffix} ..."
 	if [ -d "${x_devdir}/packages/${pkg_nvr}" ]; then
-	    echo -en "\"fixme\"," >> "${output}.csv"
-	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output_csv}"
+	    echo -en "\"fixme\"," >> "${output_csv}"
 	elif [ -d "${x_devdir}/packages/${pkg_nv}" ]; then
-	    echo -en "\"fixme\"," >> "${output}.csv"
-	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output_csv}"
+	    echo -en "\"fixme\"," >> "${output_csv}"
 	elif [ -d "${x_devdir}/packages/${pkg_n}" ]; then
-	    echo -en "\"fixme\"," >> "${output}.csv"
-	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output_csv}"
+	    echo -en "\"fixme\"," >> "${output_csv}"
 	elif [ -d "${x_devdir}/packages/${pkg_nvr_minus_el6suffix}" ]; then
-	    echo -en "\"fixme\"," >> "${output}.csv"
-	    echo -en "\"fixme\"," >> "${output}.csv"
+	    echo -en "\"fixme\"," >> "${output_csv}"
+	    echo -en "\"fixme\"," >> "${output_csv}"
 	else
 	    if [ "${pkg_exists_in_bs}" == "no" ]; then
-		echo -en "\"<b>NO</b>\"," >> "${output}.csv"
+		echo -en "\"<b>NO</b>\"," >> "${output_csv}"
 	    else
-		echo -en "\"${pkg_exists_in_bs}\"," >> "${output}.csv"
+		echo -en "\"${pkg_exists_in_bs}\"," >> "${output_csv}"
 	    fi
 	    if [ "${pkg_complete_in_bs}" == "no" ]; then
-		echo -en "\"<b>NO</b>\"," >> "${output}.csv"
+		echo -en "\"<b>NO</b>\"," >> "${output_csv}"
 	    else
-		echo -en "\"${pkg_complete_in_bs}\"," >> "${output}.csv"
+		echo -en "\"${pkg_complete_in_bs}\"," >> "${output_csv}"
 	    fi
 	fi
     fi
     # end if pkg_in_asc else ...
 
-    echo -en "${in_repo_status_csv}" >> "${output}.csv"
+    echo -en "${in_repo_status_csv}" >> "${output_csv}"
     if [ "${pkg_in_asc}" == "no" ]; then
-	echo -en "\"n/a\"," >> "${output}.csv"
-	echo -en "\"n/a\"," >> "${output}.csv"
+	echo -en "\"n/a\"," >> "${output_csv}"
+	echo -en "\"n/a\"," >> "${output_csv}"
     else
-	echo -en "\"${build_target}\"," >> "${output}.csv"
-	echo -en "\"${tags}\"," >> "${output}.csv"
+	echo -en "\"${build_target}\"," >> "${output_csv}"
+	echo -en "\"${tags}\"," >> "${output_csv}"
     fi
-    echo -en "\n" >> "${output}.csv"
+    echo -en "\n" >> "${output_csv}"
 
 done < "${tmpdir}/revinput"
 
-echo -en "\n" >> "${output}.csv"
-echo -en "\n" >> "${output}.csv"
-echo -en "\n" >> "${output}.csv"
-echo -en "\"number of tuv packages\"," >> "${output}.csv"
-echo -en "\"number packages in ascendos\"," >> "${output}.csv"
-echo -en "\"number of packages on buildserver\"," >> "${output}.csv"
-echo -en "\"number of completed packages on buildserver\"," >> "${output}.csv"
-echo -en "\n" >> "${output}.csv"
+echo -en "\n" >> "${output_csv}"
+echo -en "\n" >> "${output_csv}"
+echo -en "\n" >> "${output_csv}"
+echo -en "\"number of tuv packages\"," >> "${output_csv}"
+echo -en "\"number packages in ascendos\"," >> "${output_csv}"
+echo -en "\"number of packages on buildserver\"," >> "${output_csv}"
+echo -en "\"number of completed packages on buildserver\"," >> "${output_csv}"
+echo -en "\n" >> "${output_csv}"
 
 num_pkgs=$( cat "${tmpdir}/num_pkgs" | wc -l )
 num_pkgs_in_asc=$( cat "${tmpdir}/num_pkgs_in_asc" | wc -l )
 num_pkgs_in_asc_on_bs=$( cat "${tmpdir}/num_pkgs_in_asc_on_bs" | wc -l )
 num_pkgs_in_asc_on_bs_complete=$( cat "${tmpdir}/num_pkgs_in_asc_on_bs_complete" | wc -l )
 
-echo -en "\"${num_pkgs}\"," >> "${output}.csv"
-echo -en "\"${num_pkgs_in_asc}\"," >> "${output}.csv"
-echo -en "\"${num_pkgs_in_asc_on_bs}\"," >> "${output}.csv"
-echo -en "\"${num_pkgs_in_asc_on_bs_complete}\"," >> "${output}.csv"
-echo -en "\n" >> "${output}.csv"
-echo -en "\n" >> "${output}.csv"
+echo -en "\"${num_pkgs}\"," >> "${output_csv}"
+echo -en "\"${num_pkgs_in_asc}\"," >> "${output_csv}"
+echo -en "\"${num_pkgs_in_asc_on_bs}\"," >> "${output_csv}"
+echo -en "\"${num_pkgs_in_asc_on_bs_complete}\"," >> "${output_csv}"
+echo -en "\n" >> "${output_csv}"
+echo -en "\n" >> "${output_csv}"
 
-cp "${output}.csv" "${tmpdir}/pkg_big_board.csv"
+cp "${output_csv}" "${tmpdir}/package_big_board.csv"
 
 pushd "${tmpdir}" 2>&1 > /dev/null
 "${x_devdir}/tools/scripts/csv2html.pl" \
     -b -e -d \
-    -i "pkg_big_board.csv" \
-    -o "pkg_big_board.html" \
+    -i "package_big_board.csv" \
+    -o "package_big_board.html" \
     -t "PackageBigBoard" \
     > "${tmpdir}/csv2html.out" 2>&1
 popd "${tmpdir}" 2>&1 > /dev/null
 
-mv "${tmpdir}/pkg_big_board.html" "${output}.html"
+mv "${tmpdir}/package_big_board.html" "${output_html}"
 

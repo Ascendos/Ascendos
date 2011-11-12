@@ -38,8 +38,8 @@
 ##
 ## src-pkg-repo-diff--gen-min-srpm-list \
 ##     [<output_file>=<input_right>.repo-diff.srpm-list] \
-##     [[<input_left>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] \
-##     [<input_right>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS]]
+##     [[<input_left>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS] \
+##     [<input_right>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS]]
 ##
 ##
 ## DESCRIPTION
@@ -128,13 +128,13 @@ status "initializing..."
 #############################################################################
 ### retrieve arguments/options
 if [ $# -eq 0 ]; then 
-    input_left=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
-    input_right=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS" )
+    input_left=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    input_right=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS" )
     output_file=${input_right}.repo-diff.srpm-list
 elif [ $# -eq 1 ]; then 
     output_file=$( readlink -f "${1}" )
-    input_left=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
-    input_right=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS" )
+    input_left=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    input_right=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS" )
 elif [ $# -eq 2 ]; then 
     # I don't see a particularly useful way to do something intuitive here
     usage

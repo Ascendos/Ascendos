@@ -191,10 +191,10 @@ GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}/gnupg" \
     --dbpath "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb" \
     --import "${progdir}/../security/keys/RPM-GPG-KEY-ascendos"*
 
-num_pkgs_total=$( ls -1A "${outputdir}/build.ascendos.org___linux__ascendos__SRPMS/"*.src.rpm | wc -l )
+num_pkgs_total=$( ls -1A "${outputdir}/build.ascendos.org/linux/ascendos/SRPMS/"*.src.rpm | wc -l )
 num_checked=0
 status "checking source package signatures..."    
-for srpm in $( ls -1A "${outputdir}/build.ascendos.org___linux__ascendos__SRPMS/"*.src.rpm ); do
+for srpm in $( ls -1A "${outputdir}/build.ascendos.org/linux/ascendos/SRPMS/"*.src.rpm ); do
     status "checking " $( basename "${srpm}" ) " ... "
     GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}" \
 	rpm --checksig \

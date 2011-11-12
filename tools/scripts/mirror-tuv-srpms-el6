@@ -33,7 +33,7 @@
 #############################################################################
 #############################################################################
 ##
-## mirror-tuv-el6-srpms <outputdir> (e.g. ~/.el-build/cache)
+## mirror-tuv-el6-srpms <cachedir> (e.g. ~/.el-build/cache)
 ##
 ##
 ## DESCRIPTION
@@ -99,6 +99,8 @@ x_quiet=0
 # excessive and/or amusing vendor name use avoidance
 tuv_name_lc_enc="erqung"
 
+## todo: the below should get factored into defaults
+
 # todo: for production and lowest latency, you'd want to use this
 #mirror="ftp://ftp.tuv.com/tuv/linux/enterprise"
 # but for development-
@@ -121,7 +123,7 @@ function usage {
     echo ""
     echo "usage:"
     echo ""
-    echo "${progname} [<output directory>=~/.el-build/cache]"
+    echo "${progname} [<cache directory>=~/.el-build/cache]"
     echo ""
     echo ""
     exit 1
@@ -134,57 +136,81 @@ function usage {
 ## main
 ##
 
-status "initializing..."
+status "initializing ..."
 
 tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
 mirrorx=$( echo "${mirror}" | sed -e "s/tuv/${tuv_name_lc}/g" )
 
 if [ $# -eq 0 ]; then 
-    outputdir=$( readlink -e "${HOME}/.el-build/cache" )
+    cachedir=$( readlink -e "${HOME}/.el-build/cache" )
 elif [ $# -ne 1 ]; then 
     usage
 else
-    outputdir=$( readlink -e "${1}" )
+    cachedir=$( readlink -e "${1}" )
 fi
 
-if ( ! mkdir -p "${outputdir}" ); then
-    die "could not create output directory: ${outputdir}"
+if ( ! mkdir -p "${cachedir}" ); then
+    die "could not create cache directory: ${cachedir}"
 fi
 
-mkdir -p "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS"
+# todo: abstract below hardcoded appropriately to defaults, 
+#   along with flavorlist above
+tuv_flavor_root_cached=$( get_cached_path \
+    "${cachedir}" \
+    ftp://ftp.tuv.com/tuv/linux/enterprise )
+superset_flavor="6Superset"
 
+mkdir -p "${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS"
+
+# note: this does not seem all that graceful.  Patches that reduce runtime and
+#   disk i/owithout increasing external network usage are very welcome. 
+#   Though this method does get some bonus integrity checking in exchange
+#   for the expense of what its doing.
+
+# for each flavor, mirror all the upstream source rpms and merge into
+# the superset repository
 for flavor in ${flavors}; do
-    if [ -d "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS" ]; then
-	rm -rf "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS" 
+
+    status "mirroring flavor: ${flavor} ..."
+    if [ -d "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS" ]; then
+	rm -rf "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS" 
     fi
-    mkdir -p "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS" 
+    mkdir -p "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS" 
 
-    cp -av \
-	"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/"*.src.rpm \
-	"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS/" 
+    status "prepopulating flavor target directory to minimize download bandwidth to upstream ..."
+    cp -a \
+	"${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS/"*.src.rpm \
+	"${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS/" 
 
+    status "pulling from the internets ..."
+    # mirror one of the flavor's worth of source rpms
     lftp "${mirrorx}" \
-	-e "cd ${flavor}/en/os ; mirror --continue --delete SRPMS ${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS ; quit"
+	-e "cd ${flavor}/en/os ; mirror --continue --delete SRPMS ${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS ; quit"
 
-    for src_pkg in $( ls -1A "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/${flavor}/en/os/SRPMS/"*.src.rpm ); do
+    status "merging flavor ${flavor} into ${superset_flavor} ..."
+    # for each source package in the new set, compare against and merge it with the superset
+    for src_pkg in $( ls -1A "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS/"*.src.rpm ); do
 	src_pkg_base=$( basename "${src_pkg}" )
-	if [ -e "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}" ]; then
+	if [ -e "${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS/${src_pkg_base}" ]; then
+	    # compare superset copy with incoming flavor version (should be identical)
 	    if ( ! diff -q "${src_pkg}" \
-"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}" > /dev/null 2>&1 ); then
-	        die "UNEXPECTED DIFFERING FILES WITH THE SAME NAME :: ${src_pkg} :: ${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}"
+"${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS/${src_pkg_base}" > /dev/null 2>&1 ); then
+	        die "UNEXPECTED DIFFERING FILES WITH THE SAME NAME :: ${src_pkg} :: ${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS/${src_pkg_base}"
 	    fi
 	    # remove the extra copy
 	    rm -f "${src_pkg}"
 	else
-	    status "NEW PACKAGE: copying ${src_pkg_base} to 6Superset"
+	    status "NEW PACKAGE: copying ${src_pkg_base} to ${superset_flavor}"
 	    mv "${src_pkg}" \
-		"${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/${src_pkg_base}"
+		"${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS/${src_pkg_base}"
 	fi
 	# make the src_pkg be a link to the superset
-	ln -s "../../../../6Superset/en/os/SRPMS/${src_pkg_base}" "${src_pkg}"
+	ln -s "../../../../${superset_flavor}/en/os/SRPMS/${src_pkg_base}" "${src_pkg}"
     done
 
 done
+
+date >> "${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS.last.update"
 
 ### end script, only notes below...
 #############################################################################

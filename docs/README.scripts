@@ -72,10 +72,6 @@ repochart-tuv-el6
 # information regarding each available tuv source package
 bs-check-tuv-el6
 
-# gpl tool for .csv -> .html used to generate the big board html from
-# repochart-tuv-el6 output
-csv2html.pl
-
 
 #############################################################################
 #############################################################################
@@ -116,6 +112,10 @@ user-httpd
 
 # temporary automation script making up for deficiencies in prior scripts
 rename-isos
+
+# gpl tool for .csv -> .html used to generate the big board html from
+# repochart-tuv-el6 output
+csv2html.pl
 
 
 #############################################################################

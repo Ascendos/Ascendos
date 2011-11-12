@@ -206,6 +206,24 @@ function listreverse {
 
 
 #############################################################################
+#############################################################################
+#
+# usage: get_cached_path <cachedir> <url>
+#
+# gives a local cache full path filename for the given url
+#
+# e.g. input of (~/.el-build/cache,ftp://ftp.foo.com/bar) causes
+#      output of "~/.el-build/cache/ftp/ftp.foo.com/bar"
+#
+function get_cached_path {
+    url_suffix=$( echo "${2}" | sed -e 's/:\/\//\//' )
+    # not enforcing/asserting existence here. e.g.  for simplicity, \$arch
+    cache_base=$( readlink -f "${1}" )
+    echo "${cache_base}/${url_suffix}"
+}
+
+
+#############################################################################
 #
 # usage: uncomma_list [items..]
 #

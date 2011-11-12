@@ -3,8 +3,10 @@
 #############################################################################
 #############################################################################
 #
-# gen-big-board: generates a big status board of available upstream source
-#                packages, and their correlating downstream status
+# gen-big-board
+#
+# generates a big status board of available upstream source packages, and
+# their correlating downstream status
 #
 #############################################################################
 #
@@ -112,7 +114,7 @@ status "initializing..."
 
 # if it doesn't appear we are online, presume the intent is an offline
 # from cached sources run, otherwise, update caches
-if ( ping -c3 mirrors.kernel.org > /dev/null 2>&1 ); then
+if ( ping -c3 "${x_internet_online_check_host}" > /dev/null 2>&1 ); then
     status "mirroring upstream sources"
     mirror-tuv-srpms-el6
 else
@@ -129,7 +131,7 @@ status "correlating data with compile/build server buildinfo"
 bs-check-tuv-el6
 
 status "big board generation done: output is likely here-"
-status "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.bsinfochart.html"
+status "${x_bake_cachedir}/tuv.srpms.bigboard.html"
 
 #############################################################################
 ## end script - only notes below

@@ -36,9 +36,9 @@
 #############################################################################
 ##
 ## gen-tdv-srpm-repo \
-##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.generated] \
-##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff \
-##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] 
+##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.generated] \
+##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff \
+##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS] 
 ##
 ##
 ## DESCRIPTION
@@ -133,22 +133,22 @@ status "initializing..."
 #############################################################################
 ### retrieve arguments/options
 
-##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.generated] \
-##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff \
-##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] \
+##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.generated] \
+##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff \
+##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS] \
 
 if [ $# -eq 0 ]; then 
-    output_tdv_srpm_repo=$( readlink -f "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.generated" )
-    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff" )
-    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+    output_tdv_srpm_repo=$( readlink -f "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.generated" )
+    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff" )
+    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 1 ]; then 
     output_tdv_srpm_repo=$( readlink -f "${1}" )
-    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org___linux__ascendos__SRPMS.repo-diff" )
-    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff" )
+    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 2 ]; then 
     tdv_delta_repo=$( readlink -e "${1}" )
     output_tdv_srpm_repo=$( readlink -f "${2}" )
-    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 3 ]; then 
     tdv_delta_repo=$( readlink -e "${1}" )
     output_tdv_srpm_repo=$( readlink -f "${2}" )

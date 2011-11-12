@@ -1,0 +1,5 @@
+security notes:
+
+- config files are generic script files and are sourced by el-build.  Don't
+  go grabbing them from untrusted sources without inspecting them closely.
+  Long term there will be a better configuration system.

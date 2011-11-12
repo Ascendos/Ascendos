@@ -15,90 +15,161 @@
 ## baking options
 ##
 
-# how much memory to use for installing and running the 
-# el-build processing vm host
+#############################################################################
+# use this to skip the attempt to update the net cache used for bake input
+x_bake_offline="no"
+
+#############################################################################
+# use this to skip some of the following phases:
+# compile-sources
+# installer-traditional-x64
+# installer-traditional-x32
+# installer-live-x64
+# installer-live-x32
+# populate-staging-repo
+x_bake_do_bake_phases="all"
+
+#############################################################################
+# output here: minimum?preferred: 50G+ free space
+x_bake_outputdir="${rundir}/bake-output"
+
+#############################################################################
+# workareas: minimum?preferred: 250G+ free space
+# (note: space reqs to be drastically reduced in subsequent versions)
+
+x_bake_homedotdir="${HOME}/.el-build"
+
+# space for net os repo mirrors is taken here
+x_bake_cachedir="${x_bake_homedotdir}/cache"
+# space building/baking vms is taken here
+x_bake_tmpdir="${x_bake_homedotdir}/tmp"
+
+#############################################################################
+# ram size for installation and processing of baking-chef node vm
+# todo: benchmark and tune, yum and creatrepo seem to be memory hogs
 x_builder_vm_memory=1024
 
-# not really variable, could be moved elsewhere
-x_builder_vm_host_ip=10.0.2.2
-
-# this should be made dynamic at runtime between a specified range
-x_builder_user_httpd_port=8421
-
-# seconds between checks to see if processing in the vm completed
-x_builder_vm_shutdown_polling_frequency=30
-
-# size of builder's filesystem sizes (needs to be 'big enough(tm)')
-x_builder_vm_root_fs_size=77G
-x_builder_vm_scratch_fs_size=77G
-x_builder_vm_output_fs_size=77G
-
-# which kickstart to use for the baking vm
-x_builder_vm_ks_config="6/6.0/configs/min-el60-x64.ks"
-
-# how many old baker vm definitions to clog up virsh with
-x_keep_old_baker_vm_definitions=3
-
-# bake defaults
-
-# sha256sum of bootstrap os' x86_64 netinst.iso basically
-# note: current understanding is that this, combined with the devtree RPM-GPG keys, are the
-#       root of upstream integrity checking.  I.e. this is used to verify the netinst iso that
-#       virt-install uses to build the baking vm's initial OS image.  So its included keys are
-#       then used to verify incoming packages installed with yum.  The other keys under 
-#       infra/security/keys/RPM-GPG-KEY* are subsequently imported and used to check all other
-#       upstream packages (build deps and output targets and sources of both) as they flow into
-#       the bake from the ~/.el-build/cache which was populated by the bake from the internets.
-# further todo: sometime try rebuilding all yum repo metadata in the el-build cache, partly
-#               because it could be bad for some window while it was fetched, and partly to 
-#               remove it as an input to the system, i.e. reduced threat surface.
-#
-# reviewer: please review and make some assessment of, or modification to above comments
-x_bake_vm_os_installer_hash="f839fec8fa8d1e7af9e387725cb4559f6522d9c0af0eca72f2b437a101fc5bfe"
-# or sigh, virt-installer appears to be using the PXE stuffs
-x_bake_vm_os_installer_kernel_hash="67c73f849ff756e37d10931faf84ac009178176cc02914d027f71d9793c805266a9136cd32a65b87542076f37b268002f1314c9547ca04bf599ef48ef226c1f4"
-x_bake_vm_os_installer_initramfs_hash="f220e91480125125cc3915edb224271f7391e9eaeb05f3059eceba149040d71ddad47ea2186502c9282c9ffd121275496d78086807c903e09f0216b25629390e"
-
-
-x_bake_builtrepo="http://build.ascendos.org/linux/ascendos/${distrover}"
+#############################################################################
+# feeds into end-user installers, and their boot media filenames, etc...
 x_bake_distroname="Ascendos"
+
+#############################################################################
+#
 x_bake_distrover="6.0"
-x_bake_offline="no"
-x_bake_do_bake_phases="all"
-x_bake_bake_flags=""
-x_bake_test_package_list=""
+
+#############################################################################
+# ends up in /etc/system-release, default motd, gdm greeter, ...
 x_bake_distrorelname="nameless"
-# presumption is to first check in ./, then x_devdir/6/distrover/
+
+#############################################################################
+# use this to use for instance build.ascendos.org SRPMS instead of your own
+#x_bake_tdv_source_repo="http://build.ascendos.org/linux/ascendos/SRPMS"
+x_bake_tdv_src_repo="self-generated-from-deltas"
+
+#############################################################################
+# use this to have the installer generating bake phases use this specified
+# repo of binary rpms instead of the internal output from koji working against
+# the srpms generated from the devtree default configuration.
+#x_bake_builtrepo="http://build.ascendos.org/linux/ascendos/6.0
+x_bake_tdv_bin_repo="self-generated-from-compiled-sources"
+
+#############################################################################
+# generally for dev/debugging, not end-use
+x_bake_bake_flags=""
+
+#############################################################################
+# only compile these src.rpm(s) instead of all available
+x_bake_test_package_list=""
+
+#############################################################################
+## presumption for x_bake_config_* is to first check in ./, then x_devdir/6/distrover/
+## and for rest to check relative devtree/ (e.g. Ascendos/) 
+# TODO: ensure that full/non-relative paths work with all
+#############################################################################
+
+#############################################################################
+# Traditional DVD/netinst-iso install .iso image configurations
 x_bake_config_x64="pungi-x86_64.ks"
 x_bake_config_x32="pungi-i386.ks"
-x_bake_outputdir="${rundir}/bake-output"
-x_bake_homedotdir="${HOME}/.el-build"
-x_bake_cachedir="${HOME}/.el-build/cache"
-x_bake_tmpdir="${HOME}/.el-build/tmp"
-x_bake_clear_bootstrapos_repodata="no"
 
-# TODO: gen-tdv-srpm-repo is still not yet integrated into v-bake
-#x_bake_binary_rpm_repo="${HOME}/.el-build/build.ascendos.org___linux__ascendos__SRPMS"
-
-#x_builder_vm_ks_config="6/6.0/configs/min-el60-x64.ks"
+#############################################################################
+#
 x_bake_traditional_x32_installer_ks_config="6/6.0/configs/pungi-i386.ks"
 x_bake_traditional_x64_installer_ks_config="6/6.0/configs/pungi-x86_64.ks"
+
+#############################################################################
+# LiveCD/DVD/USB installable image configurations
 # need to abstract liveos strains into a config file, i.e. games/astronomy/etc...
 x_bake_livecd_x32_installer_ks_config="6/6.0/configs/livecd-desktop-i386.ks"
 x_bake_livecd_x64_installer_ks_config="6/6.0/configs/livecd-desktop-x86_64.ks"
 x_bake_livedvd_x32_installer_ks_config="6/6.0/configs/livedvd-desktop-i386.ks"
 x_bake_livedvd_x64_installer_ks_config="6/6.0/configs/livedvd-desktop-x86_64.ks"
 
-# TODO: need this and other adjustable/tunable performance knobs
-# grep for setup*hub*loose*ends in koji-setup-scripts
-#x_koji_self_build_host_load_avg_threshold=2
+#############################################################################
+# which kickstart to use for the baking vm
+x_builder_vm_ks_config="6/6.0/configs/min-el60-x64.ks"
 
-# dmc: It would be my guess that it is worth 'modifying' more source packages 
-#      such that this list could be reduced to ideally a single entry
+#############################################################################
+# this should be made dynamic at runtime between a specified range
+x_builder_user_httpd_port=8421
 
-# note: default build target should be the first in the list, and the others should 
-#       have a configs/build-against-NAME.pkglist config file listing the package set
+#############################################################################
+# seconds between checks to see if processing in the vm completed
+x_builder_vm_shutdown_polling_frequency=30
 
+#############################################################################
+# size of builder's filesystem sizes (needs to be 'big enough(tm)')
+x_builder_vm_root_fs_size=111G
+x_builder_vm_scratch_fs_size=111G
+x_builder_vm_output_fs_size=111G
+
+#############################################################################
+# how many old baker vm definitions to clog up virsh with
+# ('virsh list --all' housekeeping)
+x_keep_old_baker_vm_definitions=3
+
+#############################################################################
+# sha256sum of bootstrap os' x86_64 netinst.iso basically
+#
+# note: current understanding is that this, combined with the devtree
+#   RPM-GPG keys, are the root of upstream integrity checking.  I.e. this is
+#   used to verify the netinst iso and/or pxe style kernel/initramfs images
+#   that virt-install uses to build the baking vm's initial OS image.  So
+#   its included keys are then used to verify incoming packages installed
+#   with yum.  The other keys under infra/security/keys/RPM-GPG-KEY* are
+#   subsequently imported and used to check all other upstream packages
+#   (build deps and output targets and sources of both) as they flow into
+#   the bake from the ~/.el-build/cache which was populated by the bake from
+#   the internets.  
+#
+# todo: sometime try rebuilding all yum repo metadata in the el-build cache,
+#   partly because it could be bad for some window while it was fetched, and
+#   partly to remove it as an input to the system, i.e. reduced threat
+#   surface.
+#
+# reviewer: please make some assessment of, or modification to above comments
+#
+x_bake_vm_os_installer_hash="f839fec8fa8d1e7af9e387725cb4559f6522d9c0af0eca72f2b437a101fc5bfe"
+# or sigh, virt-installer appears to be using the PXE stuffs
+# todo: pull kernel/initrd from boot/netinst .iso and put in place for vi to
+#       use.  reduces maintenance ever so slightly, and more in tune with 
+#       how upstreams have been providing checksums/signatures.
+x_bake_vm_os_installer_kernel_hash="67c73f849ff756e37d10931faf84ac009178176cc02914d027f71d9793c805266a9136cd32a65b87542076f37b268002f1314c9547ca04bf599ef48ef226c1f4"
+x_bake_vm_os_installer_initramfs_hash="f220e91480125125cc3915edb224271f7391e9eaeb05f3059eceba149040d71ddad47ea2186502c9282c9ffd121275496d78086807c903e09f0216b25629390e"
+
+#############################################################################
+# something once broke that this fixed ...
+x_bake_clear_bootstrapos_repodata="no"
+
+#############################################################################
+# Bootstrapping OS Dependencies (the majority of system input from upstreams)
+#
+# note: default build target should be the first in the list, and the
+#   others should have a configs/build-against-NAME.pkglist config file
+#   listing the package set
+#
+# note: koji makes a \$arch directory component mandatory
+#
 x_dependent_bootstrap_os_list="\
 sl60:ftp://ftp.scientificlinux.org/linux/scientific/6.0/\$arch/os/
 f13:http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/\$arch/os/
@@ -106,9 +177,13 @@ f12:http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/12/Everyt
 rhel6beta:ftp://ftp.redhat.com/redhat/rhel/beta/6/\$arch/os/
 "
 
-# TODO: most or all of mirror_dirs entries could be generated from dependent_bootstrap_os_list
-#       (perhaps better renamed as dependent_bootstrap_repo_list)
-
+#############################################################################
+# upstream input repositories to be mirrored and available to the baker
+# 
+# TODO: most or all of mirror_dirs entries could be generated from
+#   dependent_bootstrap_os_list (perhaps better renamed as
+#   dependent_bootstrap_repo_list)
+#
 # TODO: add a method for specifying a mirror to use if desired for any entry
 #
 # TODO: this is a terribly lazy first pass overkill overmirroring.  two possible
@@ -122,13 +197,6 @@ rhel6beta:ftp://ftp.redhat.com/redhat/rhel/beta/6/\$arch/os/
 #       by subsequent runs for mirrors on the order of a few gigabytes, rather than
 #       over 100.
 #
-
-# no longer needed, generatable from this devtree, gen-tdv-srpms
-#http://build.ascendos.org/linux/ascendos/SRPMS
-
-# no longer needed, generatable from this devtree, bake (in the neighborhood of working)
-#http://build.ascendos.org/linux/ascendos/6.0
-
 x_mirror_dirs="\
 ftp://ftp.scientificlinux.org/linux/scientific/6x/SRPMS
 ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os
@@ -139,6 +207,7 @@ ftp://mirrors.kernel.org/pub/fedora-epel/6/x86_64
 http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source
 http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/i386/os/Packages
 http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/x86_64/os/Packages
+http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/x86_64/iso
 http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/12/Everything/source
 http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/12/Everything/i386/os/Packages
 http://archive.fedoraproject.org/pub/archive/fedora/linux/releases/12/Everything/x86_64/os/Packages
@@ -147,29 +216,33 @@ ftp://ftp.redhat.com/redhat/rhel/beta/6/i386/os/Packages
 ftp://ftp.redhat.com/redhat/rhel/beta/6/x86_64/os/Packages
 http://build.ascendos.org/linux/ascendos/build
 "
-# dev/debug
-x_mirror_dirs="\
-http://build.ascendos.org/linux/ascendos/build
+
+#############################################################################
+# one-off files in addition to above
+x_mirror_files="\
 "
 
-# the f13 ones aren't going to change
-# TODO: I couldn't get yumdownloader --source --config= to do what I wanted to, to
-#       scriptedly get the latest version in the el-build wrapper's caching section
-#       (current theory is to just bring in all of epel as a boostrapping dependency,
-#        which would be gross were it not for the sl60/f13/f12/rhel6beta deps already.
-# TODO: now that epel is on by default in v-bake, use it to calculate these versions,
-#       though probably we want to mirror and archive all versions of these in the
-#       ascendos build repo.
+#############################################################################
+# current exposure of some alpha ascendos koji metadata, for chartmaking
+x_asc_koji_dump_file="http://build.ascendos.org/linux/development/dmc/koji-buildinfo-dumps/asc-bs-info-dump-latest.tar.bz2"
+
+#############################################################################
+# Significant build tools versions specification
+# (somewhat obviated by bringing all of epel6 in as a dependency)
+#
+# TODO: I couldn't get yumdownloader --source --config= to do what I wanted
+#   to, to scriptedly get the latest version in the el-build wrapper's
+#   caching section (current theory is to just bring in all of epel as a
+#   boostrapping dependency, which would be gross were it not for the
+#   sl60/f13/f12/rhel6beta deps already.
+# TODO: now that epel is on by default in v-bake, use it to calculate these
+#   versions, though probably we want to mirror and archive all versions of
+#   these in the ascendos build repo.
 x_pigz_version="2.1.6-1"
 x_mock_version="1.1.15-1"
 x_livecdtools_version="13.4-1"
 
-# one off files
-# note: zyx-liveinstaller only gets used if the subseqent flag is set
-x_mirror_files="\
-http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8-1.src.rpm
-"
-
+#############################################################################
 # zyx-liveinstaller is a cool proof-of-concept installer that got some
 # smoke testing in SugarOnAStick-v2-blueberry, though everyone but sdz
 # seemed to get confused thinking it was an improved liveusb-creator, rather
@@ -186,7 +259,34 @@ http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8
 # OS reboots should be considered bugs in my book...
 x_enable_rebootless_liveos_installer_installation=0
 
+if (("${x_enable_rebootless_liveos_installer_installation}")); then
+    # one off files
+    # note: zyx-liveinstaller only gets used if the subseqent flag is set
+    x_mirror_files="\
+${x_mirror_files}
+http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8-1.src.rpm
+"
+fi
+
+#############################################################################
+# cause a complete copy of the devtree used to generate the output to
+# be available on the filesystem of the resulting output livecd/dvd/usbs,
+# such that they themselves contain all the build code needed regenerate
+# themselves completely from recompiled sources.
+# TODO: after update-net-cache (pre)pruning implemented, have flag to
+#       generate partner 'with-source isos' for the 'genesis' live images.
 x_enable_devtree_inclusion_in_live_output=0
+
+#############################################################################
+# interesting internal intermediate data placement
+x_cached_datesorted_list_filename="${x_bake_cachedir}/tuv.srpms.datesorted.list"
+
+#############################################################################
+# presently the update-net-cache will mirror 100+G instead of the maybe
+# 6-12G I would guess it really needs.  This will be fixed in subsequent
+# versions.  For now, if you understand that, and don't mind that, go ahead
+# and change this to yes.
+x_i_can_justify_this_network_bandwidth_to_myself=no
 
 
 #############################################################################
@@ -194,3 +294,44 @@ x_enable_devtree_inclusion_in_live_output=0
 ##
 ## staging options
 ##
+
+
+#############################################################################
+#############################################################################
+##
+## internal constants/definitions
+
+#############################################################################
+# who to ping (-c3) as a sanity check for onlineness
+x_internet_online_check_host=mirrors.kernel.org
+
+#############################################################################
+# not really variable, could be moved elsewhere
+x_builder_vm_host_ip=10.0.2.2
+
+#############################################################################
+# todo: shouldn't be necessary, or even should be done for all input repos
+x_regen_some_input_yum_metadata=1
+
+#############################################################################
+# try and update external koji metadata
+x_refetch_external_koji_metadata=1
+
+
+#############################################################################
+#############################################################################
+##
+## end script, only notes below ...
+##
+
+# TODO: need this and other adjustable/tunable performance knobs
+# grep for setup*hub*loose*ends in koji-setup-scripts
+#x_koji_self_build_host_load_avg_threshold=2
+
+# TODO: support [--config=<configfile=~/.el-build/config>]
+
+# dmc: It would be my guess that it is worth 'modifying' more source
+#   packages such that x_dependent_bootstrap_os_list could be reduced to
+#   ideally a single entry
+
+

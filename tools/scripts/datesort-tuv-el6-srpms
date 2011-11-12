@@ -35,8 +35,8 @@
 #############################################################################
 ##
 ## datesort-tuv-el6-srpms \
-##     [<inputdir>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS] \
-##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted]
+##     [<inputdir>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS] \
+##     [<output>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise.6Superset.en.os.SRPMS.datesorted]
 ##
 ##
 ## DESCRIPTION
@@ -92,7 +92,7 @@ fi
 ##
 
 # to enable debug messages if desired
-x_debug=0
+x_debug=1
 
 # to suppress status messages if desired
 x_quiet=0
@@ -107,6 +107,9 @@ flavors="\
 6ComputeNode
 6Client
 "
+
+# tuv chose to populate this suffix
+tuv_flavor_suffix="en/os"
 
 
 #############################################################################
@@ -135,10 +138,14 @@ debug "initializing..."
 
 tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
 
-inputdir=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
+# todo: this needs to be reconsidered, this is not really the final cleanup
+default_tuv_srpm_dir="${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS"
+default_output_filename="${x_cached_datesorted_list_filename}"
+
+inputdir=$( readlink -e "${default_tuv_srpm_dir}" )
 if [ $# -eq 0 ]; then 
-    inputdir=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS" )
-    output=$( readlink -f "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted" )
+    inputdir=$( readlink -e "${default_tuv_srpm_dir}" )
+    output=$( readlink -f "${default_output_filename}" )
 elif [ $# -eq 1 ]; then 
     inputdir=$( readlink -e "${1}" )
     output="-"
@@ -155,7 +162,17 @@ fi
 
 if [ -f "${output}" ]; then
 #    die "output ${output} already exists"
-    mv -f "${output}" "${output}.backup.${starttime}"
+
+    # check to see if output is likely to change
+    newerfile=$( find \
+	"${output}" \
+	-newer "${default_tuv_srpm_dir}.last.update" )
+    if [ "${newerfile}" == "${output}" ]; then
+	status "most recently generated output is newer than the last upstream vendor source rpm cache/mirror update, no work to be done ..."
+	exit 0
+    else
+	mv -f "${output}" "${output}.backup.${starttime}"
+    fi
 fi
 
 tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"

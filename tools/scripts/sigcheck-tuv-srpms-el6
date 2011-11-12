@@ -33,7 +33,7 @@
 #############################################################################
 #############################################################################
 ##
-## sigcheck-tuv-el6-srpms [<outputdir>=~/.el-build/cache]
+## sigcheck-tuv-el6-srpms [<cachedir>=~/.el-build/cache]
 ##
 ##
 ## DESCRIPTION
@@ -167,15 +167,15 @@ tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
 mirrorx=$( echo "${mirror}" | sed -e "s/tuv/${tuv_name_lc}/g" )
 
 if [ $# -eq 0 ]; then 
-    outputdir=$( readlink -e "${HOME}/.el-build/cache" )
+    cachedir=$( readlink -e "${HOME}/.el-build/cache" )
 elif [ $# -ne 1 ]; then 
     usage
 else
-    outputdir=$( readlink -e "${1}" )
+    cachedir=$( readlink -e "${1}" )
 fi
 
-if ( ! mkdir -p "${outputdir}" ); then
-    die "could not create output directory: ${outputdir}"
+if ( ! mkdir -p "${cachedir}" ); then
+    die "could not create output directory: ${cachedir}"
 fi
 
 if [ ! -d "${progdir}/../security" ]; then
@@ -191,10 +191,10 @@ GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}/gnupg" \
     --dbpath "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb" \
     --import "${progdir}/../security/keys/RPM-GPG-KEY-redhat"*
 
-num_pkgs_total=$( ls -1A "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/"*.src.rpm | wc -l )
+num_pkgs_total=$( ls -1A "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS/"*.src.rpm | wc -l )
 num_checked=0
 status "checking source package signatures..."    
-for srpm in $( ls -1A "${outputdir}/ftp.tuv.com___tuv__linux__enterprise/6Superset/en/os/SRPMS/"*.src.rpm ); do
+for srpm in $( ls -1A "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS/"*.src.rpm ); do
     status "checking " $( basename "${srpm}" ) " ... "
     GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}" \
 	rpm --checksig \

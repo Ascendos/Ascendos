@@ -114,33 +114,36 @@ if [ ! -d "${cachedir}" ]; then
     die "cache directory ${cachedir} does not exist"
 fi
 
-# TODO: I'm sure I went with the __ = / convention a long time ago
-#       for some reason, but worth another pass to maybe add more
-#       logic such that things can be stored in normal looking 
-#       directory trees.  I think the original reason was the scripts
-#       which need to munge things into using available mirrored 
-#       directories.  But they could get their info from a generated/
-#       maintained config file instead of encoded into the directory names.
-
+#############################################################################
 # fetch remote directories so as to use a local mirror, possibly offline
 for mirror_dir in ${x_mirror_dirs}; do
     status "updating mirror: ${mirror_dir}"
+
+    # todo: could share with code in bake that uses same regex
+    #       for the same purpose
+    mirror_dir_xmog=$( \
+	echo "${mirror_dir}" \
+	| sed -e 's/\:\/\//\//' )
+    showvar mirror_dir_xmog
     
+    mirror_dir_xmog_parent=$( dirname "${mirror_dir_xmog}" )
+    mirror_dir_xmog_child=$( basename "${mirror_dir_xmog}" )
+    mirror_dest_path="${cachedir}/${mirror_dir_xmog_parent}/${mirror_dir_xmog_child}"
+    mkdir -p "${mirror_dest_path}"
+
     mirror_hostpath=$( echo "${mirror_dir}" | sed -e 's/[^\/]*\/\///' )
     mirror_urltype=$( echo "${mirror_dir}" | sed -e 's/:\/\/.*//' )
     mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
     mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
     mirror_path_parent=$( dirname "${mirror_path}" )
     mirror_path_child=$( basename "${mirror_path}" )
-    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
-    mirror_dir_xmog="${mirror_host}___${mirror_path_xmog}"
-    debug "mirror_dir_xmog is ${mirror_dir_xmog}"
-    
-    mirror_dest_path="${cachedir}/${mirror_dir_xmog}"
-    if ( ! mkdir -p "${mirror_dest_path}" > /dev/null 2>&1 ); then
-	die "could not mkdir ${mirror_dest_path}"
-    fi
-    
+
+    # record a begin flag
+    date >> "${cachedir}/${mirror_dir_xmog}.last_update_start"
+
+    # do the actual mirroring
+    # todo: need x_rap/veva/eval wrapper to only show output to 
+    #       console in verbose and debug modes
     lftp -e "\
 cd /${mirror_path_parent} ; \
 mirror \
@@ -155,30 +158,52 @@ ${mirror_dest_path} \
 quit" \
 	"${mirror_urltype}://${mirror_host}"
     
+    # record an end flag
+    date >> "${cachedir}/${mirror_dir_xmog}.last_update_end"
+
+    # record that the net directory is in the cache's mirror.list
+    touch "${cachedir}/mirror.list"
+    mv "${cachedir}/mirror.list" "${cachedir}/mirror.list.backup" 
+    ( echo "${mirror_dir}" ; cat "${cachedir}/mirror.list.backup" ) \
+	| sort \
+	| uniq \
+	> "${cachedir}/mirror.list"
+
 done
 
+
+#############################################################################
 # fetch one off files
+
 mkdir -p "${cachedir}/one-off-files"
+
+# really one-off
+if [ -f "$( get_cached_path ${cachedir} ${x_asc_koji_dump_file} )" ]; then
+    if (("${x_refetch_external_koji_metadata}")); then
+        # add the extra koji metadata file for use by repochart/bs-check
+	x_mirror_files="\
+${x_mirror_files}
+${x_asc_koji_dump_file}
+"
+    fi
+fi
+
+# fetch each mirror_file
 for mirror_file in ${x_mirror_files}; do
     status "caching file: ${mirror_file}"
 
     # break the url up into fields to aid in fetching and placement
     mirror_hostpath=$( echo "${mirror_file}" | sed -e 's/[^\/]*\/\///' )
-    mirror_urltype=$( echo "${mirror_file}" | sed -e 's/:\/\/.*//' )
-    mirror_host=$( echo "${mirror_hostpath}" | sed -e 's/\/.*//' )
     mirror_path=$( echo "${mirror_hostpath}" | sed -e 's/[^\/]*\///' )
-    mirror_path_parent=$( dirname "${mirror_path}" )
     mirror_path_child=$( basename "${mirror_path}" )
-    mirror_path_xmog=$( echo "${mirror_path}" | sed -e 's/\//__/g' )
-    mirror_file_xmog="${mirror_host}___${mirror_path_xmog}"
-    debug "mirror_file_xmog is ${mirror_file_xmog}"
     
     # for now, just clobber
     # TODO: have finer grained actual caching behavior
     rm -f "${cachedir}/one-off-files/${mirror_path_child}"
     wget -q -O "${cachedir}/one-off-files/${mirror_path_child}" \
 	"${mirror_file}"
-    
+    date >> "${cachedir}/one-off-files/${mirror_path_child}.last_update_end"
+
 done
 
 

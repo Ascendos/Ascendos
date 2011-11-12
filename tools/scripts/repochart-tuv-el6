@@ -3,11 +3,12 @@
 #############################################################################
 #############################################################################
 #
-# repochart-tuv-el6 generates a data chart of el6 packages whose source
-#                   packages have been published by TUV.  The chart includes
-#                   most importantly, the list of repos the packages should
-#                   get pushed to when built.  This is a subset of
-#                   pointreleases X base|updates
+# repochart-tuv-el6
+#
+# generates a data chart of el6 packages whose source packages have been
+# published by TUV.  The chart includes most importantly, the list of repos
+# the packages should get pushed to when built.  This is a subset of
+# pointreleases X base|updates
 #
 #############################################################################
 #
@@ -38,8 +39,8 @@
 #############################################################################
 ##
 ## repochart-tuv-el6 \
-##     [<input>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted] \
-##     [<output>=${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart]
+##     [<input>=${x_bake_cachedir}/tuv.srpms.datesorted.list]
+##     [<output>=${x_bake_cachedir}/tuv.srpms.repochart.txt]
 ##
 ##
 ## DESCRIPTION
@@ -123,8 +124,8 @@ function usage {
 status "initializing..."
 
 if [ $# -eq 0 ]; then 
-    input=$( readlink -e "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.datesorted" )
-    output=$( readlink -f "${HOME}/.el-build/cache/ftp.tuv.com___tuv__linux__enterprise.6Superset.en.os.SRPMS.repochart" )
+    input=$( readlink -e "${x_bake_cachedir}/tuv.srpms.datesorted.list" )
+    output=$( readlink -f "${x_bake_cachedir}/tuv.srpms.repochart.txt" )
 elif [ $# -eq 1 ]; then 
     inputdir=$( readlink -e "${1}" )
     output="-"
@@ -146,7 +147,7 @@ if [ -f "${output}" ]; then
 	 "${output}.backup.${starttime}"
 fi
 
-tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
 
 mkdir -p "${tmpdir}"
 

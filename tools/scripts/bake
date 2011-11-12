@@ -40,27 +40,25 @@
 ## DESCRIPTION
 ##
 ## bake takes as input network or offline access to a bootstrapping
-## enterprise linux distro (e.g. SL60/F13) and recently built set of distro
-## packages (e.g. from koji), and outputs a new installable distro repotree
-## (e.g. ASC60) suitable for mirroring to the masses.
+## enterprise linux distro (e.g. SL60/F13), a set of upstream enterprise 
+## linux sources in a well known location, and a typically small set of 
+## downstream deltas defined in a git fork of the el-build tree (ATM).
+## A new fork of a popular enterprise linux distribution is output,
+## mirrorable to the masses.
 ##
-##
-## LONG TERM ROADMAP
-##
-## - the input pipeline will be expanded to include:
-##  - use gen-tdv-srpm-repos to create the input srpms from the dev/git tree
-##  - invoking makeworld/koji to generate what is the current input
+## Alternately various stages of the processing pipeline and their data
+## inputs and outputs can be cached or directed to/from other places.
 ##
 ##
 ## NOTES
 ##
 ## - output reproducibility is ensured by the fact that a disposable VM
-##   is generated and used for the major processing phases (e.g. pungi,
-##   and later koji).
+##   is generated and used for the major processing phases (e.g. koji,
+##   pungi, and livecd-creator).
 ##
 ## - el-build host requirements (or, what the devoloper has)
 ##  - x86_64 2 core system, 4G of ram
-##  - 200G tmp disk space, 30G for final output
+##  - 300G tmp disk space, 50G for final output
 ##
 #############################################################################
 
@@ -72,6 +70,8 @@
 # - factor main into several large independent functions, 1 per bake phase
 # - add option bootstrap_distro_tree=...sl60x64
 #  - and in general factor all configuration into proper configuration
+# - generate 'perfect' git tree 
+#  - (probably a good way to find the most obscure bugs)
 # - ...
 #
 
@@ -109,7 +109,8 @@ fi
 ## constant and option default definitions
 ##
 
-builtrepo_def="${x_bake_builtrepo}"
+tdv_src_repo_def="${x_bake_tdv_src_repo}"
+tdv_bin_repo_def="${x_bake_tdv_bin_repo}"
 distroname_def="${x_bake_distroname}"
 distrover_def="${x_bake_distrover}"
 offline_def="${x_bake_offline}"
@@ -125,6 +126,8 @@ homedotdir_def="${x_bake_homedotdir}"
 cachedir_def="${x_bake_cachedir}"
 bake_tmpdir_def="${x_bake_tmpdir}"
 clear_bootstrapos_repodata_def="${x_bake_clear_bootstrapos_repodata}"
+
+## todo: debug/quiet/verbose really needs to be inheritable ala libvopt.sh
 
 # to enable debug messages if desired
 x_debug=1
@@ -155,7 +158,8 @@ function usage {
     echo "    [outputdir=${outputdir_def}] \\"
     echo "    [cachedir=${cachedir_def}] \\"
     echo "    [bake_tmpdir=${bake_tmpdir}_def}] \\"
-    echo "    [builtrepo=${builtrepo_def}]"
+    echo "    [tdv_src_repo=${tdv_src_repo_def}] \\"
+    echo "    [tdv_bin_repo=${tdv_bin_repo_def}]"
     echo ""
     echo "All arguments are optional, with default values shown as above."
     echo ""
@@ -173,7 +177,7 @@ function usage {
 ## main
 ##
 
-status "initializing..."
+status "initializing ..."
 
 # note: presumption is that el-build is run from within it's own
 #       developtment tree, or a symlink to it.  e.g. 
@@ -197,14 +201,15 @@ outputdir="${outputdir_def}"
 homedotdir="${homedotdir_def}"
 cachedir="${cachedir_def}"
 bake_tmpdir="${bake_tmpdir_def}"
-builtrepo="${builtrepo_def}"
+tdv_bin_repo="${tdv_bin_repo_def}"
+tdv_src_repo="${tdv_src_repo_def}"
 
 
 #############################################################################
 #
 ## process command line arguments / options
 #
-status "processing options..."
+status "processing options ..."
 # this is a simple enough method for a first pass.  I'd have brought in
 # viros's libvopt.sh if it wasn't so complex.
 for option in "$@"; do
@@ -227,7 +232,7 @@ for option in "$@"; do
 	status "option '${option}' is invalid, options must be of the form 'option_name=option_value'"
 	usage
     fi
-    debug "opt is $option"
+#    debug "opt is $option"
 done
 
 
@@ -235,10 +240,16 @@ if ( ! mkdir -p "${outputdir}" > /dev/null 2>&1 ); then
     die "output directory - ${outputdir} - could not be made"
 fi
 
-bvm_tmpdir="${bake_tmpdir}/${starttime}.${mypid}.vm"
-if ( ! mkdir -p "${bvm_tmpdir}" > /dev/null 2>&1 ); then
-    die "temp directory - ${bvm_tmpdir} - could not be made"
+b_tmpdir="${bake_tmpdir}/${starttime}.${mypid}"
+if ( ! mkdir -p "${b_tmpdir}" > /dev/null 2>&1 ); then
+    die "temp directory - ${b_tmpdir} - could not be made"
 fi
+
+vm_tmpdir="${b_tmpdir}/vm"
+mkdir -p "${vm_tmpdir}"
+
+httpd_tmpdir="${b_tmpdir}/user-httpd"
+mkdir -p "${httpd_tmpdir}"
 
 
 #############################################################################
@@ -269,13 +280,13 @@ for stale_bake in ${stale_bakes}; do
     virsh \
 	dumpxml \
 	"${stale_bake}" \
-	> "${bvm_tmpdir}/.stale.baker_vm.${stale_baker}.xml" 2>&1
+	> "${vm_tmpdir}/.stale.baker_vm.${stale_baker}.xml" 2>&1
 
     status "undefining stale bake vm ${stale_bake} ..."
     virsh \
 	undefine \
 	"${stale_bake}" \
-	> "${bvm_tmpdir}/.stale.baker_vm.${stale_baker}.undef.log" 2>&1
+	> "${vm_tmpdir}/.stale.baker_vm.${stale_baker}.undef.log" 2>&1
 
 done
 
@@ -283,7 +294,7 @@ done
 #
 ## update mirrors / cache
 #
-status "updating cache / mirrors..."
+status "updating cache / mirrors ..."
 
 # TODO: the bootstrapping OS needn't be full mirrored
 #       (a script to mirror the needed parts of a repo from a .ks
@@ -309,16 +320,19 @@ if [ "${clear_bootstrapos_repodata}" == "yes" ]; then
     status "clearing out cached bootstrap OSs repodata"
     # pretty ugly workaround for some issue probably resolved by a prior bugfix, but
     # just in case it happens again, a reminder option.
-    rm -rf ./ftp.scientificlinux.org___linux__scientific__6.0__i386__os/repo{data,view}
-    rm -rf ./ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os/repo{data,view}
-    rm -rf ./ftp.scientificlinux.org___linux__scientific__6x__SRPMS/repo{data,view}
+    # todo: verify funky quoting is really needed here, is for '*' if not '{...,...}'
+    rm -rf "${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/i386/os/repo"{data,view}
+    rm -rf "${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os/repo"{data,view}
+    rm -rf "${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6x/SRPMS/repo"{data,view}
+    # perhaps instead this should just do a find -type d -name "repo{data,view}"
+    # over the entire cache
 fi
 
 if [ "${offline}" == "yes" ]; then
-    status "offline mode: not updating cache / mirrors..."
+    status "offline mode: not updating cache / mirrors ..."
 else
 
-    if ( ! ping -c3 mirrors.kernel.org > /dev/null 2>&1 ) then
+    if ( ! ping -c3 "${x_internet_online_check_host}" > /dev/null 2>&1 ) then
         # presume offline intent if no net connection seemingly present
 	status "can't ping mirrors.kernel.org, falling back to trying an offline from-cache build ..."
 	offline=yes
@@ -327,123 +341,70 @@ else
 	status "invoking update-net-cache ${cachedir} ..."
 	update-net-cache "${cachedir}"
 
-        # note: ugly(?) temporary workaround that will be obsolete no later than the 
-        #       time when koji/makeworld show up in el-build
-        # todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
-	createrepo \
-	    "${cachedir}/build.ascendos.org___linux__ascendos__SRPMS"
-	createrepo \
-	    -g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
-	    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/x86_64" 
-	createrepo \
-	    -g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
-	    "${cachedir}/build.ascendos.org___linux__ascendos__6.0/os/i386" 
+        # todo: fold into update-net-cache, exposing defaults appropriately
+	status "mirroring the upstream vendors source rpms for el version 6 ..."
+	mirror-tuv-srpms-el6
 
-	# hmm?
-	# ? workaround for mirroring epel at the wrong instant? (got a bad repodata error)
-	createrepo \
-	    "${cachedir}/mirrors.kernel.org___pub__fedora-epel__6__SRPMS"
-	createrepo \
-	    "${cachedir}/mirrors.kernel.org___pub__fedora-epel__6__i386"
-	createrepo \
-	    "${cachedir}/mirrors.kernel.org___pub__fedora-epel__6__x86_64"
-	
+	# disable if wanted for debugging, and in general to test if it matters
+	if (("${x_regen_some_input_yum_metadata}")); then
+	    status "regenerating cached build.ascendos.org repo metadata ..."
+            # note: ugly(?) temporary workaround that will be obsolete no later than the 
+            #       time when koji/makeworld show up in el-build
+            # todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
+	    # todo: perhaps experiment with blanketly doing for all cache repos, rather than depending
+	    #       on yum repo integrity from upstreams
+	    createrepo \
+		"${cachedir}/http/build.ascendos.org/linux/ascendos/SRPMS"
+	    createrepo \
+		-g "${x_devdir}/6/6.0/configs/comps-asc6-x86_64.xml" \
+		"${cachedir}/http/build.ascendos.org/linux/ascendos/6.0/os/x86_64" 
+	    createrepo \
+		-g "${x_devdir}/6/6.0/configs/comps-asc6-i386.xml" \
+		"${cachedir}/http/build.ascendos.org/linux/ascendos/6.0/os/i386" 
+	    
+	    status "regenerating cached epel repo metadata ..."
+	    # hmm?
+	    # ? workaround for mirroring epel at the wrong instant? (got a bad repodata error)
+	    createrepo \
+		"${cachedir}/ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS"
+	    createrepo \
+		"${cachedir}/ftp/mirrors.kernel.org/pub/fedora-epel/6/i386"
+	    createrepo \
+		"${cachedir}/ftp/mirrors.kernel.org/pub/fedora-epel/6/x86_64"
 
+	fi
+	# endif regen_some_repo_metadata
     fi
-
+    # endif actually online
 fi
-
+# endif online mode selected
 
 
 #############################################################################
-#
-## create multiarch repo structure usable by koji
-#
+##
+## gather info and calculate initial data chart of upstream packages
+##
 
-# aka
-debug "workaround around yum variable limitations ..."
+status "reverse datesorting a list of the upstream vendor's source rpms for el version 6 ..."
+datesort-tuv-el6-srpms
+
+status "generating a data chart of information about the upstream vendor's source rpms for el version 6 ..."
+repochart-tuv-el6
+
+status "generating a more interesting chart of information about the upstream vendor's source rpms for el version 6 ..."
+bs-check-tuv-el6
 
 
-# SHOWSTOPPER: hugh sigh, need to iterate over mirror dirs,
-# and for each, look at each dep_bs_os, and see if it is
-# a prefix/subset of self.  If it is, grab the dirname of 
-# the suffix (e.g dirname(os/Packages) in the \$arch/os/ case,
-# is os).  Then mkdir -p that parent directory under the 
-# cachedir multiarchroot for that specific dep_bs_os.  Then
-# make a symlink from the child, _still_ having to depth count
-# for the sake of correct relative path.  Ack!
+#############################################################################
+##
+## generate downstream source rpms from the given deltas along with the
+## networkcache of upstream source rpms.
 
-# TODO: make this less gross
-mo_dependent_bootstrap_os_list="\
-${x_dependent_bootstrap_os_list}
-bao:http://build.ascendos.org/linux/ascendos/build/\$arch/
-"
-
-for dependent_bootstrap_os in ${mo_dependent_bootstrap_os_list}; do
-    
-    os_abbrev=$( echo "${dependent_bootstrap_os}" \
-	| sed -e 's/:.*//' )
-    showvar os_abbrev
-    
-    os_repo=$( echo "${dependent_bootstrap_os}" \
-	| sed -e 's/[^:]*://' )
-    showvar os_repo
-    
-    os_multiarch_repo_root=$( echo "${os_repo}" \
-	| sed -e 's/\/$arch.*$//' )
-    showvar os_multiarch_repo_root
-    
-    os_repo_suffix=$( echo "${os_repo}" \
-	| sed -e 's/^.*$arch//' \
-	| sed -e 's/__/\//g' \
-	| sed -e 's/^\///' \
-	| sed -e 's/\/$//' )
-    showvar os_repo_suffix
-    os_repo_suffix_xmog=$( echo "${os_repo_suffix}" \
-	| sed -e 's/\//__/g' )
-    showvar os_repo_suffix_xmog
-    
-    os_x32_repo=$( echo "${os_repo}" \
-	| sed -e 's/$arch/i386/g' )
-    showvar os_x32_repo
-    
-    os_x64_repo=$( echo "${os_repo}" \
-	| sed -e 's/$arch/x86_64/g' )
-    showvar os_x64_repo
-    
-    showvar os_multiarch_repo_root
-
-    # TODO: make this less ugly
-    mirror_dir=$( echo "${os_multiarch_repo_root}" \
-	| sed -e 's#^http://10.0.2.2:8421/cache/##g' )
-    showvar mirror_dir
-
-    # TODO: last line is ugliness due to tiredness
-    mirror_dir_xmog=$( echo "${mirror_dir}" \
-	| sed -e 's/^.*:\/\///' \
-	| sed -e 's/\//__/g' \
-	| sed -e 's/__/___/' )
-
-    showvar mirror_dir_xmog
-
-    debug "special cache multiarch link root is: ${cachedir}/${mirror_dir_xmog} ..."
-
-    rm -rf \
-    	"${cachedir}/${mirror_dir_xmog}"
-    mkdir -p \
-    	"${cachedir}/${mirror_dir_xmog}"
-    mkdir -p \
-    	"${cachedir}/${mirror_dir_xmog}/i386"
-    mkdir -p \
-    	"${cachedir}/${mirror_dir_xmog}/x86_64"
-    # TODO: sigh, number of ../ here needs to be generated/calculated
-    ln -s \
-	"../../${mirror_dir_xmog}__i386__${os_repo_suffix_xmog}" \
-	"${cachedir}/${mirror_dir_xmog}/i386/${os_repo_suffix}"
-    ln -s \
-	"../../${mirror_dir_xmog}__x86_64__${os_repo_suffix_xmog}" \
-	"${cachedir}/${mirror_dir_xmog}/x86_64/${os_repo_suffix}"
-done
+status "generating a set of downstream source rpms from the given defaults and user configuration ..."
+gen-tdv-srpm-repo \
+    "${cachedir}/tdv-generated-SRPMS" \
+    "${x_devdir}/packages" \
+    "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS"
 
 
 #############################################################################
@@ -458,12 +419,12 @@ done
 #       ways, including non-userstack networking that may be faster)
 
 # create directory for config/logs, and one for docroot
-mkdir -p "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc"
-mkdir -p "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot"
+mkdir -p "${httpd_tmpdir}/etc"
+mkdir -p "${httpd_tmpdir}/docroot"
 
 # expose the mirrors / cache inside the docroot
-ln -s ../../cache \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/cache"
+ln -s "${cachedir}" \
+    "${httpd_tmpdir}/docroot/cache"
 
 status "launching user (non-root) httpd as a service for the inner processing vm ..."
 # TODO: this should no doubt be narrowed, lazy big hammer for the first pass
@@ -474,8 +435,8 @@ sleep 2
 # launch the httpd daemon
 user-httpd \
     "${x_builder_user_httpd_port}" \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot" \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.etc" \
+    "${httpd_tmpdir}/docroot" \
+    "${httpd_tmpdir}/etc" \
     start
 
 
@@ -502,35 +463,35 @@ test_package_list=$( uncomma_list "${test_package_list}" )
 
 # expose baking options to the inner/v-bake script
 # TODO: probably a cleaner way
-cat <<EOF > "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/v-bake.options" 
+cat <<EOF > "${httpd_tmpdir}/docroot/v-bake.options" 
 do_bake_phases="${do_bake_phases}"
 bake_flags="${bake_flags}"
 test_package_list="${test_package_list}"
+tdv_src_repo="${tdv_src_repo}"
+tdv_bin_repo="${tdv_bin_repo}"
 EOF
 
 # todo: make the list of vars a list and iterate here and above
 export do_bake_phases
 export bake_flags
 export test_package_list
-
-debug "do_bake_phases option being passed to v-bake is: ${do_bake_phases} ..."
-debug "bake_flags option being passed to v-bake is: ${bake_flags} ..."
-debug "test_package_list option being passed to v-bake is: ${test_package_list} ..."
+export tdv_src_repo
+export tdv_bin_repo
 
 ## expose inner processing script (x-run/v-bake) in the docroot
 cp "${x_devdir}/tools/scripts/v-bake" \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/x-run" 
+    "${httpd_tmpdir}/docroot/x-run" 
 
 # TODO: now that devtree is passed down to vm, use it, ala other recent opt="6/6.0/...ks"
 
 ### create throwaway vm's .ks from template, placed in docroot
 cp "${x_devdir}/${x_builder_vm_ks_config}" \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks" 
+    "${httpd_tmpdir}/docroot/baker.ks" 
 
 status "preparing a full copy of the build tools devtree for the inner-vm to use ..."
 ### give a full copy of the devtree to the vm
 tar -C $( dirname "${x_devdir}" ) -cjf \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/devtree.tar.bz2" \
+    "${httpd_tmpdir}/docroot/devtree.tar.bz2" \
     $( basename "${x_devdir}" )
 
 
@@ -538,7 +499,7 @@ tar -C $( dirname "${x_devdir}" ) -cjf \
 #
 ## processing container/vm kickstart additions (to a minimal kickstart)
 #
-cat <<EOF >> "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks"
+cat <<EOF >> "${httpd_tmpdir}/docroot/baker.ks"
 %packages --default
 # for retrieving files from the host httpd server and/or the internet
 wget
@@ -578,7 +539,7 @@ if [ ! -f /root/x-run ]; then
     touch /tmp/disk-sdb-is-going-to-get-overwritten
 
     # pull task to run from qemu-kvm host running el-build spawned httpd on port 8421
-    wget -O /root/x-run http://10.0.2.2:8421/x-run
+    wget -O /root/x-run "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/x-run"
     chmod +x /root/x-run
     # TODO: x-run uses the installed yum.repos.d, which do not yet utilize
     #       available mirrors (cough, vmirmog, cough)
@@ -596,9 +557,10 @@ EOF
 
 # TODO perhaps improve with definable/option for bootstrap_repotree
 # TODO more general/flexible mirror support ala viros' vmirmog etc...  (too complex for now)
+#  - basically need to iterate over list of x_mirror_dirs, one sed per
 sed -i \
-    -e 's|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://10.0.2.2:8421/cache/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os|' \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks"
+    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|" \
+    "${httpd_tmpdir}/docroot/baker.ks"
 
 #
 ## end processing container/vm kickstart additions
@@ -614,19 +576,19 @@ sed -i \
 status "creating new system disk image files for the inner-vm ..."
 # TODO: x_eval wrapper for logging (ala viros' 'veva' function)
 qemu-img create \
-    "${bvm_tmpdir}/sysroot.img" \
+    "${vm_tmpdir}/sysroot.img" \
     "${x_builder_vm_root_fs_size}" \
-    >> "${bvm_tmpdir}/qemu-img-create.log" 2>&1
+    >> "${vm_tmpdir}/qemu-img-create.log" 2>&1
 
 qemu-img create \
-    "${bvm_tmpdir}/output.img" \
+    "${vm_tmpdir}/output.img" \
     "${x_builder_vm_output_fs_size}" \
-    >> "${bvm_tmpdir}/qemu-img-create.log" 2>&1
+    >> "${vm_tmpdir}/qemu-img-create.log" 2>&1
 
 qemu-img create \
-    "${bvm_tmpdir}/scratch.img" \
+    "${vm_tmpdir}/scratch.img" \
     "${x_builder_vm_scratch_fs_size}" \
-    >> "${bvm_tmpdir}/qemu-img-create.log" 2>&1
+    >> "${vm_tmpdir}/qemu-img-create.log" 2>&1
 
 
 #############################################################################
@@ -636,32 +598,32 @@ qemu-img create \
 
 # see if cached copy exists by calculating filename based on sha256 checksum
 vm_cfg_checksum=$( sha256sum \
-    "${homedotdir}/vm-httpd/${starttime}.${mypid}.docroot/baker.ks" \
+    "${httpd_tmpdir}/docroot/baker.ks" \
     | awk '{print $1}')
 
 if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
 
     status "found acceptable cached system image, duplicating ..."
 
-    rm -f "${bvm_tmpdir}/sysroot.img"
+    rm -f "${vm_tmpdir}/sysroot.img"
 
     cp -a --sparse=always \
 	"${cachedir}/vm-${vm_cfg_checksum}.img" \
-	"${bvm_tmpdir}/sysroot.img"
+	"${vm_tmpdir}/sysroot.img"
 
-    touch "${bvm_tmpdir}/sysroot.img.fromcache"
+    touch "${vm_tmpdir}/sysroot.img.fromcache"
 
     virt-install \
 	--import \
 	--name="${progname}-${starttime}-${mypid}" \
-	--disk="${bvm_tmpdir}/sysroot.img" \
-	--disk="${bvm_tmpdir}/output.img" \
-	--disk="${bvm_tmpdir}/scratch.img" \
+	--disk="${vm_tmpdir}/sysroot.img" \
+	--disk="${vm_tmpdir}/output.img" \
+	--disk="${vm_tmpdir}/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
 	--wait=-1 \
 	--noautoconsole \
-	> "${bvm_tmpdir}/virt-install.log" 2>&1
+	> "${vm_tmpdir}/virt-install.log" 2>&1
 
 else
 
@@ -685,7 +647,8 @@ else
 
 # TODO: factor --location into x_baker_os config var or such    
 
-    os_location="${cachedir}/ftp.scientificlinux.org___linux__scientific__6.0__x86_64__os"
+    # TODO? infer this from first/default entry of dependent_bootstrap_os_list
+    os_location="${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os"
 
     # note: I have a feeling SL may change out these files from time to time.  Hopefully
     #       they are done changing 6.0, but if they do update it in the future, some better
@@ -707,22 +670,22 @@ else
     virt-install \
 	--name="${progname}-${starttime}-${mypid}" \
 	--location="${os_location}" \
-	--disk="${bvm_tmpdir}/sysroot.img" \
-	--disk="${bvm_tmpdir}/output.img" \
-	--disk="${bvm_tmpdir}/scratch.img" \
+	--disk="${vm_tmpdir}/sysroot.img" \
+	--disk="${vm_tmpdir}/output.img" \
+	--disk="${vm_tmpdir}/scratch.img" \
 	--ram="${x_builder_vm_memory}" \
 	--noreboot \
 	--wait=-1 \
 	--noautoconsole \
 	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/baker.ks" \
-	> "${bvm_tmpdir}/virt-install.log" 2>&1
+	> "${vm_tmpdir}/virt-install.log" 2>&1
 
 
     # cache a pristine copy for future runs
     # note: could use qemu-img or other snapshots, but those may have performance issues
     status "stashing a duplicate of the freshly installed vm in the cache ..."
     cp -a --sparse=always \
-	"${bvm_tmpdir}/sysroot.img" \
+	"${vm_tmpdir}/sysroot.img" \
 	"${cachedir}/vm-${vm_cfg_checksum}.img"
 fi
 
@@ -739,7 +702,7 @@ status "saving inner-vm's virtualization domain information ..."
 virsh \
     dumpxml \
     "${progname}-${starttime}-${mypid}" \
-    > "${bvm_tmpdir}/vdomain.xml"
+    > "${vm_tmpdir}/vdomain.xml"
 
 # TODO: get logging to native terminal/logfile via some pipe.
 #       i.e. could listen with netcat or ssh and have inner-vm
@@ -749,7 +712,7 @@ status "launching inner-vm's processing phase ..."
 virsh \
     start \
     "${progname}-${starttime}-${mypid}" \
-    > "${bvm_tmpdir}/virt-run.log" 2>&1
+    > "${vm_tmpdir}/virt-run.log" 2>&1
 
 status "waiting a few seconds for inner-vm to come online ..."
 sleep 24
@@ -777,7 +740,7 @@ done
 status "arranging output for the user ..."
 tar \
     -C "${outputdir}" \
-    -xvf "${bvm_tmpdir}/output.img"
+    -xvf "${vm_tmpdir}/output.img"
 
 # todo: invoke populate-staging-repo here, or perhaps within v-bake
 
