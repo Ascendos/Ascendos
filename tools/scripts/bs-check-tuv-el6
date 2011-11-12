@@ -126,8 +126,8 @@ status "initializing..."
 
 if [ $# -eq 0 ]; then 
     input=$( readlink -e "${x_cached_repochart_text_filename}" )
-    output_csv=$( readlink -e "${x_cached_bigboard_csv_filename}" )
-    output_html=$( readlink -e "${x_cached_bigboard_html_filename}" )
+    output_csv=$( readlink -f "${x_cached_bigboard_csv_filename}" )
+    output_html=$( readlink -f "${x_cached_bigboard_html_filename}" )
 elif [ $# -eq 1 ]; then 
     usage
 elif [ $# -eq 2 ]; then 
@@ -166,8 +166,8 @@ status "fetching koji buildinfo dump data: ${x_asc_koji_dump_file} ..."
 dumpdata_location=$( basename "${x_asc_koji_dump_file}" )
 dumpdata_location="${x_bake_cachedir}/one-off-files/${dumpdata_location}"
 tar \
-    -C "${tmpdri}" \
-    -xjlpsf - "${dumpdata_location}"
+    -C "${tmpdir}" \
+    -xjlpsf "${dumpdata_location}"
 bi_dir=$( ls -1d "${tmpdir}/asc-bs-info-dump-"* )
 
 if [ ! -d "${bi_dir}" ]; then

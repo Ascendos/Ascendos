@@ -178,14 +178,12 @@ done
 mkdir -p "${cachedir}/one-off-files"
 
 # really one-off
-if [ -f "$( get_cached_path ${cachedir} ${x_asc_koji_dump_file} )" ]; then
-    if (("${x_refetch_external_koji_metadata}")); then
-        # add the extra koji metadata file for use by repochart/bs-check
-	x_mirror_files="\
+if (("${x_refetch_external_koji_metadata}")); then
+    # add the extra koji metadata file for use by repochart/bs-check
+    x_mirror_files="\
 ${x_mirror_files}
 ${x_asc_koji_dump_file}
 "
-    fi
 fi
 
 # fetch each mirror_file
