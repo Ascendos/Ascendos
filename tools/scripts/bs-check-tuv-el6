@@ -38,9 +38,9 @@
 #############################################################################
 ##
 ## bs-check-tuv-el6 \
-##     [<input>=${x_bake_cachedir}/tuv.srpms.repochart.txt] \
-##     [<output_csv>=${x_bake_cachedir}/tuv.srpms.bigboard.csv] \
-##     [<output_html>=${x_bake_cachedir}/tuv.srpms.bigboard.html] \
+##     [<input>=${x_cached_repochart_text_filename}] \
+##     [<output_csv>=${x_cached_bigboard_csv_filename}] \
+##     [<output_html>=${x_cached_bigboard_html_filename}] 
 ##
 ##
 ## DESCRIPTION
@@ -93,7 +93,7 @@ fi
 ##
 
 # to enable debug messages if desired
-x_debug=0
+x_debug=1
 
 # to suppress status messages if desired
 x_quiet=0
@@ -125,9 +125,9 @@ status "initializing..."
 
 
 if [ $# -eq 0 ]; then 
-    input=$( readlink -e "${x_bake_cachedir}/tuv.srpms.repochart.txt" )
-    output_csv=$( readlink -e "${x_bake_cachedir}/tuv.srpms.bigboard.csv" )
-    output_html=$( readlink -e "${x_bake_cachedir}/tuv.srpms.bigboard.html" )
+    input=$( readlink -e "${x_cached_repochart_text_filename}" )
+    output_csv=$( readlink -e "${x_cached_bigboard_csv_filename}" )
+    output_html=$( readlink -e "${x_cached_bigboard_html_filename}" )
 elif [ $# -eq 1 ]; then 
     usage
 elif [ $# -eq 2 ]; then 
@@ -163,14 +163,22 @@ mkdir -p "${tmpdir}"
 
 status "fetching koji buildinfo dump data: ${x_asc_koji_dump_file} ..."
 # todo: clean up distasteful hardcodedness, and tmpdir stuff, bla...
-wget -q -O - $( get_cached_path "${HOME}/.el-build/cache" "${x_asc_koji_dump_file}" )
-    | tar -C "${tmpdir}" -xjlpsf -
+dumpdata_location=$( basename "${x_asc_koji_dump_file}" )
+dumpdata_location="${x_bake_cachedir}/one-off-files/${dumpdata_location}"
+tar \
+    -C "${tmpdri}" \
+    -xjlpsf - "${dumpdata_location}"
 bi_dir=$( ls -1d "${tmpdir}/asc-bs-info-dump-"* )
+
+if [ ! -d "${bi_dir}" ]; then
+    die "failed to retrieve Ascendos metadata dumped from the koji buildserver at build.ascendos.org"
+fi
 
 tac "${input}" > "${tmpdir}/revinput"
 
 mkdir "${tmpdir}/chart_db"
 
+status "calculating maximum point release ..."
 # this is looking at the list of repos in the repochart, and deducing
 # the maximum version
 max_pointrel=$( echo $( cat "${input}"  \
@@ -182,7 +190,9 @@ max_pointrel=$( echo $( cat "${input}"  \
     | tail -1 )
 
 max_pointrel_major=$( echo "${max_pointrel}" | awk -F'.' '{print $1}' )
+showvar max_pointrel_major
 max_pointrel_minor=$( echo "${max_pointrel}" | awk -F'.' '{print $2}' )
+showvar max_pointrel_minor
 
 # header
 

@@ -39,8 +39,8 @@
 #############################################################################
 ##
 ## repochart-tuv-el6 \
-##     [<input>=${x_bake_cachedir}/tuv.srpms.datesorted.list]
-##     [<output>=${x_bake_cachedir}/tuv.srpms.repochart.txt]
+##     [<input>=${x_cached_datesorted_list_filename}]
+##     [<output>=${x_cached_repochart_text_filename}]
 ##
 ##
 ## DESCRIPTION
@@ -124,8 +124,8 @@ function usage {
 status "initializing..."
 
 if [ $# -eq 0 ]; then 
-    input=$( readlink -e "${x_bake_cachedir}/tuv.srpms.datesorted.list" )
-    output=$( readlink -f "${x_bake_cachedir}/tuv.srpms.repochart.txt" )
+    input=$( readlink -e "${x_cached_datesorted_list_filename}" )
+    output=$( readlink -f "${x_cached_repochart_text_filename}" )
 elif [ $# -eq 1 ]; then 
     inputdir=$( readlink -e "${1}" )
     output="-"
@@ -143,8 +143,16 @@ fi
 
 if [ -f "${output}" ]; then
 #    die "output ${output} already exists"
-    mv -f "${output}" \
-	 "${output}.backup.${starttime}"
+    # check to see if output is likely to change
+    newerfile=$( find \
+	"${output}" \
+	-newer "${input}" )
+    if [ "${newerfile}" == "${output}" ]; then
+	status "most recently generated output is newer than the last input update, no work to be done ..."
+	exit 0
+    else
+	mv -f "${output}" "${output}.backup.${starttime}"
+    fi
 fi
 
 tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"

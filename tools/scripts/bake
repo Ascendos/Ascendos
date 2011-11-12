@@ -331,13 +331,11 @@ fi
 if [ "${offline}" == "yes" ]; then
     status "offline mode: not updating cache / mirrors ..."
 else
-
     if ( ! ping -c3 "${x_internet_online_check_host}" > /dev/null 2>&1 ) then
         # presume offline intent if no net connection seemingly present
 	status "can't ping mirrors.kernel.org, falling back to trying an offline from-cache build ..."
 	offline=yes
     else
-
 	status "invoking update-net-cache ${cachedir} ..."
 	update-net-cache "${cachedir}"
 

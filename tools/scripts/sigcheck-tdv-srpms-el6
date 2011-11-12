@@ -49,6 +49,7 @@
 
 
 ## TODO
+# - libx.sh-ification (-tuv- as well presumably, and merge with that)
 # - ...
 #
 
@@ -178,7 +179,7 @@ if ( ! mkdir -p "${outputdir}" ); then
     die "could not create output directory: ${outputdir}"
 fi
 
-if [ ! -d "${progdir}/../security" ]; then
+if [ ! -d "${progdir}/../../infra/security/keys" ]; then
     die "not running from devtree, don't know where to look for verification RPM-GPG-KEYs"
 fi
 
@@ -189,7 +190,7 @@ mkdir -p "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb"
 GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}/gnupg" \
     rpm \
     --dbpath "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb" \
-    --import "${progdir}/../security/keys/RPM-GPG-KEY-ascendos"*
+    --import "${progdir}/../../infra/security/keys/RPM-GPG-KEY-ascendos"*
 
 num_pkgs_total=$( ls -1A "${outputdir}/build.ascendos.org/linux/ascendos/SRPMS/"*.src.rpm | wc -l )
 num_checked=0

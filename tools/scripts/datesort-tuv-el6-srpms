@@ -36,7 +36,7 @@
 ##
 ## datesort-tuv-el6-srpms \
 ##     [<inputdir>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS] \
-##     [<output>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise.6Superset.en.os.SRPMS.datesorted]
+##     [<output>=${x_cached_datesorted_filename}]
 ##
 ##
 ## DESCRIPTION
@@ -162,7 +162,6 @@ fi
 
 if [ -f "${output}" ]; then
 #    die "output ${output} already exists"
-
     # check to see if output is likely to change
     newerfile=$( find \
 	"${output}" \
@@ -175,7 +174,7 @@ if [ -f "${output}" ]; then
     fi
 fi
 
-tmpdir="/tmp/tmp.${progname}.xyz.${starttime}.$$"
+tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
 
 mkdir -p "${tmpdir}"
 

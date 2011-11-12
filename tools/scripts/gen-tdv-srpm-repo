@@ -3,8 +3,10 @@
 #############################################################################
 #############################################################################
 #
-# gen-tdv-srpm-repo generates the downstream vendors srpm repo from a given
-#                   upstream vendor srpm repo and a delta repo
+# gen-tdv-srpm-repo
+#
+# generates the downstream vendors srpm repo from a given upstream vendor
+# srpm repo and a delta repo
 #
 #
 #############################################################################
@@ -36,9 +38,9 @@
 #############################################################################
 ##
 ## gen-tdv-srpm-repo \
-##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.generated] \
-##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff \
-##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS] 
+##     [<output_tdv_srpm_repo>=${x_cached_generated_srpm_repo}] \
+##     [<tdv_delta_repo>=${x_devdir}/packages] \
+##     [<tuv_srpm_repo>=${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS] 
 ##
 ##
 ## DESCRIPTION
@@ -133,22 +135,18 @@ status "initializing..."
 #############################################################################
 ### retrieve arguments/options
 
-##     [<output_tdv_srpm_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.generated] \
-##     [<tdv_delta_repo>=${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff \
-##     [<tuv_srpm_repo>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS] \
-
 if [ $# -eq 0 ]; then 
-    output_tdv_srpm_repo=$( readlink -f "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.generated" )
-    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff" )
-    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    output_tdv_srpm_repo=$( readlink -f "${x_cached_generated_srpm_repo}" )
+    tdv_delta_repo=$( readlink -e "${x_devdir}/packages" )
+    tuv_srpm_repo=$( readlink -e "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 1 ]; then 
     output_tdv_srpm_repo=$( readlink -f "${1}" )
-    tdv_delta_repo=$( readlink -e "${HOME}/.el-build/cache/build.ascendos.org/linux/ascendos/SRPMS.repo-diff" )
-    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    tdv_delta_repo=$( readlink -e "${x_devdir}/packages" )
+    tuv_srpm_repo=$( readlink -e "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 2 ]; then 
     tdv_delta_repo=$( readlink -e "${1}" )
     output_tdv_srpm_repo=$( readlink -f "${2}" )
-    tuv_srpm_repo=$( readlink -e "${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
+    tuv_srpm_repo=$( readlink -e "${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS" )
 elif [ $# -eq 3 ]; then 
     tdv_delta_repo=$( readlink -e "${1}" )
     output_tdv_srpm_repo=$( readlink -f "${2}" )
@@ -173,8 +171,6 @@ if [ ! -d "${tuv_srpm_repo}" ]; then
     die "tuv_srpm_repo directory ${tuv_srpm_repo} does not exist"
 fi
 
-
-#### outline
 
 if [ -f "${HOME}/.rpmmacros" ]; then
     mv "${HOME}/.rpmmacros" \

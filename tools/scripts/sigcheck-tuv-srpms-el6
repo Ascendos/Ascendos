@@ -178,7 +178,7 @@ if ( ! mkdir -p "${cachedir}" ); then
     die "could not create output directory: ${cachedir}"
 fi
 
-if [ ! -d "${progdir}/../security" ]; then
+if [ ! -d "${progdir}/../../infra/security/keys" ]; then
     die "not running from devtree, don't know where to look for verification RPM-GPG-KEYs"
 fi
 
@@ -189,7 +189,7 @@ mkdir -p "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb"
 GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}/gnupg" \
     rpm \
     --dbpath "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb" \
-    --import "${progdir}/../security/keys/RPM-GPG-KEY-redhat"*
+    --import "${progdir}/../../infra/security/keys/RPM-GPG-KEY-redhat"*
 
 num_pkgs_total=$( ls -1A "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS/"*.src.rpm | wc -l )
 num_checked=0

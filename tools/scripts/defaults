@@ -89,11 +89,6 @@ x_bake_test_package_list=""
 
 #############################################################################
 # Traditional DVD/netinst-iso install .iso image configurations
-x_bake_config_x64="pungi-x86_64.ks"
-x_bake_config_x32="pungi-i386.ks"
-
-#############################################################################
-#
 x_bake_traditional_x32_installer_ks_config="6/6.0/configs/pungi-i386.ks"
 x_bake_traditional_x64_installer_ks_config="6/6.0/configs/pungi-x86_64.ks"
 
@@ -280,6 +275,10 @@ x_enable_devtree_inclusion_in_live_output=0
 #############################################################################
 # interesting internal intermediate data placement
 x_cached_datesorted_list_filename="${x_bake_cachedir}/tuv.srpms.datesorted.list"
+x_cached_repochart_text_filename="${x_bake_cachedir}/tuv.srpms.repochart.txt"
+x_cached_bigboard_csv_filename="${x_bake_cachedir}/tuv.srpms.bigboard.csv"
+x_cached_bigboard_html_filename="${x_bake_cachedir}/tuv.srpms.bigboard.html"
+x_cached_generated_srpm_repo="${x_bake_cachedir}/tdv.SRPMS"
 
 #############################################################################
 # presently the update-net-cache will mirror 100+G instead of the maybe
