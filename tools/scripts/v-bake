@@ -685,7 +685,7 @@ buildsys-macros-el6
 	    "${pkg_n}"
 	status "about to try building ${srpm} against ${target_bs_os} ..."
 	status build --wait "${target_bs_os}" "${srpm}" 
-	if $( koji build --wait "${target_bs_os}" "${srpm}" 2>&1 | tee -a "${outroot}/logs/${srpm}.kojibuild.log" ); then
+	if ( koji build --wait "${target_bs_os}" "${srpm}" 2>&1 | tee -a "${outroot}/logs/${srpm}.kojibuild.log" ); then
 #		rm -f "${srpm}"
 	    mv "${srpm}" "${srpm}".pre-compile-phase
 	    pkg_nvr=$( basename "${srpm}" .src.rpm )
