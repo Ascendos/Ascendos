@@ -124,6 +124,10 @@ if [ -f "${HOME}/.el-build/config" ]; then
     source "${HOME}/.el-build/config"
 fi
 
+if [ -f "/tmp/el-build-user-config" ]; then
+    source "/tmp/el-build-user-config"
+fi
+
 
 #############################################################################
 ##

@@ -46,8 +46,6 @@
 ##
 ## LONG TERM ROADMAP
 ##
-## - probably better if the entire devtree, already being pulled for
-##   koji makeworld stuffs, is used, along with libx.sh
 ## - there needs to be a mode or alternate script with shared parts,
 ##   that easily allows v-bake to be run 'native' by el-build, without
 ##   running in a vm (for those that want the speed and can live with the
@@ -70,6 +68,12 @@
 # for common script library- libx.sh
 x_toolname="el-build"
 x_prefix=/usr
+
+# to enable debug messages if desired
+x_debug=1
+
+# to suppress status messages if desired
+x_quiet=0
 
 
 #############################################################################
@@ -96,13 +100,14 @@ outroot=/root/output
 
 # for the parent vm to quiesce(sp?)
 clear
-status "giving host a minute just in case ..."
-sleep 30
+# no status function until libx.sh is brought in
+echo "vbake: early status: giving host a minute just in case ..."
+sleep 24
 clear
-status "initializing environment ..."
+echo "v-bake: early status: initializing environment ..."
 
 # keep screen from blanking (perhaps this should be in el-build only)
-status "disabling terminal blanking/screensaver ..."
+echo "v-bake: early status: disabling terminal blanking/screensaver ..."
 setterm -blank 0
 
 #############################################################################
@@ -246,7 +251,9 @@ source "${outroot}/logs/v-bake.options"
 # workaround for what appears to be a pungi bug (no anaconda srpm in output)
 cat <<EOF > /etc/yum.repos.d/asc-src.repo
 [asc-src]
+# todo: this needs to be defaults/config tunable (using distroname)
 name=Ascendos - sources
+# todo: this needs to be defaults/config tunable
 baseurl=${elbuild_cache_root}/tdv.SRPMS/
 enabled=0
 gpgcheck=1
@@ -435,12 +442,7 @@ if ( listin "compile-sources" "${do_bake_phases}" ); then
     koji \
 	add-external-repo \
 	ascendos-build \
-	"${elbuild_cache_root}/http/build.ascendos.org/linux/ascendos/build/\\\$arch"
-
-    # experimental
-    koji \
-	add-tag \
-	"ascendos-initial-tag"
+	"${elbuild_cache_root}/http/build.ascendos.org/linux/ascendos/build/\$arch"
 
     # create a build target for each dependent bootstrapping os
     bs_os_abbrevs=""
@@ -500,11 +502,11 @@ util-linux-ng
 which
 system-release
 buildsys-macros-el6
-glibc-devel.i386
-glibc-devel.i686
-glibc-static.i686
-glibc-static.i686
 "
+#glibc-devel.i386
+#glibc-devel.i686
+#glibc-static.i686
+#glibc-static.i686
 # note: system-release is an experimental replacement for sl-release
 # TODO: try glibc-{devel,static}.i{3,6}86 and see if that helps grub,
 #       else try using those to repack a glibc32.x86_64 (s)rpm
@@ -523,12 +525,12 @@ glibc-static.i686
 	    add-group-pkg \
 	    "${os_abbrev}-build" \
 	    build \
-	    "${buildroot_minbuild_pkgset}"
+	    ${buildroot_minbuild_pkgset}
 	koji \
 	    add-group-pkg \
 	    "${os_abbrev}-build" \
 	    build \
-	    "${buildroot_minbuild_pkgset}"
+	    ${buildroot_minbuild_pkgset}
 
 	# TODO: perhaps allow non-cached builds by only doing this munging
 	#   if a mirror-status-flagfile can be retrieved
@@ -538,13 +540,19 @@ glibc-static.i686
 	os_repo_suffix=$( echo "${os_repo}" \
 	    | sed -e 's/.*\$arch\///' )
 
+# todo: get_cached_path not currently work so well with http:// due to use of readlink
+#	os_repo_for_koji=$( get_cached_path \
+#	    "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache" \
+#	    "${os_repo}" )
+	showvar os_repo_for_koji
 	os_repo_for_koji=$( get_cached_path \
-	    "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache" \
+	    "" \
 	    "${os_repo}" )
+	os_repo_for_koji="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache${os_repo_for_koji}"
 	showvar os_repo_for_koji
 
         # create the repo
-	status koji add-external-repo "${os_abbrev}-base" "${os_repo}"
+	status koji add-external-repo "${os_abbrev}-base" "${os_repo_for_koji}"
 	koji \
 	    add-external-repo \
 	    "${os_abbrev}-base" \
@@ -638,6 +646,10 @@ glibc-static.i686
     for srpm in ${srpm_list}; do
 
 	xdone=0
+
+	pkg_nvr=$( basename "${srpm}" .src.rpm )
+	pkg_nv=$( echo "${pkg_nvr}" | sed -e 's/-[^-]*$//' )
+	pkg_n=$( echo "${pkg_nv}" | sed -e 's/-[^-]*$//' )
 
 	# TODO: obviously need to abstract away the hostname/path here 
 	# NOTE: ... at the same time that gen-tdv-srpm-repo appears in this script

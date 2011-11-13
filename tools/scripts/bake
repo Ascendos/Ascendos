@@ -290,9 +290,11 @@ for stale_bake in ${stale_bakes}; do
 
 done
 
+
 #############################################################################
 #
 ## update mirrors / cache
+#
 #
 status "updating cache / mirrors ..."
 
@@ -302,11 +304,8 @@ status "updating cache / mirrors ..."
 #       (or alternately and much more likely I'll just have a postprocessor
 #        generated manifest subset of the current overkill mirror)
 
-# use lftp for mirroring
-
 # note: perhaps? pull instead from koji, or ascendos/everything 
 #       (based on binary rpm name list generated from tuv srpm list)
-
 
 if ( ! mkdir -p "${cachedir}" > /dev/null 2>&1 ); then
     die "cache directory (mirror root) - ${cachedir} - could not be used/made"
@@ -631,7 +630,7 @@ else
 
 #       for the netinst here (just boot.iso? or does virt-install pull the
 #       kernel and initrd from PXE/pxeboot directories?)
-#
+
 # TODO: or as an interim measure to the above, and not a bad idea otherwise,
 #       just checksum the entire net cache directory and include that in the
 #       build logs tarball somewhere, and add a checksum of the build logs
