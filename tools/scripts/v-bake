@@ -503,15 +503,6 @@ which
 system-release
 buildsys-macros-el6
 "
-#glibc-devel.i386
-#glibc-devel.i686
-#glibc-static.i686
-#glibc-static.i686
-# note: system-release is an experimental replacement for sl-release
-# TODO: try glibc-{devel,static}.i{3,6}86 and see if that helps grub,
-#       else try using those to repack a glibc32.x86_64 (s)rpm
-# TODO: verify if the glibc-{devel,static}.i{36}86 do the trick for grub
-#       or if glibc32.x86_64 or something else is needed
 
 	newlist=""
 	for item in ${buildroot_minbuild_pkgset}; do
@@ -612,33 +603,32 @@ buildsys-macros-el6
 
 #
 # NOTE:  The build order algorithm here is currently as follows.  It may
-#        well have bugs, or otherwise in use of improvements.  Please discuss
-#        any suggestions on the ascendos-dev mailinglist.
+#   well have bugs, or otherwise in use of improvements.  Please discuss
+#   any suggestions on the ascendos-dev mailinglist.
 #
-#        0 note: even this outline is not quite yet fully implemented in logic below,
-#                e.g. need to glue in gen-big-board outputs/inputs to this process
+#   1 the full 'superset' of srpms are collected from tuv's well known published
+#     sources (see mirrors.kernel.org/...).  They are reverse sorted by package
+#     build order, and epochs between major point releases are noted and
+#     currently maintained in repochart-tuv-el6.
+# TODO: move that epoch data to to defaults/cfg
 #
-#        1 the full 'superset' of srpms are collected from tuv's well known published
-#          sources (see mirrors.kernel.org/...).  They are reverse sorted by package
-#          build order, and epochs between major point releases are noted.
+#   2 first, the full set of .0 packages are built.  For each package, it is
+#     attempted to be built against sl60, or if specified in to the 
+#     6/6.0/configs/build-against-* config files, it will instead be built
+#     against one of the other three boostrapping OS'
 #
-#        2 first, the full set of .0 packages are built.  For each package, it is
-#          attempted to be built against sl60, then f13, then f12, then rhel6beta.
-#          whichever works first wins (near future: hard coded config lists will 
-#          be established, presumably not changing frequently)
+# NOTE: no current 'dogfooding' pass _yet_ of the sources rebuilt again their
+#   own first output instead of the original bootstrapping repos.
 #
-#        2b note: no current 'dogfooding' pass _yet_ of the sources rebuilt again their
-#                own first output instead of the original bootstrapping repos.
+#   3 then updates up to the next epoch are built against that previous output
+#          instead of the 4 bootstrap os repos 
+# TODO: see if this actually works even for the 'trouble' packages.
 #
-#        3 then updates up to the next epoch are built against that previous output
-#          instead of the 4 bootstrap os repos (todo: see if this actually works even
-#          for the 'trouble' packages.
-#
-#        4 then a pointrelease is composed, jump back to 3, repeat ad infinitum
+#   4 then a pointrelease is composed, jump back to 3, repeat ad infinitum
 #
 #
 # BOTTOM LINE: having the logic spelled out in code/script here, makes it much
-#              easier to visually compare altering implementational choices/bugs.
+#   easier to visually compare altering implementational choices/bugs.
 #
 
 
@@ -738,14 +728,22 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
     adduser xmock
     usermod -a -G mock xmock
 
-    wget -O /etc/mock/mock-for-pungi-el6-i386.cfg \
-	"${elbuild_doc_root}/mock-for-pungi-el6-i386.cfg"
+    # deploy specific mock configuration for pungi-i386 runs
+    # todo: make defaults/configurable
+    cp "${x_devdir}/6/6.0/configs/mock-for-pungi-el6-i386.cfg" \
+	/etc/mock/mock-for-pungi-el6-i386.cfg
     
-    su - xmock -c "mock -r mock-for-pungi-el6-i386 --init"
-    su - xmock \
-	-c "mock -r mock-for-pungi-el6-i386 --no-clean --install wget"
-    su - xmock \
-	-c "mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
+    # initialize the mock buildroot
+    su - xmock -c \
+	"mock -r mock-for-pungi-el6-i386 --init"
+
+    # always useful
+    su - xmock -c \
+	"mock -r mock-for-pungi-el6-i386 --no-clean --install wget"
+    
+    # needed by pungi
+    su - xmock -c \
+	"mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
 
     mkdir -p "${mockroot}/root"
     mkdir -p "${mockroot}/root/el-build-workarea"
