@@ -179,7 +179,7 @@ for option in "$@"; do
     elif [ "${option}" == "help" ]; then
 	usage
     fi
-    if $( echo "${option}" | grep -q "=" ); then
+    if ( echo "${option}" | grep -q "=" ); then
 	# simplest
 #	eval "${option}"
 	# a bit better, allows e.g. distroname="Two Words"

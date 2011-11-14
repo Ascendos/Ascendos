@@ -220,7 +220,7 @@ for option in "$@"; do
     elif [ "${option}" == "help" ]; then
 	usage
     fi
-    if $( echo "${option}" | grep -q "=" ); then
+    if ( echo "${option}" | grep -q "=" ); then
 	# simplest
 #	eval "${option}"
 	# a bit better, allows e.g. distroname="Two Words"
@@ -719,7 +719,7 @@ status "waiting for inner-vm to finish processing ..."
 xdone=0
 while ((! ${xdone})); do
     sleep "${x_builder_vm_shutdown_polling_frequency}"
-    if $( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
+    if ( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
 	xdone=1
     fi
 done

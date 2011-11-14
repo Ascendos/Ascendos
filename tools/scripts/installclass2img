@@ -125,7 +125,7 @@ if [ -f "${outputimage}" ]; then
     die "output image file ${outputimage} already exists"
 fi
 
-if $( ! dd if=/dev/zero \
+if ( ! dd if=/dev/zero \
     of="${outputimage}" \
     bs=1k count=77 > /dev/null 2>&1 ); then
     die "failed to initialize output image"

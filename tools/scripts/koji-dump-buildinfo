@@ -196,7 +196,7 @@ for package in $( < "${outputdir}/pkg.list.txt" ); do
     in_header=1
     while read line; do
 	if ((${in_header})); then
-	    if $( echo "${line}" | grep -q "^RPMs:" ); then
+	    if ( echo "${line}" | grep -q "^RPMs:" ); then
 		in_header=0
 	    fi
 	else

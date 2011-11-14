@@ -1193,7 +1193,7 @@ function launch_webserver {
     
     # make tmp config directory
     
-     if $(! mkdir -p "${httpdserverroot}" > /dev/null 2>&1 ); then
+     if ( ! mkdir -p "${httpdserverroot}" > /dev/null 2>&1 ); then
 	die "could not make config dir ${httpdserverroot}"
     fi
     
@@ -1249,8 +1249,7 @@ function launch_webserver {
     wget -q -O "${httpdserverroot}/testdir/retrievedfile" \
 	"http://localhost:${port}/testfile"
 
-    if $( \
-	diff -q \
+    if ( diff -q \
 	"${httpdserverroot}/testdir/testfile" \
 	"${httpdserverroot}/testdir/retrievedfile" \
 	> /dev/null 2>&1 ); then
