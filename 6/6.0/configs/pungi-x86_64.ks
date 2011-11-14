@@ -1,21 +1,41 @@
-# Ascendos: this file is the stock f13 pungi's rawhide-fedora.ks, it will probably
-#           evolve and diverge from that starting point quite a bit.
-#
-# note: maybe seperate arch kickstarts are not required, so these two kickstarts
-#       may collapse into one
-#
-# Kickstart file for composing the "Fedora" spin of Fedora (rawhide)
+#############################################################################
+#############################################################################
+##
+## Ascendos-6 traditional DVD/netinst .iso installer configuration
+##
+#############################################################################
+#############################################################################
 
+# this file is the stock f13 pungi's rawhide-fedora.ks, it will probably
+# evolve and diverge from that starting point quite a bit.
+
+# TODO: consider whether f13 spin-kickstarts' fedora-install-fedora might be
+#   a better starting point.  Or SL6/C6 if those are readily available.
+
+# note: maybe seperate arch kickstarts are not required, so these two kickstarts
+#   may collapse into one
+
+
+#############################################################################
 # Use a part of 'iso' to define how large you want your isos.
 # Only used when composing to more than one iso.
 # Default is 670 (megs), CD size.
 #part iso --size=4998
 
+
+# TODO: these should be abstracted, at the very least the 10.0.2.2 stuff
+#   done by v-bake as preprocessing
+
+# SHOWSTOPPER: this needs to get munged by v-bake, be default aiming at
+#   v-bake's koji output
+
+#############################################################################
 # Add the repos you wish to use to compose here.  At least one of them needs group data.
 repo --name=ascendos60 --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/6.0/os/x86_64
 repo --name=ascendos60-source --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/SRPMS
 
 
+#############################################################################
 # Package manifest for the compose.  Uses repo group metadata to translate groups.
 # (@base is added by default unless you add --nobase to %packages)
 # (default groups for the configured repos are added by --default)
@@ -180,3 +200,16 @@ jfsutils
 -libgcj-src
 -*javadoc*
 %end
+
+
+#############################################################################
+#############################################################################
+##
+## end configuration, only notes below ...
+##
+#############################################################################
+#############################################################################
+
+#
+#
+#

@@ -2,6 +2,9 @@
 #           evolve and diverge from that starting point quite a bit.
 #
 # Kickstart file for composing the "Fedora" spin of Fedora (rawhide)
+#
+# note: maybe seperate arch kickstarts are not required, so these two kickstarts
+#   may collapse into one.  As such see x86_64 for notes/comments.
 
 # Use a part of 'iso' to define how large you want your isos.
 # Only used when composing to more than one iso.
@@ -9,7 +12,6 @@
 #part iso --size=4998
 
 # Add the repos you wish to use to compose here.  At least one of them needs group data.
-# SHOWSTOPPER: this needs to get munged by v-bake, be default aiming at v-bake's koji output
 repo --name=ascendos60 --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/6.0/os/i386
 repo --name=ascendos60-source --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/SRPMS
 
