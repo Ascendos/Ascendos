@@ -46,6 +46,10 @@ if [ "${x_debug}" == "" ]; then
     x_debug=0
 fi
 
+# TODO: ensure that cmdline overrides user config, 
+#   overrides tree localconfig,
+#   overrides tree defaults,
+#   overrides this. (haven't actually checked recently)
 if [ "${x_verbose}" == "" ]; then
     x_verbose=0
 fi
@@ -83,6 +87,27 @@ function normalize_path {
 	die "unexpected problem normalizing path ${1}"
     else
 	echo "${result}"
+    fi
+}
+
+
+#############################################################################
+#############################################################################
+#
+# usage: setup_tmpdir
+#
+# sets up a standard tmpdir, typically invoked as -
+# 
+# tmpdir=$( setup_tmpdir )
+#
+# globals used: none
+#
+function setup_tmpdir {
+    tmpdir_path="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
+    if ( ! mkdir -p "${tmpdir_path}" ); then
+	die "failed to create temporary directory: ${tmpdir_path}"
+    else
+	echo "${tmpdir_path}"
     fi
 }
 
