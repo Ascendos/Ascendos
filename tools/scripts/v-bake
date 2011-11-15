@@ -58,6 +58,13 @@
 #############################################################################
 
 
+## TODO
+##
+##  - use recent success with yum(downloader) --config --installroot to
+##    un-hardcodify versions
+##  - though with above, best to migrate the critical things to the build
+##    repo, or ideally, the entire build repo generatable from the devtree
+
 
 #############################################################################
 #############################################################################
