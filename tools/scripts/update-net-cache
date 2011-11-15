@@ -108,6 +108,8 @@ function usage {
 
 status "initializing..."
 
+tmpdir=$( setup_tmpdir )
+
 cachedir=$( readlink -f "${1}" )
 
 if [ ! -d "${cachedir}" ]; then

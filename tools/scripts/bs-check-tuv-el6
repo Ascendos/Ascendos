@@ -163,10 +163,8 @@ if [ -f "${output_csv}" ]; then
 	 "${output_csv}.backup.${starttime}"
 fi
 
-# todo: this will not pick of localconfig/~/.el-build/config changes
-tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
-
-mkdir -p "${tmpdir}"
+# TODO: this will not pick of localconfig/~/.el-build/config changes
+tmpdir=$( setup_tmpdir )
 
 status "fetching koji buildinfo dump data: ${x_asc_koji_dump_file} ..."
 # todo: clean up distasteful hardcodedness, and tmpdir stuff, bla...

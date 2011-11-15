@@ -170,8 +170,7 @@ fi
 
 #############################################################################
 ### tmpdir
-tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
-mkdir -p "${tmpdir}"
+tmpdir=$( setup_tmpdir )
 
 #############################################################################
 ### backup existing rpm dev homestuffs

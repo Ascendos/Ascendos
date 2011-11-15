@@ -6,9 +6,7 @@
 # repochart-tuv-el6
 #
 # generates a data chart of el6 packages whose source packages have been
-# published by TUV.  The chart includes most importantly, the list of repos
-# the packages should get pushed to when built.  This is a subset of
-# pointreleases X base|updates
+# published by TUV, and which el-build is tasked with building a subset of.
 #
 #############################################################################
 #
@@ -45,7 +43,10 @@
 ##
 ## DESCRIPTION
 ##
-## ...
+## generates a data chart of el6 packages whose source packages have been
+## published by TUV.  The chart includes most importantly, the list of repos
+## the packages should get pushed to when built.  This is a subset of
+## pointreleases X base|updates
 ##
 ##
 ## NOTES
@@ -148,16 +149,19 @@ if [ -f "${output}" ]; then
 	"${output}" \
 	-newer "${input}" )
     if [ "${newerfile}" == "${output}" ]; then
+	# don't bother generating a new chart if the input hasn't
+	# been updated since the last output generated.
 	status "most recently generated output is newer than the last input update, no work to be done ..."
 	exit 0
     else
+	# save a backup copy if the output already exists and
+	# will be overwritten
 	mv -f "${output}" "${output}.backup.${starttime}"
     fi
 fi
 
-tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
 
-mkdir -p "${tmpdir}"
+tmpdir=$( setup_tmpdir )
 
 mkdir "${tmpdir}/chart_db"
 

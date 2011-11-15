@@ -3,8 +3,10 @@
 #############################################################################
 #############################################################################
 #
-# datesort-tuv-el6-srpms generates a date sorted package list given
-#                        a directory of tuv-el6 srpms as input
+# datesort-tuv-el6-srpms
+#
+# generates a date sorted package list given a directory of tuv-el6 srpms
+# as input
 #
 #############################################################################
 #
@@ -35,7 +37,7 @@
 #############################################################################
 ##
 ## datesort-tuv-el6-srpms \
-##     [<inputdir>=${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS] \
+##     [<inputdir>=${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS] \
 ##     [<output>=${x_cached_datesorted_filename}]
 ##
 ##
@@ -92,7 +94,7 @@ fi
 ##
 
 # to enable debug messages if desired
-x_debug=1
+x_debug=0
 
 # to suppress status messages if desired
 x_quiet=0
@@ -101,6 +103,7 @@ x_quiet=0
 # excessive and/or amusing vendor name use avoidance
 tuv_name_lc_enc="erqung"
 
+# todo: this and the next probably belongs in defaults
 flavors="\
 6Server
 6Workstation
@@ -139,7 +142,7 @@ debug "initializing..."
 tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
 
 # todo: this needs to be reconsidered, this is not really the final cleanup
-default_tuv_srpm_dir="${HOME}/.el-build/cache/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS"
+default_tuv_srpm_dir="${x_bake_cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/${tuv_flavor_suffix}/SRPMS"
 default_output_filename="${x_cached_datesorted_list_filename}"
 
 inputdir=$( readlink -e "${default_tuv_srpm_dir}" )
@@ -174,9 +177,7 @@ if [ -f "${output}" ]; then
     fi
 fi
 
-tmpdir="${x_bake_tmpdir}/${starttime}.${mypid}.${progname}"
-
-mkdir -p "${tmpdir}"
+tmpdir=$( setup_tmpdir )
 
 debug "processing input, retrieving package build times, this may take a few minutes..."
 
