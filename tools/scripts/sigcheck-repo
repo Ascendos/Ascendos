@@ -3,7 +3,9 @@
 #############################################################################
 #############################################################################
 #
-# sigcheck-tuv-srpms-el6 checks the signatures of mirror-tuv-srpms-el6 output
+# sigcheck-repo
+#
+# checks the signatures of repository of rpms
 #
 #############################################################################
 #
@@ -33,7 +35,9 @@
 #############################################################################
 #############################################################################
 ##
-## sigcheck-tuv-el6-srpms [<cachedir>=~/.el-build/cache]
+## sigcheck-tuv-el6-srpms \
+##    [<reposdir>] \
+##    [[<RPM-GPG-KEY>]...] 
 ##
 ##
 ## DESCRIPTION
@@ -56,27 +60,40 @@
 #############################################################################
 #############################################################################
 ##
-## get runtime environment
+## local constant definitions
 ##
-starttime="$( date +%Y%m%d%H%M%S )"
-progname="$( basename $0 )"
-progdir=$( ( pushd $( dirname $( readlink -e $0 ) ) > /dev/null 2>&1 ; \
-    pwd ; popd > /dev/null 2>&1 ) )
-rundir="$( pwd )"
-mypid=$$
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
 
 
 #############################################################################
 #############################################################################
 ##
 ## constant and option default definitions
-##
 
-# to enable debug messages
-debug=1
+# to enable debug messages if desired
+x_debug=0
 
-# to suppress status messages
-quiet=0
+# to suppress status messages if desired
+x_quiet=0
 
 
 #############################################################################
@@ -88,70 +105,10 @@ function usage {
     echo ""
     echo "usage:"
     echo ""
-    echo "${progname} [<mirror output directory>=~/.el-build/cache]"
+    echo "${progname} ..."
     echo ""
     echo ""
     exit 1
-}
-
-
-#############################################################################
-#
-# usage: status <message...>
-#
-# wrapper for sending status messages to console and log
-#
-# globals used: quiet, progname, logfiles(not required)
-#
-function status {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if ((! $quiet)); then
-	echo "${progname}: ${time}: status: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: status: $@" >> $logfile
-    done
-}
-
-#############################################################################
-#
-# usage: debug <message...>
-#
-# wrapper for sending debug messages to console and log
-#
-# globals used: debug, progname, logfiles(not required)
-#
-function debug {
-    time="$( date +%Y-%m-%d.%H:%M:%S )"
-    if (($debug)); then
-	echo "${progname}: ${time}: debug: $@"
-    fi
-    for logfile in $logfiles; do
-	echo "${progname}: ${time}: debug: $@" >> $logfile
-    done
-}
-
-
-#############################################################################
-#
-# usage: die <message...>
-#
-# issue last words
-#
-function die {
-    status "$@"
-    exit 1
-}
-
-
-#############################################################################
-#
-# usage: old_school_crypto <string>
-#
-# probably overkill avoidance of explicit TUV referencing
-#
-function old_school_crypto {
-    echo "$@" | tr 'a-zA-Z' 'n-za-mN-ZA-M'
 }
 
 
@@ -163,69 +120,102 @@ function old_school_crypto {
 
 status "initializing..."
 
-tuv_name_lc=$( old_school_crypto "${tuv_name_lc_enc}" )
-mirrorx=$( echo "${mirror}" | sed -e "s/tuv/${tuv_name_lc}/g" )
 
+# parse options
 if [ $# -eq 0 ]; then 
-    cachedir=$( readlink -e "${HOME}/.el-build/cache" )
-elif [ $# -ne 1 ]; then 
-    usage
+    target_repo="${x_bake_cachedir}"
+    target_keys=$( ls -1A "${x_devdir}/infra/security/keys/RPM-GPG-KEY"* )
+elif [ $# -eq 1 ]; then 
+    target_repo=$( readlink -e "${1}" ) 
+    target_keys=$( ls -1A "${x_devdir}/infra/security/keys/RPM-GPG-KEY"* )
 else
-    cachedir=$( readlink -e "${1}" )
+    target_repo=$( readlink -e "${1}" ) 
+    shift
+    target_keys="$@"
 fi
 
-if ( ! mkdir -p "${cachedir}" ); then
-    die "could not create output directory: ${cachedir}"
-fi
+tmpdir=$( setup_tmpdir )
 
-if [ ! -d "${progdir}/../../infra/security/keys" ]; then
-    die "not running from devtree, don't know where to look for verification RPM-GPG-KEYs"
-fi
+mkdir -p "${tmpdir}/gnupg"
 
-# note: security: this is safe enough with standard /tmp permissions
-mkdir -p "/tmp/tmp.${progname}.${starttime}.${mypid}"
-mkdir -p "/tmp/tmp.${progname}.${starttime}.${mypid}/gnupg"
-mkdir -p "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb"
-GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}/gnupg" \
-    rpm \
-    --dbpath "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb" \
-    --import "${progdir}/../../infra/security/keys/RPM-GPG-KEY-redhat"*
+mkdir -p "${tmpdir}/rpmdb"
 
-num_pkgs_total=$( ls -1A "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS/"*.src.rpm | wc -l )
+showvar target_keys
+for target_key in ${target_keys}; do
+    showvar target_key
+    GNUPGHOME="${tmpdir}/gnupg" \
+	rpm \
+	--dbpath "${tmpdir}/rpmdb" \
+	--import "${target_key}"
+done
+
+num_pkgs_total=$( find "${target_repo}" \
+    -type f -name "*.rpm" -print \
+    | wc -l )
+
 num_checked=0
+
 status "checking source package signatures..."    
-for srpm in $( ls -1A "${cachedir}/ftp/ftp.tuv.com/tuv/linux/enterprise/6Superset/en/os/SRPMS/"*.src.rpm ); do
+
+for srpm in $( find "${target_repo}" \
+    -type f -name "*.rpm" -print ); do
     status "checking " $( basename "${srpm}" ) " ... "
-    GNUPGHOME="/tmp/tmp.${progname}.${starttime}.${mypid}" \
+
+    no_gpg=0
+    no_pgp=0
+    no_dsa=0
+    no_rsa=0
+
+    GNUPGHOME="${tmpdir}/gnupg" \
 	rpm --checksig \
-	--dbpath "/tmp/tmp.${progname}.${starttime}.${mypid}/rpmdb" \
+	--dbpath "${tmpdir}/rpmdb" \
 	"${srpm}" \
-	> "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
+	> "${tmpdir}/lastresult" 2>&1
+
     if [ $? -ne 0 ]; then
-	cat "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
+	cat "${tmpdir}/lastresult"
 	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION" 
     fi
-    if ( grep -q "NOT OK" "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult" ); then
-	cat "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
+
+    if ( grep -q "NOT OK" "${tmpdir}/lastresult" ); then
+	cat "${tmpdir}/lastresult"
 	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION"
     fi
-    if ( ! grep -q "pgp" "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult" ); then
-	cat "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
+
+    if ( ! grep -q "sha1" "${tmpdir}/lastresult" ); then
+	cat "${tmpdir}/lastresult"
 	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION"
     fi
-    if ( ! grep -q "sha1" "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult" ); then
-	cat "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
-	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION"
+
+    if ( ! grep -q "gpg" "${tmpdir}/lastresult" ); then
+	no_gpg=1
     fi
-    if ( ! grep -q "rsa" "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult" ); then
-	cat "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
-	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION"
+
+    if ( ! grep -q "pgp" "${tmpdir}/lastresult" ); then
+	no_pgp=1
     fi
+
+    if ( ! grep -q "rsa" "${tmpdir}/lastresult" ); then
+	no_rsa=1
+    fi
+
+    if ( ! grep -q "dsa" "${tmpdir}/lastresult" ); then
+	no_dsa=1
+    fi
+
+    keychecks=$(( ${no_gpg} + ${no_pgp} + ${no_rsa} + ${no_dsa} ))
+    if ((! ${keychecks})); then
+	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION- NOT SIGNED WITH A KEY (GPG/PGP/RSA/DSA)"
+    fi
+
     num_checked=$(( ${num_checked} + 1 ))
+
     status "all packages verified thus far are good (${num_checked}/${num_pkgs_total}) ..."
-    rm -f "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult"
-    # man rpm says dsa is preferred over rsa, but not in use here because?(fixme/comment?)
-    #if ( ! grep -q "dsa" "/tmp/tmp.${progname}.${starttime}.${mypid}/lastresult" ); then
-    #	die "ALERT: package ${srpm} FAILED SECURITY VERIFICATION"
-    #fi	
+
+    rm -f "${tmpdir}/lastresult"
+
+
 done
+
+#############################################################################
+#############################################################################
