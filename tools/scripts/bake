@@ -240,15 +240,12 @@ if ( ! mkdir -p "${outputdir}" > /dev/null 2>&1 ); then
     die "output directory - ${outputdir} - could not be made"
 fi
 
-b_tmpdir="${bake_tmpdir}/${starttime}.${mypid}"
-if ( ! mkdir -p "${b_tmpdir}" > /dev/null 2>&1 ); then
-    die "temp directory - ${b_tmpdir} - could not be made"
-fi
+tmpdir=$( setup_tmpdir )
 
-vm_tmpdir="${b_tmpdir}/vm"
+vm_tmpdir="${tmpdir}/vm"
 mkdir -p "${vm_tmpdir}"
 
-httpd_tmpdir="${b_tmpdir}/user-httpd"
+httpd_tmpdir="${tmpdir}/user-httpd"
 mkdir -p "${httpd_tmpdir}"
 
 
@@ -341,6 +338,11 @@ else
         # todo: fold into update-net-cache, exposing defaults appropriately
 	status "mirroring the upstream vendors source rpms for el version 6 ..."
 	mirror-tuv-srpms-el6
+	
+	# verify all rpm signatures
+	# todo: don't check every package against all keys, perhaps a whitelist of known
+	#       repo to key mappings, or equivalent somehow
+	sigcheck-repo "${cachedir}"
 
 	# disable if wanted for debugging, and in general to test if it matters
 	if (("${x_regen_some_input_yum_metadata}")); then
