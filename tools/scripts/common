@@ -2,7 +2,7 @@
 #
 #############################################################################
 #
-# common: libx common script environment
+# common: library X common script environment
 #
 #############################################################################
 #
@@ -26,10 +26,12 @@
 #
 #############################################################################
 
-#
-# libvsys.sh: common viros system environment, meant to be sourced early
-#
 
+## NOTES
+##  - may also want to recreate viros' libvsys.sh style cleanup_command
+
+
+#############################################################################
 ##
 ## set traps
 ##
