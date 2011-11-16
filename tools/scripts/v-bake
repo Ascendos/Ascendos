@@ -574,7 +574,7 @@ buildsys-macros-el6
 	    ascendos-build \
 	    -t "${os_abbrev}-build"
 
-	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
+	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}"
 	generate-glibc32-koji-helper \
 	    "${os_repo_for_koji}" \
 	    "/root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
