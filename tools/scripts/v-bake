@@ -128,6 +128,7 @@ mkdir koji
 mkdir devtree
 # todo: make this area more of an option/constant
 mkdir /root/el-build-workarea
+mkdir /root/el-build-workarea/glibc32
 mkdir /root/el-build-workarea/cache
 mkdir /root/el-build-workarea/output
 cd "${outroot}/workarea"
@@ -256,6 +257,7 @@ source "${outroot}/logs/v-bake.options"
 
 #############################################################################
 # workaround for what appears to be a pungi bug (no anaconda srpm in output)
+# TODO: use cleaner yum installroot/config method as working in gen-glibc32...
 cat <<EOF > /etc/yum.repos.d/asc-src.repo
 [asc-src]
 # todo: this needs to be defaults/config tunable (using distroname)
@@ -572,6 +574,23 @@ buildsys-macros-el6
 	    ascendos-build \
 	    -t "${os_abbrev}-build"
 
+	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
+	generate-glibc32-koji-helper \
+	    "${os_repo_for_koji}" \
+	    "/root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
+	
+	koji \
+	    add-external-repo \
+	    "${os_abbrev}-glibc32" \
+	    "file:///root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
+
+	# TODO: instead of using the glibc32 repo for all builds against this
+	#       target, create a new target with a -glibc32 suffix, and use that
+	#       against a whitelist of packages (grub, ??)
+	koji \
+	    add-external-repo \
+	    "${os_abbrev}-glibc32" \
+	    -t "${os_abbrev}-build"
     done
 
     # todo, this repo needs to get generated from the new gen-tdv-srpm-repo script, 

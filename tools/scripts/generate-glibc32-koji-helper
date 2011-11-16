@@ -1,0 +1,355 @@
+#!/usr/bin/env bash
+#
+#############################################################################
+#############################################################################
+#
+# generate-glibc32-koji-helper
+#
+# given an x86_64 yum repo, generates the helper package of key i686
+# libraries needed to build packages like grub with koji.
+#
+#############################################################################
+#
+# Copyright 2007-2011 Douglas McClendon <dmc AT filteredperception DOT org>
+#
+#############################################################################
+#
+# This file is part of X.
+#
+#    X is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+#
+#    X is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with X.  If not, see <http://www.gnu.org/licenses/>.
+#
+#############################################################################
+# note: if you'd like a different license, just let me know which and why
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## generate-glibc32-koji-helper \
+##   <x86_64 yum repo url> \
+##   <output repo rootdir>
+##
+##
+## DESCRIPTION
+##
+## takes the latest versions of packages from the a defined, relatively
+## small set set, and uses them to generate a koji format glibc32.x86_64 rpm
+##
+##
+#############################################################################
+
+
+#############################################################################
+#############################################################################
+##
+## local constant definitions
+##
+
+# for common script library- libx.sh
+x_toolname="el-build"
+x_prefix=/usr
+
+
+#############################################################################
+#############################################################################
+##
+## load system library
+##
+
+if [ -f "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh" ]; then
+    source "$( dirname $( readlink -e $0 ) )/../../tools/scripts/libx.sh"
+elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then 
+    source "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" 
+else
+    echo "$0: error: fatal: could not load ${x_toolname} system library libx.sh"
+    exit 1
+fi
+
+
+#############################################################################
+#############################################################################
+##
+## constant and option default definitions
+##
+
+# note: if these lists cease being as small and static as the currently seem
+#   to be, then expose them as normal user defaults/config/tunables
+
+glibc32_component_list="\
+glibc
+glibc-devel
+nspr
+nspr-devel
+nss-softokn
+nss-softokn-devel
+nss-softokn-freebl
+xulrunner
+xulrunner-devel
+"
+
+glibc32_dependent_packages="\
+grub
+"
+
+# to enable debug messages if desired
+x_debug=1
+
+# to suppress status messages if desired
+x_quiet=0
+
+
+#############################################################################
+#############################################################################
+##
+## functions
+##
+function usage {
+    echo ""
+    echo "usage:"
+    echo ""
+    echo "${progname} \\"
+    echo "    [command options...]"
+    echo ""
+    echo ""
+    exit 1
+}
+
+
+#############################################################################
+#############################################################################
+##
+## main
+##
+
+#############################################################################
+## init
+status "initializing ..."
+
+tmpdir=$( setup_tmpdir )
+
+#############################################################################
+## parse args
+
+# todo: perhaps support http urls (would chroot non-root yum work for yumdownloader?)
+debug "parsing arguments ..."
+if [ $# -ne 2 ]; then
+    usage
+else
+    input_repo="${1}"
+    output_repo=$( readlink -f "${2}" )
+fi
+
+if [ -e "${output_repo}" ]; then
+    die "output repo ${output_repo} already exists"
+fi
+
+#############################################################################
+## fetch component packages
+mkdir -p "${tmpdir}/incoming-components"
+
+mkdir -p "${tmpdir}/fake-yum-root"
+mkdir -p "${tmpdir}/unpruned"
+mkdir -p "${tmpdir}/unpruned/x86_64"
+mkdir -p "${tmpdir}/pruned"
+mkdir -p "${tmpdir}/pruned/x86_64"
+mkdir -p "${tmpdir}/fake-yum-root/var/cache/yum"
+mkdir -p "${tmpdir}/fake-yum-root/var/log"
+
+mkdir -p "${tmpdir}/fake-yum-root/etc"
+cat <<EOF > "${tmpdir}/fake-yum-root/etc/yum.conf"
+[main]
+cachedir=${tmpdir}/fake-yum-root/var/cache/yum/\$basearch/\$releasever
+keepcache=0
+debuglevel=2
+logfile=${tmpdir}/fake-yum-root/var/log/yum.log
+exactarch=1
+obsoletes=1
+gpgcheck=1
+plugins=1
+installonly_limit=3
+reposdir=${tmpdir}/fake-yum-root/etc/yum.repos.d
+EOF
+
+mkdir -p "${tmpdir}/fake-yum-root/etc/yum.repos.d"
+cat <<EOF > "${tmpdir}/fake-yum-root/etc/yum.repos.d/x.repo"
+[x]
+name=x - x86_64
+baseurl=${input_repo}
+enabled=1
+gpgcheck=0
+# security note: update-net-cache checks the signatures of the packages it caches
+EOF
+# initialize throwaway rpmdb
+mkdir -p "${tmpdir}/fake-yum-root/var/lib/rpm"
+rpm \
+    --root "${tmpdir}/fake-yum-root/var/lib/rpm" \
+    --initdb
+
+pushd "${tmpdir}/incoming-components" > /dev/null 2>&1
+
+for glibc32_component in ${glibc32_component_list}; do
+    yumdownloader \
+	--config="${tmpdir}/fake-yum-root/etc/yum.conf" \
+	--installroot="${tmpdir}/fake-yum-root" \
+	"${glibc32_component}.i686"
+done
+
+popd
+
+pushd "${tmpdir}/unpruned/x86_64" > /dev/null 2>&1
+
+for glibc32_component_rpm in $( ls -1A "${tmpdir}/incoming-components/"*.i686.rpm ); do
+    rpm2cpio "${glibc32_component_rpm}" \
+	| cpio --extract --make-directories
+done
+
+popd
+
+cp -a \
+    "${tmpdir}/unpruned/x86_64/lib" \
+    "${tmpdir}/pruned/x86_64/"
+
+mkdir -p "${tmpdir}/pruned/x86_64/usr"
+cp -a \
+    "${tmpdir}/unpruned/x86_64/usr/"{lib,include} \
+    "${tmpdir}/pruned/x86_64/usr/"
+
+# work was done to iteratively create this list by monitoring failed builds
+# of grub in a koji instance
+rm -f "${tmpdir}/pruned/x86_64/usr/lib/libsoftokn3."*
+rm -f "${tmpdir}/pruned/x86_64/usr/lib/libnssdbm3.so"
+rm -rf "${tmpdir}/pruned/x86_64/usr/lib/nss"
+
+
+glibc_version=$( yum \
+    --config="${tmpdir}/fake-yum-root/etc/yum.conf" \
+    --installroot="${tmpdir}/fake-yum-root" \
+    info glibc.i686 \
+    | grep "^Version" \
+    | sed -e 's/^Version.*: //' )
+showvar glibc_version
+glibc_release=$( yum \
+    --config="${tmpdir}/fake-yum-root/etc/yum.conf" \
+    --installroot="${tmpdir}/fake-yum-root" \
+    info glibc.i686 \
+    | grep "^Release" \
+    | sed -e 's/^Release.*: //' )
+showvar glibc_release
+glibc_release_generic=$( echo "${glibc_release}" | sed -e 's/\.el6.*//' )
+showvar glibc_release_generic
+glibc_release_major=$( echo "${glibc_release}" | sed -e 's/\..*//' )
+showvar glibc_release_major
+glibc_release_minor=$( echo "${glibc_release}" | sed -e 's/[^\.]*\.//' )
+showvar glibc_release_minor
+glibc_release_minor_generic=$( echo "${glibc_release_minor}" | sed -e 's/\.el6.*//' )
+showvar glibc_release_minor_generic
+
+glibc_tarball_rootdirname="glibc32-${glibc_version}.${glibc_release_major}"
+showvar glibc_tarball_rootdirname
+glibc_tarball_filename="glibc32-${glibc_version}.${glibc_release_major}-${glibc_release_minor_generic}.tar.bz2"
+showvar glibc_tarball_filename
+
+mkdir "${tmpdir}/${glibc_tarball_rootdirname}"
+mv "${tmpdir}/pruned/x86_64" \
+    "${tmpdir}/${glibc_tarball_rootdirname}/"
+tar \
+    -C "${tmpdir}" \
+    -cjf "${tmpdir}/${glibc_tarball_filename}" \
+    "${glibc_tarball_rootdirname}"
+
+mkdir "${tmpdir}/home"
+env HOME="${tmpdir}/home" rpmdev-setuptree
+cp "${tmpdir}/${glibc_tarball_filename}" \
+    "${tmpdir}/home/rpmbuild/SOURCES/"
+
+cat <<EOF > "${tmpdir}/home/rpmbuild/SPECS/glibc32.spec"
+%define debug_package %{nil}
+Summary: The GNU libc 32-bit libraries.
+Name: glibc32
+Version: ${glibc_version}.${glibc_release_major}
+Release: ${glibc_release_minor_generic}
+License: LGPL
+Group: System Environment/Libraries
+Source: glibc32-%{version}-%{release}.tar.bz2
+Buildroot: %{_tmppath}/glibc-%{PACKAGE_VERSION}-root
+ExclusiveArch: x86_64
+
+%description
+The glibc package contains standard libraries which are used by
+multiple programs on the system. In order to save disk space and
+memory, as well as to make upgrading easier, common system code is
+kept in one place and shared between programs. This particular package
+contains the most important sets of shared libraries: the standard C
+library and the standard math library. Without these two libraries, a
+Linux system will not function.
+
+%prep
+%setup
+
+%build
+
+%install
+rm -rf \$RPM_BUILD_ROOT
+mkdir -p \$RPM_BUILD_ROOT
+cp -a %{_target_cpu}/* \$RPM_BUILD_ROOT/
+
+%post -p /sbin/ldconfig
+
+%postun -p /sbin/ldconfig
+
+%clean
+rm -rf "\$RPM_BUILD_ROOT"
+
+%files
+%defattr(-,root,root)
+/lib/*
+/usr/lib/*
+/usr/include/*
+
+%changelog
+* Mon Nov 14 2011 Douglas McClendon <dmc@cloudsession.com>
+- updated from glibc-2.12.1-7 and nss-softokn-3.12.7-1.1.el6
+
+* Thu Jan 28 2010 Jakub Jelinek <jakub@redhat.com>
+- updated from glibc-2.11.1-1 and nss-softokn-3.12.4-10.fc12
+- ... older changelog history was more or less repeats of this ...
+
+EOF
+
+
+env HOME="${tmpdir}/home" \
+    rpmbuild \
+    -bs \
+    "${tmpdir}/home/rpmbuild/SPECS/glibc32.spec"
+
+env HOME="${tmpdir}/home" \
+    rpmbuild \
+    --rebuild \
+    "${tmpdir}/home/rpmbuild/SRPMS/"*.src.rpm
+
+mkdir -p "${output_repo}"
+
+cp "${tmpdir}/home/rpmbuild/RPMS/"*/*.rpm \
+    "${output_repo}"
+
+createrepo "${output_repo}"
+
+
+#############################################################################
+## end script - only notes below
+#############################################################################
+#
+#
+#
+
