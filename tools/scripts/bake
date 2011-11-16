@@ -339,9 +339,10 @@ else
 	status "mirroring the upstream vendors source rpms for el version 6 ..."
 	mirror-tuv-srpms-el6
 	
-	# verify all rpm signatures
-	# todo: don't check every package against all keys, perhaps a whitelist of known
-	#       repo to key mappings, or equivalent somehow
+        # verify all rpm signatures
+        # todo: don't check every package against all keys, perhaps a whitelist of known
+        #       repo to key mappings, or equivalent somehow
+	status "checking cached package signatures ..."
 	sigcheck-repo "${cachedir}"
 
 	# disable if wanted for debugging, and in general to test if it matters
@@ -401,6 +402,7 @@ bs-check-tuv-el6
 
 status "generating a set of downstream source rpms from the given defaults and user configuration ..."
 gen-tdv-srpm-repo
+
 
 #############################################################################
 #
