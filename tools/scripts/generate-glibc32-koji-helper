@@ -103,7 +103,7 @@ grub
 "
 
 # to enable debug messages if desired
-x_debug=1
+x_debug=0
 
 # to suppress status messages if desired
 x_quiet=0
