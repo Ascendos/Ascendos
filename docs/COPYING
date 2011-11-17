@@ -1,0 +1,10 @@
+FIXME (just dmc's first thoughts below, patches/pull-requests encouraged)
+
+GPLv3 by default
+
+presume that logo policy is same as that of fedoraproject.org, and it is a very
+high priority to make
+
+el-build bake distroname=HelloWorld
+
+produce redistributable output stripped of all unredistributable trademarks
