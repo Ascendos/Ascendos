@@ -479,21 +479,31 @@ if ( listin "compile-sources" "${do_bake_phases}" ); then
 	fi
 	bs_os_abbrevs="${bs_os_abbrevs} ${os_abbrev}"
 	
-	koji \
-	    add-tag \
-	    "${os_abbrev}"
-
+	# add a tag (type: buildroot)
 	koji \
 	    add-tag \
 	    --arches "i686,x86_64" \
 	    "${os_abbrev}-build"
 
+	# add a tag (type: destination)
+	koji \
+	    add-tag \
+	    "${os_abbrev}"
+
+	# create a target alias to the prior tag tuple- br,dest
 	koji \
 	    add-target \
 	    "${os_abbrev}" \
 	    "${os_abbrev}-build" \
 	    "${os_abbrev}"
+	
+	# init a min/build group for binary(rpm) target output against this ${os_abbrev}
+	koji \
+	    add-group \
+	    "${os_abbrev}-build" \
+	    srpm-build
 
+	# init a min/build group for source(rpm) target output against this ${os_abbrev}
 	koji \
 	    add-group \
 	    "${os_abbrev}-build" \
@@ -533,13 +543,7 @@ buildsys-macros-el6
 	done
 	buildroot_minbuild_pkgset="${newlist}"
 
-	status "about to add-group-pkg for ${os_abbrev} ..."
-	status \
-	koji \
-	    add-group-pkg \
-	    "${os_abbrev}-build" \
-	    build \
-	    ${buildroot_minbuild_pkgset}
+	status "add-group-pkg for ${os_abbrev} ... ${buildroot_minbuild_pkgset} ..."
 	koji \
 	    add-group-pkg \
 	    "${os_abbrev}-build" \
