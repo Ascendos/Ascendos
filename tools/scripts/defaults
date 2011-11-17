@@ -56,8 +56,14 @@ x_builder_vm_memory=1024
 # feeds into end-user installers, and their boot media filenames, etc...
 x_bake_distroname="Ascendos"
 
+# used by livecd-creator, (limited to filename friendly single word?)
+x_bake_live_label="Ascendos"
+
+# used by livecd-creator, pungi, ... (todo: xorg/etc...?)
+x_bake_bug_url="http://bugzilla.ascendos.org"
+
 #############################################################################
-#
+# used by pungi
 x_bake_distrover="6.0"
 
 #############################################################################
@@ -66,14 +72,14 @@ x_bake_distrorelname="nameless"
 
 #############################################################################
 # use this to use for instance build.ascendos.org SRPMS instead of your own
-#x_bake_tdv_source_repo="http://build.ascendos.org/linux/ascendos/SRPMS"
+#x_bake_tdv_src_repo="http://build.ascendos.org/linux/ascendos/SRPMS"
 x_bake_tdv_src_repo="self-generated-from-deltas"
 
 #############################################################################
 # use this to have the installer generating bake phases use this specified
 # repo of binary rpms instead of the internal output from koji working against
 # the srpms generated from the devtree default configuration.
-#x_bake_builtrepo="http://build.ascendos.org/linux/ascendos/6.0
+#x_bake_tdv_bin_repo="http://build.ascendos.org/linux/ascendos/6.0
 x_bake_tdv_bin_repo="self-generated-from-compiled-sources"
 
 #############################################################################
@@ -85,9 +91,10 @@ x_bake_bake_flags=""
 x_bake_test_package_list=""
 
 #############################################################################
-## presumption for x_bake_config_* is to first check in ./, then x_devdir/6/distrover/
-## and for rest to check relative devtree/ (e.g. Ascendos/) 
-# TODO: ensure that full/non-relative paths work with all
+## presumption for x_bake_config_* is to first check in ./, then
+##   ${x_devdir}/6/distrover/ and for rest to check relative devtree/
+##   (e.g. Ascendos/) 
+## TODO: ensure that full/non-relative paths work with all
 #############################################################################
 
 #############################################################################
@@ -184,16 +191,18 @@ rhel6beta:ftp://ftp.redhat.com/redhat/rhel/beta/6/\$arch/os/
 #
 # TODO: add a method for specifying a mirror to use if desired for any entry
 #
-# TODO: this is a terribly lazy first pass overkill overmirroring.  two possible
-#       methods come to mind to reign it in.  First would be to use some sort of
-#       proxy for these sites and have it only store what is actually used.  But
-#       that doesn't make it so easy to seperate the first phase of caching/mirroring
-#       and the second phase (because the second phase dictates what is/needs to be
-#       cached).  What I'm thinking of now as a 2nd pass quick hack is to use the
-#       user-httpd logs to generate the list of actually used bootstrapping packages,
-#       and generate a manifest, which can be checked in as a config file, and used
-#       by subsequent runs for mirrors on the order of a few gigabytes, rather than
-#       over 100.
+# TODO: this is a terribly lazy first pass overkill overmirroring.  two
+#   possible methods come to mind to reign it in.  First would be to use
+#   some sort of proxy for these sites and have it only store what is
+#   actually used.  But that doesn't make it so easy to seperate the first
+#   phase of caching/mirroring and the second phase (because the second
+#   phase dictates what is/needs to be cached).  What I'm thinking of now
+#   as a 2nd pass quick hack is to use the user-httpd logs to generate the
+#   list of actually used bootstrapping packages, and generate a manifest,
+#   which can be checked in as a config file, and used by subsequent runs
+#   for mirrors on the order of a few gigabytes, rather than over 100.
+#
+# TODO: get ascendos.org off of the list, generated from git devtree instead
 #
 x_mirror_dirs="\
 ftp://ftp.scientificlinux.org/linux/scientific/6x/SRPMS
@@ -221,21 +230,16 @@ x_mirror_files="\
 "
 
 #############################################################################
-# current exposure of some alpha ascendos koji metadata, for chartmaking
+# current exposure of alpha ascendos koji metadata, for bigboard chartmaking
 x_asc_koji_dump_file="http://build.ascendos.org/linux/development/dmc/koji-buildinfo-dumps/asc-bs-info-dump-latest.tar.bz2"
 
 #############################################################################
 # Significant build tools versions specification
 # (somewhat obviated by bringing all of epel6 in as a dependency)
 #
-# TODO: I couldn't get yumdownloader --source --config= to do what I wanted
-#   to, to scriptedly get the latest version in the el-build wrapper's
-#   caching section (current theory is to just bring in all of epel as a
-#   boostrapping dependency, which would be gross were it not for the
-#   sl60/f13/f12/rhel6beta deps already.
-# TODO: now that epel is on by default in v-bake, use it to calculate these
-#   versions, though probably we want to mirror and archive all versions of
-#   these in the ascendos build repo.
+# TODO: use yumdownloader to calculate these, but also make sure that
+#   these are archived in or out of devtree somewhere 
+#   (as epel seems to be a rolling repo)
 x_pigz_version="2.1.6-1"
 x_mock_version="1.1.15-1"
 x_livecdtools_version="13.4-1"
@@ -258,8 +262,6 @@ x_livecdtools_version="13.4-1"
 x_enable_rebootless_liveos_installer_installation=0
 
 if (("${x_enable_rebootless_liveos_installer_installation}")); then
-    # one off files
-    # note: zyx-liveinstaller only gets used if the subseqent flag is set
     x_mirror_files="\
 ${x_mirror_files}
 http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8-1.src.rpm
@@ -270,9 +272,11 @@ fi
 # cause a complete copy of the devtree used to generate the output to
 # be available on the filesystem of the resulting output livecd/dvd/usbs,
 # such that they themselves contain all the build code needed regenerate
-# themselves completely from recompiled sources.
+# themselves completely from uncompiled sources.
+#
 # TODO: after update-net-cache (pre)pruning implemented, have flag to
-#       generate partner 'with-source isos' for the 'genesis' live images.
+#   generate partner 'with-source isos' for the 'genesis' live images.
+#
 x_enable_devtree_inclusion_in_live_output=0
 
 #############################################################################

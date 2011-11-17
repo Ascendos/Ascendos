@@ -64,6 +64,10 @@
 ##    un-hardcodify versions
 ##  - though with above, best to migrate the critical things to the build
 ##    repo, or ideally, the entire build repo generatable from the devtree
+##  - it'll be no trivial amount of work fixing bugs / finishing the details
+##    of jumping past the base/updates time thresholds (i.e. all the
+##    use of x_bake_distrover are basically indicators of the likely places
+##    where extra steps will need to be taken to do things correctly)
 
 
 #############################################################################
@@ -121,7 +125,6 @@ setterm -blank 0
 ## initialize output and workareas
 mkdir -p "${outroot}"
 cd "${outroot}"
-mkdir 6.0
 mkdir workarea
 mkdir logs
 mkdir koji
@@ -138,7 +141,8 @@ cd "${outroot}/workarea"
 ## initialize package management
 
 # TODO: obviously hardcoded stuffs that need to be abstracted into config files
-#       alongside other target-distro-specifying configs
+#   alongside other target-distro-specifying configs
+#    - perhaps 6/6.0/configs/oven.repo
 mv /etc/yum.repos.d /etc/yum.repos.d.orig
 
 mkdir /etc/yum.repos.d
@@ -151,8 +155,10 @@ mkdir /etc/yum.repos.d
 #      - and devtree downloading depends on wget..........
 #   - could be considered resolved by presuming success of el-build bake in
 #     providing baking vm with wget, as it in fact goes to ks lengths to do
+#  - and the distrover variable dependency
 elbuild_doc_root="http://10.0.2.2:8421"
 elbuild_cache_root="${elbuild_doc_root}/cache"
+x_bake_distrover="6.0"
 
 cat <<EOF > /etc/yum.repos.d/el-build-baking.repo
 
@@ -161,9 +167,9 @@ name=Scientific Linux \$releasever - \$basearch
 # yumvars seem pretty stupid, needing to be full directory entries, i.e. this doesn't work,
 # nor does \${releasever} work...
 #baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/\$releasever/\$basearch/os/
-#baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os/
+#baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/${x_bake_distrover}/x86_64/os/
 # note: but it had to be worked around in the cache for koji anyway
-baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/\$basearch/os/
+baseurl=${elbuild_cache_root}/ftp/ftp.scientificlinux.org/linux/scientific/${x_bake_distrover}/\$basearch/os/
 enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-sl file:///etc/pki/rpm-gpg/RPM-GPG-KEY-dawson
@@ -206,6 +212,9 @@ EOF
 
 #############################################################################
 ## get the full devtree
+# todo: instead of invoking yum here, just try urlgrabber, then wget in
+#   that order, and die if neither is installed.  it is entirely reasonable
+#   to put the responsibility on bake to ensure a sufficient min env.
 yum -y install wget
 wget -q \
     -O "${outroot}/workarea/devtree.tar.bz2" \
@@ -236,6 +245,8 @@ fi
 elbuild_doc_root="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}"
 elbuild_cache_root="${elbuild_doc_root}/cache"
 
+# derived initialization
+mkdir -p "${outroot}/${x_bake_distrover}"
 
 #############################################################################
 ## fetch baking options from the wrapper script
@@ -258,10 +269,9 @@ source "${outroot}/logs/v-bake.options"
 #############################################################################
 # workaround for what appears to be a pungi bug (no anaconda srpm in output)
 # TODO: use cleaner yum installroot/config method as working in gen-glibc32...
-cat <<EOF > /etc/yum.repos.d/asc-src.repo
-[asc-src]
-# todo: this needs to be defaults/config tunable (using distroname)
-name=Ascendos - sources
+cat <<EOF > /etc/yum.repos.d/el-build-bake-src.repo
+[el-build-bake-src]
+name=${x_bake_distroname} - sources
 # todo: this needs to be defaults/config tunable
 baseurl=${elbuild_cache_root}/tdv.SRPMS/
 enabled=0
@@ -269,7 +279,7 @@ gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha file:///etc/pki/rpm-gpg/RPM-GPG-KEY-ascendos-alpha-dmc
 EOF
 # fetch the src.rpm from the above defined repo
-yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
+yumdownloader --disablerepo=* --enablerepo=el-build-bake-src --source anaconda
 
 
 #############################################################################
@@ -290,6 +300,7 @@ yumdownloader --disablerepo=* --enablerepo=asc-src --source anaconda
 
 # for rpmbuild(--rebuild) and rpmdev-setuptree
 yum -y install rpm-build
+yum -y install rpmdevtools
 
 # for rebuilding pigz
 yum -y install gcc
@@ -434,12 +445,15 @@ if ( listin "compile-sources" "${do_bake_phases}" ); then
     # TODO: see if pushd/popd are really needed or if full path works
     pushd /mnt/space/el-build/scripts
     bash ./makeworld
-    mv /etc/mock/site-defaults.cfg \
-	/etc/mock/site-defaults.cfg.prebake
-    # TODO: its a start, worry about 6.1 when 6.0 fully works
-    # TODO: also abstract away appropriately(AAA)
-    cp "${outroot}/devtree/Ascendos/6/6.0/configs/mock.site-defaults.cfg" \
-	/etc/mock/site-defaults.cfg
+ 
+# note: will readd this once we have the qa in place or otherwise notice the
+# problems that this may solve (turns out it wasn't the grub issue after all)   
+#    mv /etc/mock/site-defaults.cfg \
+#	/etc/mock/site-defaults.cfg.prebake
+#    # TODO: its a start, worry about 6.1 when 6.0 fully works
+#    # TODO: also abstract away appropriately(AAA)
+#    cp "${outroot}/devtree/Ascendos/6/${x_bake_distrover}/configs/mock.site-defaults.cfg" \
+#	/etc/mock/site-defaults.cfg
     popd
 
     # todo: fix this in makeworld
@@ -544,7 +558,6 @@ buildsys-macros-el6
 #	os_repo_for_koji=$( get_cached_path \
 #	    "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache" \
 #	    "${os_repo}" )
-	showvar os_repo_for_koji
 	os_repo_for_koji=$( get_cached_path \
 	    "" \
 	    "${os_repo}" )
@@ -559,8 +572,7 @@ buildsys-macros-el6
 	    "${os_repo_for_koji}"
 	    
 
-        # cause it to be used for builds with abbrev-build build tag 
-	#  (src or dest, I forget)
+        # cause it to be used for builds with ${os_abbrev}-build build tag 
 	status koji add-external-repo "${os_abbrev}-base" -t "${os_abbrev}-build"
 	koji \
 	    add-external-repo \
@@ -574,15 +586,21 @@ buildsys-macros-el6
 	    ascendos-build \
 	    -t "${os_abbrev}-build"
 
+	# generate a glibc32 helper package/repo needed for koji to build grub
 	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}"
+	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}/i386"
+	createrepo "/root/el-build-workarea/glibc32/${os_abbrev}/i386"
+	os_repo_for_helper=$( echo "${os_repo_for_koji}" | \
+	    sed -e 's/$arch/x86_64/g' )
 	generate-glibc32-koji-helper \
-	    "${os_repo_for_koji}" \
+	    "${os_repo_for_helper}" \
 	    "/root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
-	
+
+	# import the repo into koji
 	koji \
 	    add-external-repo \
 	    "${os_abbrev}-glibc32" \
-	    "file:///root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
+	    "file:///root/el-build-workarea/glibc32/${os_abbrev}/\$arch/"
 
 	# TODO: instead of using the glibc32 repo for all builds against this
 	#       target, create a new target with a -glibc32 suffix, and use that
@@ -591,9 +609,13 @@ buildsys-macros-el6
 	    add-external-repo \
 	    "${os_abbrev}-glibc32" \
 	    -t "${os_abbrev}-build"
+
+	koji \
+	    regen-repo \
+	    "${os_abbrev}-build"
     done
 
-    # todo, this repo needs to get generated from the new gen-tdv-srpm-repo script, 
+    # SHOWSTOPPER, this repo needs to get generated from the new gen-tdv-srpm-repo script, 
     # and the list with the reverse builddate sorting
 
     if [ "${test_package_list}" != "" ]; then
@@ -676,11 +698,16 @@ buildsys-macros-el6
 
 	debug "calculating target bootstrap os"
 	target_bs_os="${def_bs_os}"
-	for bs_os in $( listreverse "${bs_os_abbrevs}" ); do
+
+	check_os_list=$( listreverse "${bs_os_abbrevs}" )
+	check_os_list=$( listremove "${def_bs_os}" "${check_os_list}" )
+
+	for bs_os in ${check_os_list}; do
+	    
 	    debug "checking against configuration set for bootstrap os: ${bs_os} ..."
-	    if [ ! -f "${x_devdir}/6/6.0/configs/build-against-${bs_os}.pkglist" ]; then
+	    if [ ! -f "${x_devdir}/6/${x_bake_distrover}/configs/build-against-${bs_os}.pkglist" ]; then
 		debug "no configuration pkglist for bootstrap os: ${bs_os} was found"
-		if $( grep -q "^${pkg_n}" "${x_devdir}/6/6.0/configs/build-against-${bs_os}.pkglist" ); then
+		if $( grep -q "^${pkg_n}" "${x_devdir}/6/${x_bake_distrover}/configs/build-against-${bs_os}.pkglist" ); then
 		    debug "match: ${pkg_n} should be built against ${bs_os}"
 		    target_bs_os="${bs_os}"
 		else
@@ -736,8 +763,8 @@ if ( listin "installer-traditional-x64" "${do_bake_phases}" ); then
     pungi \
 	--cachedir=/root/el-build-workarea/cache \
 	--destdir=/root/el-build-workarea/output \
-	--name=Ascendos \
-	--ver=6.0 \
+	--name="${x_bake_distroname}" \
+	--ver=${x_bake_distrover} \
 	--bugurl=http://bugzilla.ascendos.org \
 	--fulltree \
 	--selfhosting \
@@ -756,7 +783,7 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
 
     # deploy specific mock configuration for pungi-i386 runs
     # todo: make defaults/configurable
-    cp "${x_devdir}/6/6.0/configs/mock-for-pungi-el6-i386.cfg" \
+    cp "${x_devdir}/6/${x_bake_distrover}/configs/mock-for-pungi-el6-i386.cfg" \
 	/etc/mock/mock-for-pungi-el6-i386.cfg
     
     # initialize the mock buildroot
@@ -812,9 +839,9 @@ rpm -Uvh /root/pungi-\*.rpm'"
 pungi \
   --cachedir=/root/el-build-workarea/cache \
   --destdir=/root/el-build-workarea/output \
-  --name=Ascendos \
-  --ver=6.0 \
-  --bugurl=http://bugzilla.ascendos.org \
+  --name=${x_bake_distroname} \
+  --ver=${x_bake_distrover} \
+  --bugurl=${x_bake_bug_url} \
   --fulltree \
   --selfhosting \
   --nosplitmedia \
@@ -838,7 +865,7 @@ cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm \$INSTALL_ROOT
 # todo: perhaps yum localinstall is better
 /usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm
 rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm
-echo "Ascendos Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
+echo "${x_bake_distroname} Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
 %end
 
 EOF
@@ -870,13 +897,13 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
 	--cache=/root/el-build-workarea/cache \
 	--tmpdir=/root/el-build-workarea/tmp \
 	--logfile=/root/el-build-workarea/livecd-desktop-x32.log \
-	--fslabel="x_live_os" \
+	--fslabel="${x_bake_live_label}" \
 	--config=livecd-desktop-i386.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x32.console.log"
 
-    mkdir -p "${x32outroot}/6.0/i386/iso"
-    mv x_live_os.iso \
-	"${x32outroot}/6.0/i386/iso/Ascendos-6.0-i386-LiveCD-Desktop.iso"
+    mkdir -p "${x32outroot}/${x_bake_distrover}/i386/iso"
+    mv "${x_bake_live_label}.iso" \
+	"${x32outroot}/${x_bake_distrover}/i386/iso/${x_bake_distroname}-${x_bake_distrover}-i386-LiveCD-Desktop.iso"
     mv /root/el-build-workarea/livecd-desktop-x32.log \
 	"${outroot}/logs/"
     mv /root/el-build-workarea/livecd-desktop-i386.ks \
@@ -898,13 +925,13 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
 	--cache=/root/el-build-workarea/cache \
 	--tmpdir=/root/el-build-workarea/tmp \
 	--logfile=/root/el-build-workarea/livecd-desktop-x64.log \
-	--fslabel="x_live_os" \
+	--fslabel="${x_bake_live_label}" \
 	--config=livecd-desktop-x86_64.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x64.console.log"
 
-    mkdir -p "${x64outroot}/6.0/x86_64/iso"
-    mv x_live_os.iso \
-	"${x64outroot}/6.0/x86_64/iso/Ascendos-6.0-x86_64-LiveCD-Desktop.iso"
+    mkdir -p "${x64outroot}/${x_bake_distrover}/x86_64/iso"
+    mv "${x_bake_live_label}.iso" \
+	"${x64outroot}/${x_bake_distrover}/x86_64/iso/${x_bake_distroname}-${x_bake_distrover}-x86_64-LiveCD-Desktop.iso"
     mv /root/el-build-workarea/livecd-desktop-x64.log \
 	"${outroot}/logs/"
     mv /root/el-build-workarea/livecd-desktop-x86_64.ks \
@@ -915,10 +942,10 @@ fi
 popd
 
 # .composeinfo
-mv "${x64outroot}/6.0/.composeinfo" \
-    "${outroot}/6.0/.composeinfo.x86_64"
-mv "${x32outroot}/6.0/.composeinfo" \
-    "${outroot}/6.0/.composeinfo.i386"
+mv "${x64outroot}/${x_bake_distrover}/.composeinfo" \
+    "${outroot}/${x_bake_distrover}/.composeinfo.x86_64"
+mv "${x32outroot}/${x_bake_distrover}/.composeinfo" \
+    "${outroot}/${x_bake_distrover}/.composeinfo.i386"
 
 # logs
 mkdir "${outroot}/logs"
@@ -951,36 +978,36 @@ mv "${x32outroot}/work/"* \
 #                   final output arrangements (using hardlinks)
 
 # main stuffs
-mv "${x64outroot}/6.0/x86_64" \
-    "${outroot}/6.0/"
-mv "${x32outroot}/6.0/i386" \
-    "${outroot}/6.0/"
+mv "${x64outroot}/${x_bake_distrover}/x86_64" \
+    "${outroot}/${x_bake_distrover}/"
+mv "${x32outroot}/${x_bake_distrover}/i386" \
+    "${outroot}/${x_bake_distrover}/"
 
 ## sources
-mv "${x32outroot}/6.0/source" \
-    "${outroot}/6.0/"
+mv "${x32outroot}/${x_bake_distrover}/source" \
+    "${outroot}/${x_bake_distrover}/"
 
 # carefully merge x32 and x64 sources
-for srpm in $( ls -1A "${x64outroot}/6.0/source/SRPMS/*.src.rpm" ); do
+for srpm in $( ls -1A "${x64outroot}/${x_bake_distrover}/source/SRPMS/*.src.rpm" ); do
     srpm_base=$( basename "${srpm}" )
-    if [ -f "{outroot}/6.0/source/SRPMS/${srpm_base}" ]; then
+    if [ -f "{outroot}/${x_bake_distrover}/source/SRPMS/${srpm_base}" ]; then
 	status "x32 already has x64 src.rpm of the same name: ${srpm}"
-	if ( ! diff -q "${srpm}" "${x32outroot}/6.0/source/SRPMS/${srpm_base}" ); then
+	if ( ! diff -q "${srpm}" "${x32outroot}/${x_bake_distrover}/source/SRPMS/${srpm_base}" ); then
 	    status "assertion failed: about to ls -l the two files"
-	    status ls -l "${srpm}" "${x32outroot}/6.0/source/SRPMS/${srpm_base}"
-	    ls -l "${srpm}" "${x32outroot}/6.0/source/SRPMS/${srpm_base}"
+	    status ls -l "${srpm}" "${x32outroot}/${x_bake_distrover}/source/SRPMS/${srpm_base}"
+	    ls -l "${srpm}" "${x32outroot}/${x_bake_distrover}/source/SRPMS/${srpm_base}"
 	    die "danger danger: differing x32 and x64 srpms with the same name: ${srpm}"
 	fi
     else
 	status "copying x64 only src.rpm into place: ${srpm}"
-	cp "${srpm}" "${outroot}/6.0/source/SRPMS/"
+	cp "${srpm}" "${outroot}/${x_bake_distrover}/source/SRPMS/"
     fi
 done
 
 
 # bug workaround (TODO a bit cleaner after the first test)
 cp /root/anaconda*.src.rpm \
-    "${outroot}/6.0/source/SRPMS/"
+    "${outroot}/${x_bake_distrover}/source/SRPMS/"
 
 
 # prepare output for the external user

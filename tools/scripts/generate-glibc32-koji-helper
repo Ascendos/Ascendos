@@ -83,21 +83,21 @@ fi
 ## constant and option default definitions
 ##
 
-# note: if these lists cease being as small and static as the currently seem
-#   to be, then expose them as normal user defaults/config/tunables
+# note: if these lists cease being as small and static as they currently
+#   seem to be, then expose them as normal user defaults/config/tunables
 
 glibc32_component_list="\
 glibc
 glibc-devel
+glibc-static
 nspr
 nspr-devel
 nss-softokn
 nss-softokn-devel
 nss-softokn-freebl
-xulrunner
-xulrunner-devel
 "
 
+# TODO: use this: define a whitelist of packages glibc32 is useful for
 glibc32_dependent_packages="\
 grub
 "
@@ -119,7 +119,8 @@ function usage {
     echo "usage:"
     echo ""
     echo "${progname} \\"
-    echo "    [command options...]"
+    echo "    <x86_64 yum repo url> \\"
+    echo "    <output yum repo root directory>"
     echo ""
     echo ""
     exit 1
@@ -132,17 +133,16 @@ function usage {
 ## main
 ##
 
+
 #############################################################################
-## init
 status "initializing ..."
 
 tmpdir=$( setup_tmpdir )
 
-#############################################################################
-## parse args
 
-# todo: perhaps support http urls (would chroot non-root yum work for yumdownloader?)
+#############################################################################
 debug "parsing arguments ..."
+
 if [ $# -ne 2 ]; then
     usage
 else
@@ -150,12 +150,18 @@ else
     output_repo=$( readlink -f "${2}" )
 fi
 
+
+#############################################################################
+debug "sanity checking arguments ..."
+
 if [ -e "${output_repo}" ]; then
     die "output repo ${output_repo} already exists"
 fi
 
+
 #############################################################################
-## fetch component packages
+debug "fetching component packages ..."
+
 mkdir -p "${tmpdir}/incoming-components"
 
 mkdir -p "${tmpdir}/fake-yum-root"
@@ -190,6 +196,7 @@ enabled=1
 gpgcheck=0
 # security note: update-net-cache checks the signatures of the packages it caches
 EOF
+
 # initialize throwaway rpmdb
 mkdir -p "${tmpdir}/fake-yum-root/var/lib/rpm"
 rpm \
@@ -254,7 +261,6 @@ glibc_release_minor=$( echo "${glibc_release}" | sed -e 's/[^\.]*\.//' )
 showvar glibc_release_minor
 glibc_release_minor_generic=$( echo "${glibc_release_minor}" | sed -e 's/\.el6.*//' )
 showvar glibc_release_minor_generic
-
 glibc_tarball_rootdirname="glibc32-${glibc_version}.${glibc_release_major}"
 showvar glibc_tarball_rootdirname
 glibc_tarball_filename="glibc32-${glibc_version}.${glibc_release_major}-${glibc_release_minor_generic}.tar.bz2"

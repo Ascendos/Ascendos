@@ -106,14 +106,51 @@ function usage {
 ## main
 ##
 
+
+#############################################################################
 status "initializing..."
 
 tmpdir=$( setup_tmpdir )
 
-cachedir=$( readlink -f "${1}" )
+
+#############################################################################
+debug "parsing arguments ..."
+
+if [ $# -ne 1 ]; then
+    usage
+else
+    cachedir=$( readlink -f "${1}" )
+fi
+
+
+#############################################################################
+debug "sanity checking arguments ..."
 
 if [ ! -d "${cachedir}" ]; then
     die "cache directory ${cachedir} does not exist"
+fi
+
+
+#############################################################################
+debug "sanity checking environment ..."
+
+if [ "${x_i_can_justify_this_network_bandwidth_to_myself}" != "yes" ]; then
+    lastwords="\
+not proceeding,
+
+
+due to the current immaturity of the el-build baking scripts, 100G+ of
+inputs must be fetched/cached/mirrored from the internets instead of the
+much much smaller amount that is actually used.  If you and your ISP can
+live with this, then override the default
+
+x_i_can_justify_this_network_bandwidth_to_myself=no
+
+to yes in either tools/scripts/localconfig or ~/.el-build/config
+
+
+"
+    die "${lastwords}"
 fi
 
 #############################################################################
