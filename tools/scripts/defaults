@@ -57,6 +57,8 @@ x_builder_vm_memory=1024
 x_bake_distroname="Ascendos"
 
 # used by livecd-creator, (limited to filename friendly single word?)
+# TODO: recent churn, if all is working again, will make this implied as
+#   above with ' ' changed to '_' if needed
 x_bake_live_label="Ascendos"
 
 # used by livecd-creator, pungi, ... (todo: xorg/etc...?)

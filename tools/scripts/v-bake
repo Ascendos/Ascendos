@@ -673,7 +673,8 @@ buildsys-macros-el6
 #   own first output instead of the original bootstrapping repos.
 #
 #   3 then updates up to the next epoch are built against that previous output
-#          instead of the 4 bootstrap os repos 
+#     *as well as all prior updates[1]* instead of the 4 bootstrap os repos 
+#     [1]: note 6.0 updates era libguestfs requiring 6.0 updates era febootstrap
 # TODO: see if this actually works even for the 'trouble' packages.
 #
 #   4 then a pointrelease is composed, jump back to 3, repeat ad infinitum
