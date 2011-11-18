@@ -485,6 +485,13 @@ cp "${x_devdir}/tools/scripts/v-bake" \
 cp "${x_devdir}/${x_builder_vm_ks_config}" \
     "${httpd_tmpdir}/docroot/baker.ks" 
 
+if [ -f "${HOME}/.el-build/config" ]; then
+    cp "${HOME}/.el-build/config" \
+	"${httpd_tmpdir}/docroot/el-build-user-config" 
+else
+    touch "${httpd_tmpdir}/docroot/el-build-user-config" 
+fi
+
 status "preparing a full copy of the build tools devtree for the inner-vm to use ..."
 ### give a full copy of the devtree to the vm
 tar -C $( dirname "${x_devdir}" ) -cjf \

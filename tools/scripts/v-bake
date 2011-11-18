@@ -223,6 +223,13 @@ tar \
     -C "${outroot}/devtree" \
     -xvf "${outroot}/workarea/devtree.tar.bz2"
 
+# get per-user configuration overrides, and put where libx.sh expects
+wget -q \
+    -O "${outroot}/workarea/el-build-user-config" \
+    "${elbuild_doc_root}/el-build-user-config"
+cp "${outroot}/workarea/el-build-user-config" \
+    /tmp/el-build-user-config
+
 
 #############################################################################
 ##
@@ -392,7 +399,7 @@ rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 ##
 if (("${x_enable_rebootless_liveos_installer_installation}")); then
     #wget "http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8-1.src.rpm"
-    wget "${elbuild_cache_root}one-off-files/zyx-liveinstaller-0.2.8-1.src.rpm"
+    wget "${elbuild_cache_root}/one-off-files/zyx-liveinstaller-0.2.8-1.src.rpm"
     # not gpg signed yet, for now, el-build and zyx-liveinstaller lead-devs the same person
     if ( ! rpm --checksig zyx-liveinstaller-0.2.8-1.src.rpm ); then
 	die "zyx-liveinstaller signature could not be verified as correct"
@@ -919,7 +926,7 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
 	"${x32outroot}/${x_bake_distrover}/i386/iso/${x_bake_distroname}-${x_bake_distrover}-i386-LiveCD-Desktop.iso"
     mv /root/el-build-workarea/livecd-desktop-x32.log \
 	"${outroot}/logs/"
-    mv /root/el-build-workarea/livecd-desktop-i386.ks \
+    mv ./livecd-desktop-i386.ks \
 	"${outroot}/logs/"
 
 fi
@@ -947,7 +954,7 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
 	"${x64outroot}/${x_bake_distrover}/x86_64/iso/${x_bake_distroname}-${x_bake_distrover}-x86_64-LiveCD-Desktop.iso"
     mv /root/el-build-workarea/livecd-desktop-x64.log \
 	"${outroot}/logs/"
-    mv /root/el-build-workarea/livecd-desktop-x86_64.ks \
+    mv ./livecd-desktop-x86_64.ks \
 	"${outroot}/logs/"
 
 fi
