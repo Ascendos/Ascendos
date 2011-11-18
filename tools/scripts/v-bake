@@ -769,8 +769,8 @@ if ( listin "installer-traditional-x64" "${do_bake_phases}" ); then
 	--cachedir=/root/el-build-workarea/cache \
 	--destdir=/root/el-build-workarea/output \
 	--name="${x_bake_distroname}" \
-	--ver=${x_bake_distrover} \
-	--bugurl=http://bugzilla.ascendos.org \
+	--ver="${x_bake_distrover}" \
+	--bugurl="${x_bake_bug_url}" \
 	--fulltree \
 	--selfhosting \
 	--nosplitmedia \
@@ -838,6 +838,14 @@ rpm -Uvh /root/repoview-\*.rpm'"
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/pungi-\*.rpm'"
     
+    cp -av "${x_devdir}/${x_bake_traditional_x32_installer_ks_config}" \
+	"${mockroot}/root/pungi-i386.cfg"
+
+    # TODO: figure out what this means (output from x-run.log)
+#(rpm installing)python-kid                  ##################################################
+#WARNING: Forcibly unmounting '/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache' from chroot.
+#State Changed: unlock buildroot
+
     # note sure about what works for multilinebreaking here, too tired to care
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
@@ -850,7 +858,7 @@ pungi \
   --fulltree \
   --selfhosting \
   --nosplitmedia \
-  --config=${x_devdir}/${x_bake_traditional_x32_installer_ks_config}'"
+  --config=${mockroot}/root/pungi-i386.cfg'"
     
     # undo the bind mount
     umount "${mockroot}/root/el-build-workarea/cache"
