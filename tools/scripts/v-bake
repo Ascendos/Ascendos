@@ -858,7 +858,7 @@ pungi \
   --fulltree \
   --selfhosting \
   --nosplitmedia \
-  --config=${mockroot}/root/pungi-i386.cfg'"
+  --config=/root/pungi-i386.cfg'"
     
     # undo the bind mount
     umount "${mockroot}/root/el-build-workarea/cache"
