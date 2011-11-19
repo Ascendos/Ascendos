@@ -400,15 +400,10 @@ ln -s "${cachedir}" \
 
 status "launching non-root httpd service for the inner baker vm" \
     "on port ${x_bake_user_httpd_port} ..."
-# TODO: need further stale bake cleanup would be to look for httpd
-#   processes whose baking parent pid (as evinced from tmpdir visible
-#   in ps output) is no longer live, and reap them.  And also then logic
-#   in {view,destroy}-last-bake-vm to restart/stop
-#killall httpd > /dev/null 2>&1
-#sleep 2
-#killall -KILL httpd > /dev/null 2>&1
-#sleep 2
-# launch the httpd daemon
+
+# TODO: view-last-bake-vm should autostart its associated httpd, and
+#   pass in the new portnum, now that these get reaped by pre-bake-clean
+
 user-httpd \
     "${x_bake_user_httpd_port}" \
     "${tmpdir}/user-httpd-docroot" \
