@@ -881,10 +881,10 @@ else
     cat <<EOF > /tmp/live.rebootless.append.ks
 
 %post --nochroot
-cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm
+cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.8-1.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.noarch.rpm
 # todo: perhaps yum localinstall is better
-/usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm
-rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.el6.noarch.rpm
+/usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.8-1.noarch.rpm
+rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.noarch.rpm
 echo "${x_bake_distroname} Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
 %end
 
