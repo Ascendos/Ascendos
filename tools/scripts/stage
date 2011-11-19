@@ -156,7 +156,7 @@ dist_test="${dist_test_def}"
 
 status "initializing ..."
 
-dist_version_major_def=$( echo "${x_bake_distrover}" | sed -e 's/\..*//' )
+dist_version_major=$( echo "${x_bake_distrover}" | sed -e 's/\..*//' )
 
 
 #############################################################################
@@ -276,7 +276,7 @@ ${packages_to_sign_list} ${staging_dir}/${pkg_name}/${package}"
 done
     
 if [ "${signing_user}" != "none" ]; then
-    status "NOT QUITE signing packages..."
+    status "signing packages..."
     if ( ! rpm --addsign ${packages_to_sign_list} ); then
 	die "package signing failed"
     fi
@@ -296,79 +296,81 @@ for package in ${pkg_list}; do
 
     # note: existing structure leaves src out of everything.  good reasons??
     src_rpm_homes="\
-${dev_staging_root}/SRPMS
+${x_dev_staging_root}/SRPMS
 "
     noarch_rpm_homes="\
-${dev_staging_root}/everything
+${x_dev_staging_root}/everything
 "
     x32_rpm_homes="\
-${dev_staging_root}/everything
+${x_dev_staging_root}/everything
 "
     x64_rpm_homes="\
-${dev_staging_root}/everything
+${x_dev_staging_root}/everything
 "
     noarch_debuginfo_rpm_homes="\
-${dev_staging_root}/debuginfo
-${dev_staging_root}/everything
+${x_dev_staging_root}/debuginfo
+${x_dev_staging_root}/everything
 "
     x32_debuginfo_rpm_homes="\
-${dev_staging_root}/debuginfo
-${dev_staging_root}/everything
+${x_dev_staging_root}/debuginfo
+${x_dev_staging_root}/everything
 "
     x64_debuginfo_rpm_homes="\
-${dev_staging_root}/debuginfo
-${dev_staging_root}/everything
+${x_dev_staging_root}/debuginfo
+${x_dev_staging_root}/everything
 "
 
 
     # iterate over staging decisions for each point release
-    for (( pr=0 ; ${pr} < ${max_pointrelease} ; pr=$(( ${pr} + 1 )); do
+    for (( pr=0 ; ${pr} < ${max_pointrelease} ; pr=$(( ${pr} + 1 )) )); do
 
 #############################################################################
 	# first do base (... then updates, see below)
-
-	bintype="${dist_version_major}.${pr}-base"
 
 	#${x_cached_repochart_text_filename}
 	# todo: sed .'s into \.'s in the grep arg?
 	chartline=$( \
 	    cat "${x_cached_repochart_text_filename}" \
-	    | grep "${package}" )
+	    | grep "${package}\s" )
+
+	bintype="${dist_version_major}.${pr}-base"
 
 	if ( echo "${chartline}" | grep -q "${bintype}" ); then
 	    status "package: ${package}: will get staged as ${bintype} ..."
 
-	    case $pr in
-		# .0 is presently odd
+            # .0 is presently odd
+	    case "${pr}" in
 		0)
 		    noarch_rpm_homes="\
 ${noarch_rpm_homes}
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/i386/Packages
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/x86_64/Packages
+${x_dev_staging_root}/${dist_version_major}.${pr}/os/i386/Packages
+${x_dev_staging_root}/${dist_version_major}.${pr}/os/x86_64/Packages
 "
 		    x32_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/i386/Packages
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/x86_64/Packages
+${x32_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/os/i386/Packages
+${x_dev_staging_root}/${dist_version_major}.${pr}/os/x86_64/Packages
 "
 		    x64_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/os/x86_64/Packages
+${x64_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/os/x86_64/Packages
 "
-                    ;;
-
+		    ;;
 		*)
 		    noarch_rpm_homes="\
 ${noarch_rpm_homes}
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/i386/os/Packages
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/os/Packages
+${x_dev_staging_root}/${dist_version_major}.${pr}/i386/os/Packages
+${x_dev_staging_root}/${dist_version_major}.${pr}/x86_64/os/Packages
 "
 		    x32_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/i386/os/Packages
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/os/Packages
+${x32_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/i386/os/Packages
+${x_dev_staging_root}/${dist_version_major}.${pr}/x86_64/os/Packages
 "
 		    x64_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/os/Packages
+${x64_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/x86_64/os/Packages
 "
-                    # do nothing for now
                     ;;
             esac
 
@@ -376,42 +378,42 @@ ${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/os/Packag
 	
 	bintype="${dist_version_major}.${pr}-updates"
 
-	chartline=$( \
-	    cat "${x_cached_repochart_text_filename}" \
-	    | grep "${package}" )
-
 	if ( echo "${chartline}" | grep -q "${bintype}" ); then
 	    status "package: ${package}: will get staged as ${bintype} ..."
 
-	    case $pr in
+	    case "${pr}" in
 		# .0 is presently odd
 		0)
 		    noarch_rpm_homes="\
 ${noarch_rpm_homes}
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/updates/i386
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/updates/x86_64
+${x_dev_staging_root}/${dist_version_major}.${pr}/updates/i386
+${x_dev_staging_root}/${dist_version_major}.${pr}/updates/x86_64
 "
 		    x32_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/updates/i386
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/updates/x86_64
+${x32_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/updates/i386
+${x_dev_staging_root}/${dist_version_major}.${pr}/updates/x86_64
 "
 		    x64_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/updates/x86_64
+${x64_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/updates/x86_64
 "
                     ;;
 
 		*)
 		    noarch_rpm_homes="\
 ${noarch_rpm_homes}
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/i386/updates
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/updates
+${x_dev_staging_root}/${dist_version_major}.${pr}/i386/updates
+${x_dev_staging_root}/${dist_version_major}.${pr}/x86_64/updates
 "
 		    x32_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/i386/updates
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/updates
+${x32_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/i386/updates
+${x_dev_staging_root}/${dist_version_major}.${pr}/x86_64/updates
 "
 		    x64_rpm_homes="\
-${dev_staging_root}/${dist_version_major}.${dist_version_minor}/x86_64/updates
+${x64_rpm_homes}
+${x_dev_staging_root}/${dist_version_major}.${pr}/x86_64/updates
 "
                     # do nothing for now
                     ;;
@@ -497,9 +499,8 @@ fi
 
 ## update the repodata
 
-pushd "${dev_staging_root}" 2>&1 > /dev/null
+pushd "${x_dev_staging_root}" 2>&1 > /dev/null
 
-createrepo -d --update union
 createrepo -d --update SRPMS
 createrepo -d --update everything
 createrepo -d --update debuginfo
@@ -523,10 +524,10 @@ createrepo -d --update -g repodata/comps-asc6-x86_64.xml .
 popd 2>&1 > /dev/null
 
 createrepo -d --update "${dist_version_major}.1/i386/updates"
-createrepo -d --update "${dist_version_major}.1/i386/updates" 
+createrepo -d --update "${dist_version_major}.1/x86_64/updates" 
 
 popd 2>&1 > /dev/null
-# leave ${dev_staging_root}
+# leave ${x_dev_staging_root}
 
 
 #############################################################################
