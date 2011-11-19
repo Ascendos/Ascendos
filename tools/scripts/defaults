@@ -47,10 +47,13 @@ x_bake_cachedir="${x_bake_homedotdir}/cache"
 # space building/baking vms is taken here
 x_bake_tmpdir="${x_bake_homedotdir}/tmp"
 
+# staging area (contents mirrorable to the masses)
+x_dev_staging_root="${x_bake_homedotdir}/staging"
+
 #############################################################################
 # ram size for installation and processing of baking-chef node vm
 # todo: benchmark and tune, yum and creatrepo seem to be memory hogs
-x_builder_vm_memory=1024
+x_bake_vm_memory=1024
 
 #############################################################################
 # feeds into end-user installers, and their boot media filenames, etc...
@@ -114,26 +117,27 @@ x_bake_livedvd_x64_installer_ks_config="6/6.0/configs/livedvd-desktop-x86_64.ks"
 
 #############################################################################
 # which kickstart to use for the baking vm
-x_builder_vm_ks_config="6/6.0/configs/min-el60-x64.ks"
+x_bake_vm_ks_config="6/6.0/configs/min-el60-x64.ks"
 
 #############################################################################
-# this should be made dynamic at runtime between a specified range
-x_builder_user_httpd_port=8421
+# port range to use for simple httpd service provided to baking VM
+x_bake_user_httpd_port_max=11111
+x_bake_user_httpd_port_min=7777
 
 #############################################################################
 # seconds between checks to see if processing in the vm completed
-x_builder_vm_shutdown_polling_frequency=30
+x_bake_vm_shutdown_polling_frequency=30
 
 #############################################################################
 # size of builder's filesystem sizes (needs to be 'big enough(tm)')
-x_builder_vm_root_fs_size=111G
-x_builder_vm_scratch_fs_size=111G
-x_builder_vm_output_fs_size=111G
+x_bake_vm_root_fs_size=111G
+x_bake_vm_scratch_fs_size=111G
+x_bake_vm_output_fs_size=111G
 
 #############################################################################
 # how many old baker vm definitions to clog up virsh with
 # ('virsh list --all' housekeeping)
-x_keep_old_baker_vm_definitions=3
+x_keep_old_bake_vm_definitions=3
 
 #############################################################################
 # sha256sum of bootstrap os' x86_64 netinst.iso basically
@@ -163,6 +167,14 @@ x_bake_vm_os_installer_hash="f839fec8fa8d1e7af9e387725cb4559f6522d9c0af0eca72f2b
 #       how upstreams have been providing checksums/signatures.
 x_bake_vm_os_installer_kernel_hash="67c73f849ff756e37d10931faf84ac009178176cc02914d027f71d9793c805266a9136cd32a65b87542076f37b268002f1314c9547ca04bf599ef48ef226c1f4"
 x_bake_vm_os_installer_initramfs_hash="f220e91480125125cc3915edb224271f7391e9eaeb05f3059eceba149040d71ddad47ea2186502c9282c9ffd121275496d78086807c903e09f0216b25629390e"
+
+#############################################################################
+# these need to be in order of dependency, pungi at the end
+x_bake_traditional_installer_tools="\
+python-kid-0.9.6-6.fc13
+repoview-0.6.5-1.fc13
+pungi-2.0.21-1.fc13
+"
 
 #############################################################################
 # something once broke that this fixed ...
@@ -315,7 +327,7 @@ x_internet_online_check_host=mirrors.kernel.org
 
 #############################################################################
 # not really variable, could be moved elsewhere
-x_builder_vm_host_ip=10.0.2.2
+x_bake_vm_host_ip=10.0.2.2
 
 #############################################################################
 # todo: shouldn't be necessary, or even should be done for all input repos

@@ -42,6 +42,11 @@
 ## libx.sh is just a centralized entrypoint into a set of shared bash scripts
 ## and libraries.
 
+# TODO: perhaps rename to libxlog.sh since status logging is the core feature
+# TODO: x_eval wrapper for logging (ala viros' 'veva' function), i.e. so that
+#   you can simply prefix typical processing commands with the wrapper, and
+#   then if the user is interested in debugging, they will see all debugging
+#   output in realtime and placed in convenient logfiles either way.
 
 #############################################################################
 ##
@@ -89,9 +94,9 @@ if [ -f "${progdir}/../../tools/scripts/libx.sh" ]; then
 	pwd ; popd > /dev/null 2>&1 ) )
     x_libdir="${x_devdir}/tools/scripts"
     export PATH="${x_devdir}/tools/bin:${x_devdir}/tools/scripts:${PATH}"
-elif [ -f "/root/output/devtree/Ascendos/tools/scripts/libx.sh" ]; then
+elif [ -f "/el-build-workarea/outroot/devtree/Ascendos/tools/scripts/libx.sh" ]; then
     x_devenv=1
-    x_devdir=/root/output/devtree/Ascendos
+    x_devdir=/el-build-workarea/outroot/devtree/Ascendos
     x_libdir="${x_devdir}/tools/scripts"
     export PATH="${x_devdir}/tools/bin:${x_devdir}/tools/scripts:${PATH}"
 elif [ -f "${x_prefix}/lib/${x_toolname}/scripts/libx.sh" ]; then
@@ -124,10 +129,6 @@ if [ -f "${HOME}/.el-build/config" ]; then
     source "${HOME}/.el-build/config"
 fi
 
-if [ -f "/tmp/el-build-user-config" ]; then
-    source "/tmp/el-build-user-config"
-fi
-
 
 #############################################################################
 ##
@@ -142,5 +143,8 @@ source "${x_libdir}/common"
 
 
 #############################################################################
+## end script - only notes below
 #############################################################################
-#############################################################################
+#
+#
+#

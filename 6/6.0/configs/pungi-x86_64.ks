@@ -31,8 +31,8 @@
 
 #############################################################################
 # Add the repos you wish to use to compose here.  At least one of them needs group data.
-repo --name=ascendos60 --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/6.0/os/x86_64
-repo --name=ascendos60-source --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/SRPMS
+repo --name=ascendos60 --baseurl=EL_BUILD_CACHE_ROOT/http/build.ascendos.org/linux/ascendos/6.0/os/x86_64
+repo --name=ascendos60-source --baseurl=EL_BUILD_CACHE_ROOT/http/build.ascendos.org/linux/ascendos/SRPMS
 
 
 #############################################################################

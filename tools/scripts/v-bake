@@ -92,9 +92,12 @@ x_quiet=0
 ##
 ## constant and option default definitions
 ##
-x64outroot=/root/el-build-workarea/output
-x32outroot=/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/output
-outroot=/root/output
+
+workarea="/${x_toolname}-workarea"
+outroot="${workarea}/outroot"
+
+x32outroot="/var/lib/mock/mock-for-pungi-el6-i386/root${workarea}/output-x32"
+x64outroot="${workarea}/output-x64"
 
 
 #############################################################################
@@ -112,7 +115,7 @@ outroot=/root/output
 # for the parent vm to quiesce(sp?)
 clear
 # no status function until libx.sh is brought in
-echo "vbake: early status: giving host a minute just in case ..."
+echo "v-bake: early status: giving host a minute just in case ..."
 sleep 24
 clear
 echo "v-bake: early status: initializing environment ..."
@@ -121,20 +124,24 @@ echo "v-bake: early status: initializing environment ..."
 echo "v-bake: early status: disabling terminal blanking/screensaver ..."
 setterm -blank 0
 
+# todo: there is no doubt a better way... (to get x_bake_user_httpd_port)
+source /tmp/environment-info.txt
+
 #############################################################################
-## initialize output and workareas
+## initialize output and workareas and working directory
+
 mkdir -p "${outroot}"
-cd "${outroot}"
-mkdir workarea
-mkdir logs
-mkdir koji
-mkdir devtree
-# todo: make this area more of an option/constant
-mkdir /root/el-build-workarea
-mkdir /root/el-build-workarea/glibc32
-mkdir /root/el-build-workarea/cache
-mkdir /root/el-build-workarea/output
-cd "${outroot}/workarea"
+mkdir "${outroot}/logs"
+mkdir "${outroot}/koji"
+mkdir "${outroot}/devtree"
+
+mkdir -p "${workarea}"
+mkdir "${workarea}/glibc32"
+mkdir "${workarea}/cache"
+mkdir "${workarea}/output-x32"
+mkdir "${workarea}/output-x64"
+
+cd "${workarea}"
 
 
 #############################################################################
@@ -156,7 +163,7 @@ mkdir /etc/yum.repos.d
 #   - could be considered resolved by presuming success of el-build bake in
 #     providing baking vm with wget, as it in fact goes to ks lengths to do
 #  - and the distrover variable dependency
-elbuild_doc_root="http://10.0.2.2:8421"
+elbuild_doc_root="http://10.0.2.2:${x_bake_user_httpd_port}"
 elbuild_cache_root="${elbuild_doc_root}/cache"
 x_bake_distrover="6.0"
 
@@ -217,39 +224,35 @@ EOF
 #   to put the responsibility on bake to ensure a sufficient min env.
 yum -y install wget
 wget -q \
-    -O "${outroot}/workarea/devtree.tar.bz2" \
+    -O "${workarea}/devtree.tar.bz2" \
     "${elbuild_doc_root}/devtree.tar.bz2"
 tar \
     -C "${outroot}/devtree" \
-    -xvf "${outroot}/workarea/devtree.tar.bz2"
+    -xvf "${workarea}/devtree.tar.bz2"
 
-# get per-user configuration overrides, and put where libx.sh expects
+# get user-level configuration overrides, and put where libx.sh expects
 wget -q \
-    -O "${outroot}/workarea/el-build-user-config" \
+    -O "${workarea}/el-build-user-config" \
     "${elbuild_doc_root}/el-build-user-config"
-cp "${outroot}/workarea/el-build-user-config" \
-    /tmp/el-build-user-config
+mkdir -p "${HOME}/.el-build"
+cp "${workarea}/el-build-user-config" \
+    "${HOME}/.el-build/config"
 
 
 #############################################################################
-##
 ## load system library (now that it is accessible)
-##
 if [ ! -f "${outroot}/devtree/Ascendos/tools/scripts/libx.sh" ]; then
     echo "v-bake: FATAL ERROR: libx.sh system library not found"
     exit 1
 else
     source "${outroot}/devtree/Ascendos/tools/scripts/libx.sh"
 fi
-##
 #############################################################################
 
 
 #############################################################################
-### derived constants (sigh...)
-# 10.0.2.2 is the ip address the containing qemu-kvm uses to expose the
-# host, which in this case is running apache on port 8421 as non-root
-elbuild_doc_root="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}"
+### derived constants
+elbuild_doc_root="http://${x_bake_vm_host_ip}:${x_bake_user_httpd_port}"
 elbuild_cache_root="${elbuild_doc_root}/cache"
 
 # derived initialization
@@ -305,6 +308,9 @@ yumdownloader --disablerepo=* --enablerepo=el-build-bake-src --source anaconda
 #    /etc/yum.repos.d/sl.repo
 
 
+#############################################################################
+# install needed build requirements from the standard/stock bake vm yum repos
+
 # for rpmbuild(--rebuild) and rpmdev-setuptree
 yum -y install rpm-build
 yum -y install rpmdevtools
@@ -315,6 +321,7 @@ yum -y install zlib-devel
 
 # for general utility 
 yum -y install lftp
+
 # dmc wuz here
 yum -y install emacs
 
@@ -334,56 +341,55 @@ yum -y install python-devel
 # for running pungi
 yum -y install anaconda-runtime
 
+
+#############################################################################
 ## install pubkeys for verifying .src.rpm signatures
 # trust our own copies of the keys, instead of theoretical mitm 
 # during the download of the src.rpms from the same server
+# SECURITY TODO: do finer grain checking, i.e. not all keys
+#   against all packages, but specific keys against certain sets
 rpm --import \
     "${outroot}/devtree/Ascendos/infra/security/keys/RPM-GPG-KEY-"*
 
-## TODO: make the following an loop over a list (necessarily ordered)
-
 
 #############################################################################
-##
 ## get pungi installed
-##
 
-## get python-kid installed, needed by repoview
-wget "${elbuild_cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/python-kid-0.9.6-6.fc13.src.rpm"
-if ( ! rpm --checksig python-kid-0.9.6-6.fc13.src.rpm ); then
-    die "python-kid signature could not be verified as correct"
-fi
-rpmbuild --rebuild python-kid-0.9.6-6.fc13.src.rpm
-rpm -Uvh /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm
+# TODO: tool list is currently exposed in defaults, but not really 
+#   tunable as the location is defined here.  This was done to highlight
+#   soem important things currently, that can be made more flexible later.
+fedora_archive="${elbuild_cache_root}/http/archive.fedoraproject.org"
+fedora_archive="${fedora_archive}/pub/archive/fedora/linux/releases"
+target_file_parent="${fedora_archive}/13/Everything/source/SRPMS/"
 
-## get repoview installed, needed by pungi
-wget "${elbuild_cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/repoview-0.6.5-1.fc13.src.rpm"
-if ( ! rpm --checksig repoview-0.6.5-1.fc13.src.rpm ); then
-    die "repoview signature could not be verified as correct"
-fi
-rpmbuild --rebuild repoview-0.6.5-1.fc13.src.rpm 
-rpm -Uvh /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm
+# these will get used by pungi-under-mock-for-x32-output phase
+mkdir "${workarea}/shared-noarch-packages"
 
+for target_package in ${x_bake_traditional_installer_tools}; do
+    
+    target_srpm="${target_package}.src.rpm"
 
-## get pungi
-# note: the f13-updates version of pungi seems to only include a single esoteric one line change
-#       which seems needed if and only if some python update has also been applied (e.g. using
-#       SL60/+updates/ for the bootstrap repo, which is not currently the default here)
-# todo: check to see if f14/++ versions of pungi work without modification and/or have important
-#       enhancements or bugfixes.  It's reasonable to start with f13 as that is likely what
-#       tuv branched for its own builds (educated guess with no evidence yet to the contrary)
-wget "${elbuild_cache_root}/http/archive.fedoraproject.org/pub/archive/fedora/linux/releases/13/Everything/source/SRPMS/pungi-2.0.21-1.fc13.src.rpm"
-if ( ! rpm --checksig pungi-2.0.21-1.fc13.src.rpm ); then
-    die "pungi signature could not be verified as correct"
-fi
-rpmbuild --rebuild pungi-2.0.21-1.fc13.src.rpm
-rpm -Uvh /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm
+    target_url="${target_file_parent}/${target_srpm}"
 
+    wget "${target_url}"
+    
+    if ( ! rpm --checksig "${target_srpm}" ); then
+	die "source package: ${target_srpm} failed signature check"
+    fi
+
+    pkg_build_dir="${workarea}/baker-prereq-build-${target_package}"
+    mkdir "${pkg_build_dir}"
+    env HOME="${pkg_build_dir}" \
+	rpmdev-setuptree
+    env HOME="${pkg_build_dir}" \
+	rpmbuild --rebuild "${target_srpm}"
+    rpm -Uvh "${pkg_build_dir}/rpmbuild/RPMS/"*/*.rpm
+    cp "${pkg_build_dir}/rpmbuild/RPMS/noarch/"*.rpm \
+	"${workarea}/shared-noarch-packages/"
+done
 
 #############################################################################
-##
 ## get livecd-tools installed
-##
 
 ## get livecd-tools for generating installable live media (livecd/dvd/usb etc) images
 wget "${elbuild_cache_root}/ftp/mirrors.kernel.org/pub/fedora-epel/6/SRPMS/livecd-tools-${x_livecdtools_version}.el6.src.rpm"
@@ -394,33 +400,29 @@ rpmbuild --rebuild "livecd-tools-${x_livecdtools_version}.el6.src.rpm"
 rpm -Uvh /rpmbuild/RPMS/x86_64/{livecd-tools,python-imgcreate}*.rpm
 
 #############################################################################
-##
 ## (opt) get zyx-liveinstaller to support rebootless live media installation
-##
+
+zli_version="0.2.8-1"
 if (("${x_enable_rebootless_liveos_installer_installation}")); then
-    #wget "http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-0.2.8-1.src.rpm"
-    wget "${elbuild_cache_root}/one-off-files/zyx-liveinstaller-0.2.8-1.src.rpm"
-    # not gpg signed yet, for now, el-build and zyx-liveinstaller lead-devs the same person
-    if ( ! rpm --checksig zyx-liveinstaller-0.2.8-1.src.rpm ); then
+    #wget "http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-${zli_version}.src.rpm"
+    wget "${elbuild_cache_root}/one-off-files/zyx-liveinstaller-${zli_version}.src.rpm"
+    # SECURITY TODO: not gpg signed yet
+    if ( ! rpm --checksig "zyx-liveinstaller-${zli_version}.src.rpm" ); then
 	die "zyx-liveinstaller signature could not be verified as correct"
     fi
-    rpmbuild --rebuild zyx-liveinstaller-0.2.8-1.src.rpm
+    rpmbuild --rebuild "zyx-liveinstaller-${zli_version}.src.rpm"
 fi
 
 
 #############################################################################
-##
 ## get mock installed (for pungi)
-##
 
 # install mock from epel
 yum -y install mock
 
 
 #############################################################################
-##
 ## prep system for build
-##
 
 # pungi requires selinux not be enforcing 
 # and makeworld too, though perhaps that can be fixed
@@ -428,9 +430,7 @@ setenforce 0
 
 
 #############################################################################
-##
 ## do bake, phase by optional phase
-##
 
 # TODO: these should be broken into additional called scripts
 
@@ -439,9 +439,19 @@ setenforce 0
 if ( listin "compile-sources" "${do_bake_phases}" ); then
 
     # set up space provided to the vm by the parent bake script
-    mkfs.ext3 -O sparse_super /dev/sdc
     mkdir /mnt/space
-    mount /dev/sdc /mnt/space
+    # todo: disks do not seem to be enumerated predictably based on 
+    #   their order in the virt-install call (find a cleaner workaround)
+    if (( $( blockdev --getsize64 /dev/sdc ) > 3131313 )); then
+	mkfs.ext3 -O sparse_super /dev/sdc
+	mount /dev/sdc /mnt/space
+    elif  (( $( blockdev --getsize64 /dev/sdd ) > 3131313 )); then
+	mkfs.ext3 -O sparse_super /dev/sdd
+	mount /dev/sdd /mnt/space
+    else
+	die "can't find the scratch disk ..."
+    fi
+	
     mkdir /mnt/space/el-build
 
     # install the koji setup scripts
@@ -567,12 +577,12 @@ buildsys-macros-el6
 
 # todo: get_cached_path not currently work so well with http:// due to use of readlink
 #	os_repo_for_koji=$( get_cached_path \
-#	    "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache" \
+#	    "http://${x_bake_vm_host_ip}:${x_bake_user_httpd_port}/cache" \
 #	    "${os_repo}" )
 	os_repo_for_koji=$( get_cached_path \
 	    "" \
 	    "${os_repo}" )
-	os_repo_for_koji="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache${os_repo_for_koji}"
+	os_repo_for_koji="http://${x_bake_vm_host_ip}:${x_bake_user_httpd_port}/cache${os_repo_for_koji}"
 	showvar os_repo_for_koji
 
         # create the repo
@@ -598,20 +608,20 @@ buildsys-macros-el6
 	    -t "${os_abbrev}-build"
 
 	# generate a glibc32 helper package/repo needed for koji to build grub
-	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}"
-	mkdir -p "/root/el-build-workarea/glibc32/${os_abbrev}/i386"
-	createrepo "/root/el-build-workarea/glibc32/${os_abbrev}/i386"
+	mkdir -p "${workarea}/glibc32/${os_abbrev}"
+	mkdir -p "${workarea}/glibc32/${os_abbrev}/i386"
+	createrepo "${workarea}/glibc32/${os_abbrev}/i386"
 	os_repo_for_helper=$( echo "${os_repo_for_koji}" | \
 	    sed -e 's/$arch/x86_64/g' )
 	generate-glibc32-koji-helper \
 	    "${os_repo_for_helper}" \
-	    "/root/el-build-workarea/glibc32/${os_abbrev}/x86_64"
+	    "${workarea}/glibc32/${os_abbrev}/x86_64"
 
 	# import the repo into koji
 	koji \
 	    add-external-repo \
 	    "${os_abbrev}-glibc32" \
-	    "file:///root/el-build-workarea/glibc32/${os_abbrev}/\$arch/"
+	    "file://${workarea}/glibc32/${os_abbrev}/\$arch/"
 
 	# TODO: instead of using the glibc32 repo for all builds against this
 	#       target, create a new target with a -glibc32 suffix, and use that
@@ -632,7 +642,8 @@ buildsys-macros-el6
     if [ "${test_package_list}" != "" ]; then
 	srpm_list="${test_package_list}"
     else
-        srpm_list=$( lftp -e "cd cache ; cd build.ascendos.org/linux/ascendos/SRPMS ; ls ; quit" http://10.0.2.2:8421/ 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
+        srpm_list=$( \
+	    lftp -e "cd cache ; cd build.ascendos.org/linux/ascendos/SRPMS ; ls ; quit" "http://10.0.2.2:${x_bake_user_httpd_port}/" 2>&1 | awk '{print $5}' | grep "\.src\.rpm$" | sort --sort=version )
     fi
 
     echo "${srpm_list}" > "${outroot}/logs/koji_tobuild_srpm_list.txt"
@@ -704,7 +715,7 @@ buildsys-macros-el6
 	# TODO: obviously need to abstract away the hostname/path here 
 	# NOTE: ... at the same time that gen-tdv-srpm-repo appears in this script
 	if [ "${x_bake_input_srpm_repo}" == "" ]; then
-	    x_bake_input_srpm_repo="http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache/tdv.SRPMS"
+	    x_bake_input_srpm_repo="http://${x_bake_vm_host_ip}:${x_bake_user_httpd_port}/cache/tdv.SRPMS"
 	fi
 	wget "${x_bake_input_srpm_repo}/${srpm}"
 
@@ -772,9 +783,15 @@ if ( listin "installer-traditional-x64" "${do_bake_phases}" ); then
 
     # TODO: start with abstracting bugurl away, then do the rest
     
+    cp "${x_devdir}/${x_bake_traditional_x64_installer_ks_config}" \
+	"${workarea}/traditional_installer_x64_config.ks"
+    sed -i \
+	-e "s,EL_BUILD_CACHE_ROOT,${elbuild_cache_root},g" \
+	"${workarea}/traditional_installer_x64_config.ks"
+
     pungi \
-	--cachedir=/root/el-build-workarea/cache \
-	--destdir=/root/el-build-workarea/output \
+	--cachedir=${workarea}/cache \
+	--destdir=${workarea}/output \
 	--name="${x_bake_distroname}" \
 	--ver="${x_bake_distrover}" \
 	--bugurl="${x_bake_bug_url}" \
@@ -797,6 +814,9 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
     # todo: make defaults/configurable
     cp "${x_devdir}/6/${x_bake_distrover}/configs/mock-for-pungi-el6-i386.cfg" \
 	/etc/mock/mock-for-pungi-el6-i386.cfg
+    sed -i \
+	-e "s,EL_BUILD_CACHE_ROOT,${elbuild_cache_root},g" \
+	/etc/mock/mock-for-pungi-el6-i386.cfg
     
     # initialize the mock buildroot
     su - xmock -c \
@@ -811,8 +831,8 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
 	"mock -r mock-for-pungi-el6-i386 --no-clean --install anaconda-runtime"
 
     mkdir -p "${mockroot}/root"
-    mkdir -p "${mockroot}/root/el-build-workarea"
-    mkdir -p "${mockroot}/root/el-build-workarea/cache"
+    mkdir -p "${mockroot}${workarea}"
+    mkdir -p "${mockroot}${workarea}/cache"
 
     # potential runtime enhancements to be explored:
     #  - use non-usermode qemu/kvm networking if available,
@@ -822,53 +842,53 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
     # (ortho: and a 'el-build set-workarea' to auto move ~/.el-build 
     #         e.g. under a dift mountpoint)
     mount --bind \
-	/root/el-build-workarea/cache \
-	"${mockroot}/root/el-build-workarea/cache"
+	${workarea}/cache \
+	"${mockroot}${workarea}/cache"
 
-    mkdir -p "${mockroot}/root/el-build-workarea/output"
+    mkdir -p "${mockroot}${workarea}/output"
 
-    cp -av /rpmbuild/RPMS/noarch/python-kid-0.9.6-6.el6.noarch.rpm \
+    cp -av "${workarea}/shared-noarch-packages/"*.rpm \
 	"${mockroot}/root/"
+
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/python-kid-\*.rpm'"
 
-    cp -av /rpmbuild/RPMS/noarch/repoview-0.6.5-1.el6.noarch.rpm \
-	"${mockroot}/root/"
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/repoview-\*.rpm'"
 
-    cp -av /rpmbuild/RPMS/noarch/pungi-2.0.21-1.el6.noarch.rpm \
-	"${mockroot}/root/"
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --no-clean --shell '\
 rpm -Uvh /root/pungi-\*.rpm'"
     
     cp -av "${x_devdir}/${x_bake_traditional_x32_installer_ks_config}" \
-	"${mockroot}/root/pungi-i386.cfg"
+	"${mockroot}/traditional_installer_x32_config.ks"
+    sed -i \
+	-e "s,EL_BUILD_CACHE_ROOT,${elbuild_cache_root},g" \
+	"${mockroot}/traditional_installer_x32_config.ks"
 
     # TODO: figure out what this means (output from x-run.log)
 #(rpm installing)python-kid                  ##################################################
-#WARNING: Forcibly unmounting '/var/lib/mock/mock-for-pungi-el6-i386/root/root/el-build-workarea/cache' from chroot.
+#WARNING: Forcibly unmounting '/var/lib/mock/mock-for-pungi-el6-i386/root${workarea}/cache' from chroot.
 #State Changed: unlock buildroot
 
     # note sure about what works for multilinebreaking here, too tired to care
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
 pungi \
-  --cachedir=/root/el-build-workarea/cache \
-  --destdir=/root/el-build-workarea/output \
+  --cachedir=${workarea}/cache \
+  --destdir=${workarea}/output \
   --name=${x_bake_distroname} \
   --ver=${x_bake_distrover} \
   --bugurl=${x_bake_bug_url} \
   --fulltree \
   --selfhosting \
   --nosplitmedia \
-  --config=/root/pungi-i386.cfg'"
+  --config=/traditional_installer_x32_config.ks'"
     
     # undo the bind mount
-    umount "${mockroot}/root/el-build-workarea/cache"
+    umount "${mockroot}${workarea}/cache"
 
 fi
 
@@ -881,10 +901,10 @@ else
     cat <<EOF > /tmp/live.rebootless.append.ks
 
 %post --nochroot
-cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-0.2.8-1.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.noarch.rpm
+cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-${zli_version}.noarch.rpm \$INSTALL_ROOT/tmp/zyx-liveinstaller-${zli_version}.noarch.rpm
 # todo: perhaps yum localinstall is better
-/usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-0.2.8-1.noarch.rpm
-rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-0.2.8-1.noarch.rpm
+/usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-${zli_version}.noarch.rpm
+rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-${zli_version}.noarch.rpm
 echo "${x_bake_distroname} Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
 %end
 
@@ -897,7 +917,7 @@ else
     cat <<EOF > /tmp/live.devtree.append.ks
 
 %post --nochroot
-tar -C \$INSTALL_ROOT/root -xvf "${outroot}/workarea/devtree.tar.bz2"
+tar -C \$INSTALL_ROOT/root -xvf "${workarea}/devtree.tar.bz2"
 %end
 
 EOF
@@ -911,12 +931,15 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
 	/tmp/live.devtree.append.ks \
 	/tmp/live.rebootless.append.ks \
 	> ./livecd-desktop-i386.ks
+    sed -i \
+	-e "s,EL_BUILD_CACHE_ROOT,${elbuild_cache_root},g" \
+	./livecd-desktop-i386.ks
 
     livecd-creator \
 	--verbose \
-	--cache=/root/el-build-workarea/cache \
-	--tmpdir=/root/el-build-workarea/tmp \
-	--logfile=/root/el-build-workarea/livecd-desktop-x32.log \
+	--cache=${workarea}/cache \
+	--tmpdir=${workarea}/tmp \
+	--logfile=${workarea}/livecd-desktop-x32.log \
 	--fslabel="${x_bake_live_label}" \
 	--config=livecd-desktop-i386.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x32.console.log"
@@ -924,7 +947,7 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
     mkdir -p "${x32outroot}/${x_bake_distrover}/i386/iso"
     mv "${x_bake_live_label}.iso" \
 	"${x32outroot}/${x_bake_distrover}/i386/iso/${x_bake_distroname}-${x_bake_distrover}-i386-LiveCD-Desktop.iso"
-    mv /root/el-build-workarea/livecd-desktop-x32.log \
+    mv ${workarea}/livecd-desktop-x32.log \
 	"${outroot}/logs/"
     mv ./livecd-desktop-i386.ks \
 	"${outroot}/logs/"
@@ -939,12 +962,15 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
 	/tmp/live.devtree.append.ks \
 	/tmp/live.rebootless.append.ks \
 	> ./livecd-desktop-x86_64.ks
+    sed -i \
+	-e "s,EL_BUILD_CACHE_ROOT,${elbuild_cache_root},g" \
+	./livecd-desktop-x86_64.ks
 
     livecd-creator \
 	--verbose \
-	--cache=/root/el-build-workarea/cache \
-	--tmpdir=/root/el-build-workarea/tmp \
-	--logfile=/root/el-build-workarea/livecd-desktop-x64.log \
+	--cache=${workarea}/cache \
+	--tmpdir=${workarea}/tmp \
+	--logfile=${workarea}/livecd-desktop-x64.log \
 	--fslabel="${x_bake_live_label}" \
 	--config=livecd-desktop-x86_64.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x64.console.log"
@@ -952,7 +978,7 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
     mkdir -p "${x64outroot}/${x_bake_distrover}/x86_64/iso"
     mv "${x_bake_live_label}.iso" \
 	"${x64outroot}/${x_bake_distrover}/x86_64/iso/${x_bake_distroname}-${x_bake_distrover}-x86_64-LiveCD-Desktop.iso"
-    mv /root/el-build-workarea/livecd-desktop-x64.log \
+    mv ${workarea}/livecd-desktop-x64.log \
 	"${outroot}/logs/"
     mv ./livecd-desktop-x86_64.ks \
 	"${outroot}/logs/"

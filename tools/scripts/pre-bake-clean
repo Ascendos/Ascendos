@@ -3,9 +3,9 @@
 #############################################################################
 #############################################################################
 #
-# hello-world
+# pre-bake-clean
 #
-# a template el-build subcommand script
+# clean up residue from prior cooks
 #
 #############################################################################
 #
@@ -35,12 +35,12 @@
 #############################################################################
 #############################################################################
 ##
-## hello-world
+## pre-bake-clean
 ##
 ##
 ## DESCRIPTION
 ##
-## just a template to use for building new el-build subcommands with bash
+## cleans up old baker vm definitions and reaps stale user-httpd processes
 ##
 ##
 #############################################################################
@@ -111,14 +111,67 @@ function usage {
 
 status "initializing..."
 
-if ((! $#)); then
-    usage
+homedotdir="${1}"
+
+if [ ! -d "${homedotdir}" ]; then
+    die "homedotdir: ${homedotdir} is not accessible"
 fi
 
-firstarg="${1}"
-shift
+tmpdir=$( setup_tmpdir )
 
-status "first argument was ${firstarg} ... ${1} ... ${2} ... ${3} ..."
+num_bakes=$( virsh list --all \
+    | awk '{print $2}' \
+    | grep "^bake" \
+    | wc -l )
+
+num_stale_bakes=$( \
+    echo "${num_bakes} - ${x_keep_old_bake_vm_definitions}" \
+    | bc -l )
+
+stale_bakes=$( virsh list --all \
+    | awk '{print $2}' \
+    | grep "^bake" \
+    | sort \
+    | head "-${num_stale_bakes}" )
+
+for stale_bake in ${stale_bakes}; do
+
+    status "saving xml for stale bake vm ${stale_bake} ..."
+    virsh \
+	dumpxml \
+	"${stale_bake}" \
+	> "${tmpdir}/.stale.baker_vm.${stale_bake}.xml" 2>&1
+
+    status "undefining stale bake vm ${stale_bake} ..."
+    virsh \
+	undefine \
+	"${stale_bake}" \
+	> "${tmpdir}/.stale.baker_vm.${stale_bake}.undef.log" 2>&1
+
+done
+
+target_pids_to_check=$( \
+    ps auwwx \
+    | grep httpd \
+    | grep "\.bake\/" \
+    | sed -e 's/^\(.*\/\)\([^\/]*\)\(\.bake\)\(\/.*\)$/\2/' \
+    | sed -e 's/^[^\.]*\.//' \
+    | sort \
+    | uniq )
+
+for target_pid in ${target_pids_to_check}; do
+    # if the user-httpd process's parent pid is not running, shut it down
+    if ( ! ps "${target_pid}" > /dev/null 2>&1 ); then
+	status \
+	    "shutting down httpd service from prior bake" \
+	    "with pid ${target_pid} ..."
+	user-httpd \
+	    na na \
+	    "${homedotdir}/tmp/"*".${target_pid}.bake/user-httpd/etc" \
+	    stop
+    fi
+done
+
 
 #############################################################################
 ## end script - only notes below

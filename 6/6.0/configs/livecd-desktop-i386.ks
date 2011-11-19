@@ -5,7 +5,7 @@ firewall --enabled --service=mdns
 # X Window System configuration information
 xconfig  --startxonboot
 #repo --name="released" --mirrorlist=http://mirrors.fedoraproject.org/mirrorlist?repo=fedora-13&arch=$basearch
-repo --name="ascendos-60" --baseurl=http://10.0.2.2:8421/cache/http/build.ascendos.org/linux/ascendos/6.0/os/i386
+repo --name="ascendos-60" --baseurl=EL_BUILD_CACHE_ROOT/http/build.ascendos.org/linux/ascendos/6.0/os/i386
 # System authorization information
 auth --useshadow --enablemd5
 # System keyboard

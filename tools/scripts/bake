@@ -3,8 +3,10 @@
 #############################################################################
 #############################################################################
 #
-# bake: a complete and deterministic environment for the standard upstream
-#           build and compose tools (koji/pungi/livecd-creator)
+# bake
+#
+# a complete and deterministic environment for the standard upstream build
+# and compose tools (i.e. koji, mock, pungi, livecd-creator, ...)
 #
 #############################################################################
 #
@@ -47,18 +49,18 @@
 ## mirrorable to the masses.
 ##
 ## Alternately various stages of the processing pipeline and their data
-## inputs and outputs can be cached or directed to/from other places.
+## inputs and outputs can be cached or directed to/from other places, so
+## as to allow focusing on various specific phases of the full bake.
 ##
 ##
 ## NOTES
 ##
 ## - output reproducibility is ensured by the fact that a disposable VM
-##   is generated and used for the major processing phases (e.g. koji,
-##   pungi, and livecd-creator).
+##   is generated and used for the major processing phases
 ##
-## - el-build host requirements (or, what the devoloper has)
+## - el-build host requirements (or, what the main developer has)
 ##  - x86_64 2 core system, 4G of ram
-##  - 300G tmp disk space, 50G for final output
+##  - 500G tmp disk space, 50G for final output
 ##
 #############################################################################
 
@@ -242,50 +244,12 @@ fi
 
 tmpdir=$( setup_tmpdir )
 
-vm_tmpdir="${tmpdir}/vm"
-mkdir -p "${vm_tmpdir}"
-
-httpd_tmpdir="${tmpdir}/user-httpd"
-mkdir -p "${httpd_tmpdir}"
-
 
 #############################################################################
-#
-## clean stale state from prior runs
-#
-
 status "cleaning away residue from prior cooks ..."
 
-num_bakers=$( virsh list --all \
-    | awk '{print $2}' \
-    | grep "^bake" \
-    | wc -l )
-
-num_stale_bakes=$( \
-    echo "${num_bakers} - ${x_keep_old_baker_vm_definitions}" \
-    | bc -l )
-
-stale_bakes=$( virsh list --all \
-    | awk '{print $2}' \
-    | grep "^bake" \
-    | sort \
-    | head "-${num_stale_bakes}" )
-
-for stale_bake in ${stale_bakes}; do
-
-    status "saving xml for stale bake vm ${stale_bake} ..."
-    virsh \
-	dumpxml \
-	"${stale_bake}" \
-	> "${vm_tmpdir}/.stale.baker_vm.${stale_baker}.xml" 2>&1
-
-    status "undefining stale bake vm ${stale_bake} ..."
-    virsh \
-	undefine \
-	"${stale_bake}" \
-	> "${vm_tmpdir}/.stale.baker_vm.${stale_baker}.undef.log" 2>&1
-
-done
+# todo: consider alternative state passing (libvopt or better)
+pre-bake-clean "${homedotdir}"
 
 
 #############################################################################
@@ -316,7 +280,6 @@ if [ "${clear_bootstrapos_repodata}" == "yes" ]; then
     status "clearing out cached bootstrap OSs repodata"
     # pretty ugly workaround for some issue probably resolved by a prior bugfix, but
     # just in case it happens again, a reminder option.
-    # todo: verify funky quoting is really needed here, is for '*' if not '{...,...}'
     rm -rf "${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/i386/os/repo"{data,view}
     rm -rf "${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os/repo"{data,view}
     rm -rf "${cachedir}/ftp/ftp.scientificlinux.org/linux/scientific/6x/SRPMS/repo"{data,view}
@@ -340,16 +303,15 @@ else
 	mirror-tuv-srpms-el6
 	
         # verify all rpm signatures
-        # todo: don't check every package against all keys, perhaps a whitelist of known
-        #       repo to key mappings, or equivalent somehow
+        # SECURITY TODO: don't check every package against all keys, perhaps a whitelist
+        #   of known repo to key mappings stored alongside the keys
 	status "checking cached package signatures ..."
 	sigcheck-repo "${cachedir}"
 
 	# disable if wanted for debugging, and in general to test if it matters
 	if (("${x_regen_some_input_yum_metadata}")); then
 	    status "regenerating cached build.ascendos.org repo metadata ..."
-            # note: ugly(?) temporary workaround that will be obsolete no later than the 
-            #       time when koji/makeworld show up in el-build
+            # note: ugly(?) temporary workaround that will be obsolete by the time 6x-beta happens
             # todo: handle packaged installed case, i.e. not x_devdir relative, but... (and elsewhere)
 	    # todo: perhaps experiment with blanketly doing for all cache repos, rather than depending
 	    #       on yum repo integrity from upstreams
@@ -381,59 +343,76 @@ fi
 
 
 #############################################################################
-##
+#
 ## gather info and calculate initial data chart of upstream packages
-##
+#
 
-status "reverse datesorting a list of the upstream vendor's source rpms for el version 6 ..."
+status "reverse datesorting a list of the upstream vendor's source rpms " \
+    "for el version 6 ..."
 datesort-tuv-el6-srpms
 
-status "generating a data chart of information about the upstream vendor's source rpms for el version 6 ..."
+status "generating a data chart of information about the upstream " \
+    "vendor's source rpms for el version 6 ..."
 repochart-tuv-el6
 
-status "generating a more interesting chart of information about the upstream vendor's source rpms for el version 6 ..."
+status "generating a more interesting chart of information about the " \
+    "upstream vendor's source rpms for el version 6 ..."
 bs-check-tuv-el6
 
 
 #############################################################################
-##
+#
 ## generate downstream source rpms from the given deltas along with the
 ## networkcache of upstream source rpms.
+#
 
-status "generating a set of downstream source rpms from the given defaults and user configuration ..."
+status "generating a set of downstream source rpms from the given " \
+    "defaults and user configuration ..."
 gen-tdv-srpm-repo
 
 
 #############################################################################
 #
-## launch user-httpd on port 8421
+## launch user-httpd on a dynamic high port
 #
 
-# TODO: use random port between some range instead of static port
+port_range_width=$(( \
+    ${x_bake_user_httpd_port_max} - \
+    ${x_bake_user_httpd_port_min} ))
 
+random_port_offset=$(( ${RANDOM} % ${port_range_width} ))
+
+x_bake_user_httpd_port=$(( \
+    ${x_bake_user_httpd_port_min} + \
+    ${random_port_offset} ))
+    
 # note: one could also tar up the docroot into a new qemu disk image, and
-#       use that to expose the data to the VM (or probably several other
-#       ways, including non-userstack networking that may be faster)
+#   use that to expose the data to the VM (or probably several other
+#   ways, including non-userstack networking that may be faster)
 
 # create directory for config/logs, and one for docroot
-mkdir -p "${httpd_tmpdir}/etc"
-mkdir -p "${httpd_tmpdir}/docroot"
+mkdir -p "${tmpdir}/user-httpd-etc"
+mkdir -p "${tmpdir}/user-httpd-docroot"
 
 # expose the mirrors / cache inside the docroot
 ln -s "${cachedir}" \
-    "${httpd_tmpdir}/docroot/cache"
+    "${tmpdir}/user-httpd-docroot/cache"
 
-status "launching user (non-root) httpd as a service for the inner processing vm ..."
-# TODO: this should no doubt be narrowed, lazy big hammer for the first pass
-killall httpd > /dev/null 2>&1
-sleep 2
-killall -KILL httpd > /dev/null 2>&1
-sleep 2
+status "launching non-root httpd service for the inner baker vm" \
+    "on port ${x_bake_user_httpd_port} ..."
+# TODO: need further stale bake cleanup would be to look for httpd
+#   processes whose baking parent pid (as evinced from tmpdir visible
+#   in ps output) is no longer live, and reap them.  And also then logic
+#   in {view,destroy}-last-bake-vm to restart/stop
+#killall httpd > /dev/null 2>&1
+#sleep 2
+#killall -KILL httpd > /dev/null 2>&1
+#sleep 2
 # launch the httpd daemon
 user-httpd \
-    "${x_builder_user_httpd_port}" \
-    "${httpd_tmpdir}/docroot" \
-    "${httpd_tmpdir}/etc" \
+    "${x_bake_user_httpd_port}" \
+    "${tmpdir}/user-httpd-docroot" \
+    "${tmpdir}/user-httpd-etc" \
     start
 
 
@@ -460,7 +439,7 @@ test_package_list=$( uncomma_list "${test_package_list}" )
 
 # expose baking options to the inner/v-bake script
 # TODO: probably a cleaner way
-cat <<EOF > "${httpd_tmpdir}/docroot/v-bake.options" 
+cat <<EOF > "${tmpdir}/user-httpd-docroot/v-bake.options" 
 do_bake_phases="${do_bake_phases}"
 bake_flags="${bake_flags}"
 test_package_list="${test_package_list}"
@@ -477,25 +456,25 @@ export tdv_bin_repo
 
 ## expose inner processing script (x-run/v-bake) in the docroot
 cp "${x_devdir}/tools/scripts/v-bake" \
-    "${httpd_tmpdir}/docroot/x-run" 
+    "${tmpdir}/user-httpd-docroot/x-run" 
 
 # TODO: now that devtree is passed down to vm, use it, ala other recent opt="6/6.0/...ks"
 
 ### create throwaway vm's .ks from template, placed in docroot
-cp "${x_devdir}/${x_builder_vm_ks_config}" \
-    "${httpd_tmpdir}/docroot/baker.ks" 
+cp "${x_devdir}/${x_bake_vm_ks_config}" \
+    "${tmpdir}/user-httpd-docroot/baker.ks" 
 
 if [ -f "${HOME}/.el-build/config" ]; then
     cp "${HOME}/.el-build/config" \
-	"${httpd_tmpdir}/docroot/el-build-user-config" 
+	"${tmpdir}/user-httpd-docroot/el-build-user-config" 
 else
-    touch "${httpd_tmpdir}/docroot/el-build-user-config" 
+    touch "${tmpdir}/user-httpd-docroot/el-build-user-config" 
 fi
 
 status "preparing a full copy of the build tools devtree for the inner-vm to use ..."
 ### give a full copy of the devtree to the vm
 tar -C $( dirname "${x_devdir}" ) -cjf \
-    "${httpd_tmpdir}/docroot/devtree.tar.bz2" \
+    "${tmpdir}/user-httpd-docroot/devtree.tar.bz2" \
     $( basename "${x_devdir}" )
 
 
@@ -503,7 +482,7 @@ tar -C $( dirname "${x_devdir}" ) -cjf \
 #
 ## processing container/vm kickstart additions (to a minimal kickstart)
 #
-cat <<EOF >> "${httpd_tmpdir}/docroot/baker.ks"
+cat <<EOF >> "${tmpdir}/user-httpd-docroot/baker.ks"
 %packages --default
 # for retrieving files from the host httpd server and/or the internet
 wget
@@ -542,8 +521,19 @@ if [ ! -f /root/x-run ]; then
     # tell x-run that it is OK to overwrite /dev/sdb with its output
     touch /tmp/disk-sdb-is-going-to-get-overwritten
 
-    # pull task to run from qemu-kvm host running el-build spawned httpd on port 8421
-    wget -O /root/x-run "http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/x-run"
+    # get host cache service port
+    # note: virt-install having a fourth --disk argument of the env-info
+    #   image is yielding it on /dev/sdc ??
+    drives="sda sdb sdc sdd sde sdf sdg sdh"
+    for drive in \\\${drives}; do
+        if ( dd if=/dev/\\\${drive} bs=1M count=1 | tar -tf - environment-info.txt ); then
+            tar -C /tmp -xvf /dev/\\\${drive}
+            source /tmp/environment-info.txt
+        fi
+    done
+
+    # pull task to run from qemu-kvm host running el-build spawned httpd
+    wget -O /root/x-run "http://${x_bake_vm_host_ip}:\\\${x_bake_user_httpd_port}/x-run"
     chmod +x /root/x-run
     # TODO: x-run uses the installed yum.repos.d, which do not yet utilize
     #       available mirrors (cough, vmirmog, cough)
@@ -551,20 +541,22 @@ if [ ! -f /root/x-run ]; then
 fi
 
 FOO
+
 #
 ## end post-install rc.local appendage
 #
 #############################################################################
 
 %end
+
 EOF
 
 # TODO perhaps improve with definable/option for bootstrap_repotree
 # TODO more general/flexible mirror support ala viros' vmirmog etc...  (too complex for now)
 #  - basically need to iterate over list of x_mirror_dirs, one sed per
 sed -i \
-    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/cache/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|" \
-    "${httpd_tmpdir}/docroot/baker.ks"
+    -e "s|ftp://ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|http://${x_bake_vm_host_ip}:${x_bake_user_httpd_port}/cache/ftp/ftp.scientificlinux.org/linux/scientific/6.0/x86_64/os|" \
+    "${tmpdir}/user-httpd-docroot/baker.ks"
 
 #
 ## end processing container/vm kickstart additions
@@ -573,61 +565,83 @@ sed -i \
 
 
 #############################################################################
-#
-## create throwaway vm disk image
-#
-
-status "creating new system disk image files for the inner-vm ..."
-# TODO: x_eval wrapper for logging (ala viros' 'veva' function)
-qemu-img create \
-    "${vm_tmpdir}/sysroot.img" \
-    "${x_builder_vm_root_fs_size}" \
-    >> "${vm_tmpdir}/qemu-img-create.log" 2>&1
+status "creating new system disk image files for the baking vm ..."
 
 qemu-img create \
-    "${vm_tmpdir}/output.img" \
-    "${x_builder_vm_output_fs_size}" \
-    >> "${vm_tmpdir}/qemu-img-create.log" 2>&1
+    "${tmpdir}/sysroot.img" \
+    "${x_bake_vm_root_fs_size}" \
+    >> "${tmpdir}/qemu-img-create.log" 2>&1
 
 qemu-img create \
-    "${vm_tmpdir}/scratch.img" \
-    "${x_builder_vm_scratch_fs_size}" \
-    >> "${vm_tmpdir}/qemu-img-create.log" 2>&1
+    "${tmpdir}/output.img" \
+    "${x_bake_vm_output_fs_size}" \
+    >> "${tmpdir}/qemu-img-create.log" 2>&1
 
+qemu-img create \
+    "${tmpdir}/scratch.img" \
+    "${x_bake_vm_scratch_fs_size}" \
+    >> "${tmpdir}/qemu-img-create.log" 2>&1
 
 #############################################################################
-#
-## check for cached copy of throwaway vm
-#
+status "preparing environment information for the baking vm ..."
+# note: a pretty crude method for passing a value to the VM
+cat <<EOF > "${tmpdir}/environment-info.txt"
+x_bake_user_httpd_port=${x_bake_user_httpd_port}
+EOF
+
+tar \
+    -C "${tmpdir}" \
+    -cvf "${tmpdir}/environment-info.img" \
+    "environment-info.txt"
+
+# hmm
+cp "${tmpdir}/environment-info.img" \
+    "${tmpdir}/environment-info.img.orig.small"
+
+# pad the image a bit (i've seen disk device truncation on block boundaries) 
+dd if=/dev/zero bs=1M count=1 2> /dev/null \
+    | cat >> "${tmpdir}/environment-info.img"
+
+# hmm
+cp "${tmpdir}/environment-info.img" \
+    "${tmpdir}/environment-info.img.orig.padded"
+
+#############################################################################
+status "checking for a usable cached copy of the baking vm ..."
 
 # see if cached copy exists by calculating filename based on sha256 checksum
+# (though ignore parts including the dynamic httpd port)
+cat "${tmpdir}/user-httpd-docroot/baker.ks" \
+    | grep -v "10\.0\.2\.2" \
+    > "${tmpdir}/user-httpd-docroot/baker.general.ks"
 vm_cfg_checksum=$( sha256sum \
-    "${httpd_tmpdir}/docroot/baker.ks" \
+    "${tmpdir}/user-httpd-docroot/baker.general.ks" \
     | awk '{print $1}')
 
 if [ -f "${cachedir}/vm-${vm_cfg_checksum}.img" ]; then
 
     status "found acceptable cached system image, duplicating ..."
 
-    rm -f "${vm_tmpdir}/sysroot.img"
+    rm -f "${tmpdir}/sysroot.img"
 
     cp -a --sparse=always \
 	"${cachedir}/vm-${vm_cfg_checksum}.img" \
-	"${vm_tmpdir}/sysroot.img"
+	"${tmpdir}/sysroot.img"
 
-    touch "${vm_tmpdir}/sysroot.img.fromcache"
+    touch "${tmpdir}/sysroot.img.fromcache"
 
     virt-install \
 	--import \
 	--name="${progname}-${starttime}-${mypid}" \
-	--disk="${vm_tmpdir}/sysroot.img" \
-	--disk="${vm_tmpdir}/output.img" \
-	--disk="${vm_tmpdir}/scratch.img" \
-	--ram="${x_builder_vm_memory}" \
+	--disk="${tmpdir}/sysroot.img" \
+	--disk="${tmpdir}/output.img" \
+	--disk="${tmpdir}/scratch.img" \
+	--disk="${tmpdir}/environment-info.img" \
+	--ram="${x_bake_vm_memory}" \
 	--noreboot \
 	--wait=-1 \
 	--noautoconsole \
-	> "${vm_tmpdir}/virt-install.log" 2>&1
+	> "${tmpdir}/virt-install.log" 2>&1
 
 else
 
@@ -637,15 +651,11 @@ else
 #
 
 # TODO: add standard qemu (not provided by tuv's repos) as fallback for
-#       an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
+#   an x32 build option, or e.g. my amd-sempron3400+ no-amd-svm case
 
-#       for the netinst here (just boot.iso? or does virt-install pull the
-#       kernel and initrd from PXE/pxeboot directories?)
-
-# TODO: or as an interim measure to the above, and not a bad idea otherwise,
-#       just checksum the entire net cache directory and include that in the
-#       build logs tarball somewhere, and add a checksum of the build logs
-#       tarball to the main output checksums which get signed.
+# TODO: just checksum the entire net cache directory and include that in
+#   the build logs tarball somewhere, and add a checksum of the build logs
+#   tarball to the main output checksums which get signed.
 
 # TODO: make --noautoconsole a --quiet/--debug/--verbose kind of thing
 
@@ -674,22 +684,23 @@ else
     virt-install \
 	--name="${progname}-${starttime}-${mypid}" \
 	--location="${os_location}" \
-	--disk="${vm_tmpdir}/sysroot.img" \
-	--disk="${vm_tmpdir}/output.img" \
-	--disk="${vm_tmpdir}/scratch.img" \
-	--ram="${x_builder_vm_memory}" \
+	--disk="${tmpdir}/sysroot.img" \
+	--disk="${tmpdir}/output.img" \
+	--disk="${tmpdir}/scratch.img" \
+	--disk="${tmpdir}/environment-info.img" \
+	--ram="${x_bake_vm_memory}" \
 	--noreboot \
 	--wait=-1 \
 	--noautoconsole \
-	-x "ks=http://${x_builder_vm_host_ip}:${x_builder_user_httpd_port}/baker.ks" \
-	> "${vm_tmpdir}/virt-install.log" 2>&1
+	-x "ks=http://${x_bake_vm_host_ip}:${x_bake_user_httpd_port}/baker.ks" \
+	> "${tmpdir}/virt-install.log" 2>&1
 
 
     # cache a pristine copy for future runs
     # note: could use qemu-img or other snapshots, but those may have performance issues
     status "stashing a duplicate of the freshly installed vm in the cache ..."
     cp -a --sparse=always \
-	"${vm_tmpdir}/sysroot.img" \
+	"${tmpdir}/sysroot.img" \
 	"${cachedir}/vm-${vm_cfg_checksum}.img"
 fi
 
@@ -706,7 +717,7 @@ status "saving inner-vm's virtualization domain information ..."
 virsh \
     dumpxml \
     "${progname}-${starttime}-${mypid}" \
-    > "${vm_tmpdir}/vdomain.xml"
+    > "${tmpdir}/vdomain.xml"
 
 # TODO: get logging to native terminal/logfile via some pipe.
 #       i.e. could listen with netcat or ssh and have inner-vm
@@ -716,7 +727,7 @@ status "launching inner-vm's processing phase ..."
 virsh \
     start \
     "${progname}-${starttime}-${mypid}" \
-    > "${vm_tmpdir}/virt-run.log" 2>&1
+    > "${tmpdir}/virt-run.log" 2>&1
 
 status "waiting a few seconds for inner-vm to come online ..."
 sleep 24
@@ -729,8 +740,11 @@ status "waiting for inner-vm to finish processing ..."
 # wait until processing is complete
 xdone=0
 while ((! ${xdone})); do
-    sleep "${x_builder_vm_shutdown_polling_frequency}"
-    if ( ! virsh list | grep "${progname}-${starttime}-${mypid}" | grep -q running ); then
+    sleep "${x_bake_vm_shutdown_polling_frequency}"
+
+    if ( ! virsh list \
+	| grep "${progname}-${starttime}-${mypid}" \
+	| grep -q running ); then
 	xdone=1
     fi
 done
@@ -744,7 +758,7 @@ done
 status "arranging output for the user ..."
 tar \
     -C "${outputdir}" \
-    -xvf "${vm_tmpdir}/output.img"
+    -xvf "${tmpdir}/output.img"
 
 # todo: invoke populate-staging-repo here, or perhaps within v-bake
 
@@ -766,4 +780,3 @@ exit 0
 #
 #
 #
-
