@@ -50,6 +50,14 @@
 ##   that easily allows v-bake to be run 'native' by el-build, without
 ##   running in a vm (for those that want the speed and can live with the
 ##   less deterministic and isolated environment/host)
+## - in general, this is shaping up to be the monster pipeline churning
+##   through all point releases.  It could be left to the user to iterate
+##   from one PR to the next, but I like the automated start to finish,
+##   along with efficient pipelining/progress saving.  I.e. there is a
+##   'bake-updates' subcommand coming I think, which should allow any partial
+##   or complete bake to resume its path towards completion up to and
+##   including any tuv updates released minutes prior to bake-updates
+##   invocation.
 ##
 ## NOTES
 ##
@@ -406,9 +414,6 @@ zli_version="0.2.8-1"
 if (("${x_enable_rebootless_liveos_installer_installation}")); then
     #wget "http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-${zli_version}.src.rpm"
     wget "${elbuild_cache_root}/one-off-files/zyx-liveinstaller-${zli_version}.src.rpm"
-    # SECURITY TODO: not gpg signed yet, but by the time 0.2.8-1 is actually
-    #   first available at the above url, it will be.  qa builds/tests in 
-    #   progress.
     if ( ! rpm --checksig "zyx-liveinstaller-${zli_version}.src.rpm" ); then
 	die "zyx-liveinstaller signature could not be verified as correct"
     fi
@@ -883,11 +888,6 @@ rpm -Uvh /root/pungi-\*.rpm'"
 	-e "s,EL_BUILD_CACHE_ROOT,${elbuild_cache_root},g" \
 	"${mockroot}/traditional_installer_x32_config.ks"
 
-    # TODO: figure out what this means (output from x-run.log)
-#(rpm installing)python-kid                  ##################################################
-#WARNING: Forcibly unmounting '/var/lib/mock/mock-for-pungi-el6-i386/root${workarea}/cache' from chroot.
-#State Changed: unlock buildroot
-
     # note sure about what works for multilinebreaking here, too tired to care
     su - xmock \
 	-c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
@@ -920,7 +920,7 @@ cp /rpmbuild/RPMS/noarch/zyx-liveinstaller-${zli_version}.noarch.rpm \$INSTALL_R
 # todo: perhaps yum localinstall is better
 /usr/sbin/chroot \$INSTALL_ROOT rpm -Uvh /tmp/zyx-liveinstaller-${zli_version}.noarch.rpm
 rm -f \$INSTALL_ROOT/tmp/zyx-liveinstaller-${zli_version}.noarch.rpm
-echo "${x_bake_distroname} Alpha RuleZ" > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
+echo "${x_bake_distroname} installing..." > \$INSTALL_ROOT/etc/zyx-liveinstaller.install.txt
 %end
 
 EOF
@@ -1036,17 +1036,12 @@ mv "${x32outroot}/work/"* \
 # main output arangement
 #
 # SHOWSTOPPER: need pluggable modules here to provide one or more user specifyable
-#   final output arrangements (using hardlinks).  Currently the stage script is
-#   getting close, though used here and it presents an issue with prompting for
-#   the package signing key's passphrase.  Could expose to the controlling tty
-#   with ssh, or pass it in otherwise.  Though I'm liking the idea of one time 
-#   use keys myself (and a seperate key for updates, or perhaps the throwaway key
-#   signs an update release pkg that authorizes the passed in public key (that 
-#   represents what updates will be signed with).  Many options.  Also, quite likely
-#   just force a shutdown of the baking vm after koji, then let the user deal with
-#   package signing without the VM in the way, then resume the baking phases.  These
-#   are just random thoughts that will no doubt get cleaned up as the various other
-#   lower hanging fruit get taken care of, and more ponderance is given to this.
+#   final output arrangements (using hardlinks).  The stage script will be
+#   factored/integrated here soon, perhaps with an option to create a new, or
+#   reuse an existing gpg package signing key.  If generating, it could be passed
+#   back out to the user under outputdir along with a random passphrase used
+#   to generate it, and telling the user how to change it if they like.
+
 
 # main stuffs
 mv "${x64outroot}/${x_bake_distrover}/x86_64" \
