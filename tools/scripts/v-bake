@@ -406,7 +406,9 @@ zli_version="0.2.8-1"
 if (("${x_enable_rebootless_liveos_installer_installation}")); then
     #wget "http://cloudsession.com/dawg/downloads/zyx-liveinstaller/zyx-liveinstaller-${zli_version}.src.rpm"
     wget "${elbuild_cache_root}/one-off-files/zyx-liveinstaller-${zli_version}.src.rpm"
-    # SECURITY TODO: not gpg signed yet
+    # SECURITY TODO: not gpg signed yet, but by the time 0.2.8-1 is actually
+    #   first available at the above url, it will be.  qa builds/tests in 
+    #   progress.
     if ( ! rpm --checksig "zyx-liveinstaller-${zli_version}.src.rpm" ); then
 	die "zyx-liveinstaller signature could not be verified as correct"
     fi
@@ -680,6 +682,7 @@ buildsys-macros-el6
 #     sources (see mirrors.kernel.org/...).  They are reverse sorted by package
 #     build order, and epochs between major point releases are noted and
 #     currently maintained in repochart-tuv-el6.
+#
 # TODO: move that epoch data to to defaults/cfg
 #
 #   2 first, the full set of .0 packages are built.  For each package, it is
@@ -687,19 +690,31 @@ buildsys-macros-el6
 #     6/6.0/configs/build-against-* config files, it will instead be built
 #     against one of the other three boostrapping OS'
 #
-# NOTE: no current 'dogfooding' pass _yet_ of the sources rebuilt again their
-#   own first output instead of the original bootstrapping repos.
+# TODO: add a real 'dogfooding' pass of the sources being rebuilt again their
+#   own first output instead of the original bootstrapping repos.  Either
+#   from the same baking-vm-host, or from a new one built against the dogfood
+#   output (baker should get to choose with a toggle flag/default/config)
 #
 #   3 then updates up to the next epoch are built against that previous output
 #     *as well as all prior updates[1]* instead of the 4 bootstrap os repos 
-#     [1]: note 6.0 updates era libguestfs requiring 6.0 updates era febootstrap
+#     [1]: note arbitrary example of the 6.0 updates era libguestfs requiring
+#          6.0 updates era febootstrap
+#
 # TODO: see if this actually works even for the 'trouble' packages.
 #
 #   4 then a pointrelease is composed, jump back to 3, repeat ad infinitum
+#       (again, with user option to rebuild baking VM against most
+#        recent pointrelease)
 #
 #
 # BOTTOM LINE: having the logic spelled out in code/script here, makes it much
 #   easier to visually compare altering implementational choices/bugs.
+#
+# NOTE/WARNING: code below does not quite yet actually implement the above,
+#   though all the necessary pieces are just in the process of being integrated.
+#   i.e. I just got the pointrelease/updates info from the bigboard/repochart
+#   feeding in as control logic to the stage subcommand, and very similar code
+#   will result in the above algorithm actually happening as advertised.
 #
 
 
@@ -790,15 +805,15 @@ if ( listin "installer-traditional-x64" "${do_bake_phases}" ); then
 	"${workarea}/traditional_installer_x64_config.ks"
 
     pungi \
-	--cachedir=${workarea}/cache \
-	--destdir=${workarea}/output \
+	--cachedir="${workarea}/cache" \
+	--destdir="${workarea}/output-x64" \
 	--name="${x_bake_distroname}" \
 	--ver="${x_bake_distrover}" \
 	--bugurl="${x_bake_bug_url}" \
 	--fulltree \
 	--selfhosting \
 	--nosplitmedia \
-	--config="${x_devdir}/${x_bake_traditional_x64_installer_ks_config}"
+	--config="${workarea}/traditional_installer_x64_config.ks"
     # TODO: need to check of _ks_config(s) are a full path instead of assuming relative to devdir
     
 fi
@@ -842,7 +857,7 @@ if ( listin "installer-traditional-x32" "${do_bake_phases}" ); then
     # (ortho: and a 'el-build set-workarea' to auto move ~/.el-build 
     #         e.g. under a dift mountpoint)
     mount --bind \
-	${workarea}/cache \
+	"${workarea}/cache" \
 	"${mockroot}${workarea}/cache"
 
     mkdir -p "${mockroot}${workarea}/output"
@@ -878,7 +893,7 @@ rpm -Uvh /root/pungi-\*.rpm'"
 	-c "mock -r mock-for-pungi-el6-i386 --verbose --no-clean --chroot '\
 pungi \
   --cachedir=${workarea}/cache \
-  --destdir=${workarea}/output \
+  --destdir=${workarea}/output-x32 \
   --name=${x_bake_distroname} \
   --ver=${x_bake_distrover} \
   --bugurl=${x_bake_bug_url} \
@@ -937,9 +952,9 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
 
     livecd-creator \
 	--verbose \
-	--cache=${workarea}/cache \
-	--tmpdir=${workarea}/tmp \
-	--logfile=${workarea}/livecd-desktop-x32.log \
+	--cache="${workarea}/cache" \
+	--tmpdir="${workarea}/tmp" \
+	--logfile="${workarea}/livecd-desktop-x32.log" \
 	--fslabel="${x_bake_live_label}" \
 	--config=livecd-desktop-i386.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x32.console.log"
@@ -947,7 +962,7 @@ if ( listin "installer-live-x32" "${do_bake_phases}" ); then
     mkdir -p "${x32outroot}/${x_bake_distrover}/i386/iso"
     mv "${x_bake_live_label}.iso" \
 	"${x32outroot}/${x_bake_distrover}/i386/iso/${x_bake_distroname}-${x_bake_distrover}-i386-LiveCD-Desktop.iso"
-    mv ${workarea}/livecd-desktop-x32.log \
+    mv "${workarea}/livecd-desktop-x32.log" \
 	"${outroot}/logs/"
     mv ./livecd-desktop-i386.ks \
 	"${outroot}/logs/"
@@ -968,9 +983,9 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
 
     livecd-creator \
 	--verbose \
-	--cache=${workarea}/cache \
-	--tmpdir=${workarea}/tmp \
-	--logfile=${workarea}/livecd-desktop-x64.log \
+	--cache="${workarea}/cache" \
+	--tmpdir="${workarea}/tmp" \
+	--logfile="${workarea}/livecd-desktop-x64.log" \
 	--fslabel="${x_bake_live_label}" \
 	--config=livecd-desktop-x86_64.ks \
 	2>&1 | tee -a "${outroot}/logs/livecd-desktop-x64.console.log"
@@ -978,7 +993,7 @@ if ( listin "installer-live-x64" "${do_bake_phases}" ); then
     mkdir -p "${x64outroot}/${x_bake_distrover}/x86_64/iso"
     mv "${x_bake_live_label}.iso" \
 	"${x64outroot}/${x_bake_distrover}/x86_64/iso/${x_bake_distroname}-${x_bake_distrover}-x86_64-LiveCD-Desktop.iso"
-    mv ${workarea}/livecd-desktop-x64.log \
+    mv "${workarea}/livecd-desktop-x64.log" \
 	"${outroot}/logs/"
     mv ./livecd-desktop-x86_64.ks \
 	"${outroot}/logs/"
@@ -1021,7 +1036,17 @@ mv "${x32outroot}/work/"* \
 # main output arangement
 #
 # SHOWSTOPPER: need pluggable modules here to provide one or more user specifyable
-#                   final output arrangements (using hardlinks)
+#   final output arrangements (using hardlinks).  Currently the stage script is
+#   getting close, though used here and it presents an issue with prompting for
+#   the package signing key's passphrase.  Could expose to the controlling tty
+#   with ssh, or pass it in otherwise.  Though I'm liking the idea of one time 
+#   use keys myself (and a seperate key for updates, or perhaps the throwaway key
+#   signs an update release pkg that authorizes the passed in public key (that 
+#   represents what updates will be signed with).  Many options.  Also, quite likely
+#   just force a shutdown of the baking vm after koji, then let the user deal with
+#   package signing without the VM in the way, then resume the baking phases.  These
+#   are just random thoughts that will no doubt get cleaned up as the various other
+#   lower hanging fruit get taken care of, and more ponderance is given to this.
 
 # main stuffs
 mv "${x64outroot}/${x_bake_distrover}/x86_64" \
