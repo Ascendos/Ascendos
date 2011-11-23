@@ -5,7 +5,7 @@
  Name: plymouth
  Version: 0.8.3
 -Release: 17%{?dist}
-+Release: 17.asc
++Release: 17%{?dist}.asc
  License: GPLv2+
  Group: System Environment/Base
  Source0: http://freedesktop.org/software/plymouth/releases/%{name}-%{version}.tar.bz2

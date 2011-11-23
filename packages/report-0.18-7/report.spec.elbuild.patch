@@ -23,7 +23,7 @@
  Name:           report
  Version:        0.18
 -Release:        7%{?dist}
-+Release:        7.asc
++Release:        7%{?dist}.asc
  Summary:        Incident reporting library
  
  Group:          System Environment/Libraries

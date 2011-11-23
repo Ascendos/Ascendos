@@ -5,7 +5,7 @@
  Summary: KDE PIM Runtime Environment
  Version: 4.3.4
 -Release: 4%{?dist}
-+Release: 4%{?dist}.0.asc
++Release: 4%{?dist}.asc
  
  License: GPLv2
  Group: Applications/Productivity
@@ -33,7 +33,7 @@
  
  
  %changelog
-+* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 4.3.4-4.0.asc
++* Mon Jul 25 2011 Troy Dawson <dawson@ascendos.org> - 4.3.4-4.asc
 +- Added patch required to build with the webkit (bz#660581)
 +
  * Wed Mar 31 2010 Than Ngo <than@redhat.com> - 4.3.4-4
