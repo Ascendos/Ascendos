@@ -33,13 +33,7 @@ v-bake
 
 # a tool to automate the pushing of individual packages from an
 # unsigned state in koji, to a signed state in a staging area.
-el-push
-
-# unfinished/in-progress tool for taking the output of koji, pungi, and
-# livecd-creator and using to populate a staging area suitable for
-# subsequent mirroring to the masses.  Support for user modules defining
-# specific layout logic is being implemented from the start.
-populate-staging-repo
+stage
 
 
 #############################################################################
@@ -80,8 +74,7 @@ bs-check-tuv-el6
 ##
 
 # rpm package signature verification
-sigcheck-tdv-srpms-el6
-sigcheck-tuv-srpms-el6
+sigcheck-repo
 
 # generates the list of changed srpms between two repos
 gen-min-srpm-list
