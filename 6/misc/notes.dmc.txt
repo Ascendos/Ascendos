@@ -14,15 +14,21 @@ first alpha
 -----------
 rc's are in the pipeline from el-build, now even with inital live spin.
 Presently seeking better consensus and documentation on mirror/output
-layout.  Issue being pursued on -dev,wiki,bugzilla
+layout.  Issue being pursued on -dev,wiki,bugzilla.  Note, being so
+close to 6.1 package completeness, that is now a blocker for the next
+real alpha rc.
 
 upcoming beta tasks
 -------------------
 need to handle the 6.0 package off-spec release naming issues, and the 
-~200? 6.1 packages that need being built.  The current gen-big-board
-script is already a long way towards being able to submit the missing
-builds in an automated way.  Currently it needs an updated bugfix for
-the koji-dump-buildinfo script.  
+~200? 6.1 packages that need being built.  The 2 oldest unbuilt packages
+(grub and qt) have been built.  The next batches require some abbreviated
+manual steps (for the .asc ones), along with leveraging present gen-tdv
+automation.  And several require dispatch logic that should simultaenously
+be encoded into v-bake or preferably newly factored subcommand.  Beyond
+that, everything may just build, with the dozen(?) or so of the remaining
+updates that require the semi-manual import (to be automated, e.g. the
+quintessential httpd default test page branding example.
 
 
 build3
@@ -32,6 +38,13 @@ i.e. koji and its output.
 
 (prior build2 run went to ~1950)
 current status: ~300/~2800
+current state: suspended while focusing on 6.1-alpha-rc3, and also new
+anonymous testing person w/hardware resource (3 beefy systems) Andrew
+introduced me to.  Formalized test/help procedures will be drafted, though
+the first phase would boil down to familiarizing yourself with the
+existing documentation, and figuring out how to blow that 100G bandwidth
+from your ISP.  As that is a one time up front thing that will likely 
+take a couple or more days anyway.
 
 todo: need to add pxe live image serving configuration such that
 any willing builder nodes on the local net are utilized
@@ -40,6 +53,14 @@ any willing builder nodes on the local net are utilized
 maintenance process
 -------------------
 need to start documenting candidate mainenance workflows, preferably with dia
+
+- note, ran across old post from Troy about his rpmcomparing to SL6, somewhat
+  contradicting how I responded to someone about what rpmcompare was used against
+  by us.  Though I presume Troy's longterm intent was to rpmcompare against tuv, or
+  at the least centos and similar, and not focus on the results against SL6.  
+  BUT, the point is that such a phase against at least SL6 seems worth doing and
+  encoding at the very least as a non?default option for the el-build user. 
+
 
 build.a.o/linux/ascendos
 ------------------------

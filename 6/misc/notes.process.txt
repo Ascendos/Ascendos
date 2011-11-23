@@ -1,0 +1,68 @@
+This seems important enough to just quote here in tree until it
+gets blended in in other ways-
+
+http://lists.ascendos.org/pipermail/ascendos-dev/2011-July/000091.html
+
+>> >> I think Dag had a really good point regarding Github lowering the
+>> >> barrier to participation. Although depending on how we use it, space
+>> >> could / will be an issue. I think github do have flexible space limits
+>> >> for open source projects, so I might drop them a line.
+>> >>
+>> >> At an outset, how much repo space would we need?
+> >
+> > This gets to needing to flush out that list of project data, and which
+> > of those pieces live in the repo, and estimates of their sizes going
+> > forward.
+> >
+> > -dmc
+Hi,
+This has been a very good discussion, and I just don't know where to
+put my opinion in, so I'm just going to bottom post and put my
+view/vision.
+This is not gospel, this is just what I wish, what I think would be good.
+For the most part, I am also going to leave out specific tools, except koji.
+
+My ideal build system with it's workflow.
+
+1 - Automatically detect and download new errata source rpm's
+1a - Expload those rpm's into some git/svn repository
+1b - Give some notification of new package (rss feed, twitter, email ...)
+1c - If there is a known "diff" in the main ascendos release, apply
+the diff, if possible.  If not possible, notify someone in some way.
+2 - Send the source rpm to the appropriate build queue on koji
+2a1 - If the build fails - koji sends email.  Possibly put in some
+other notification.
+2b1 -- This is where manual intervention come in.  Fix the problem.
+2a2 - If build succeeds - koji also sends email.  Sign the package, proceed to 3
+3 - Test the built packages - Have some type of webpage, such as
+bodhi, that watches the packages as they go through testing.
+3a - Automatically test packages against some ideal binary package
+3b - If a package is a known problem package, do the appropriate
+manual and/or automatic test
+4 - After the package passes the tests, mark it as ready.
+4a - Update the web page(s) that describe the latest errata
+4b - push the updated packages into the appropriate errata updates repo
+4c - Do notifications of errata
+5 - At the appropriate time, create a distribution / release / live image
+5a - Mark the packages with the appropriate tag
+5b - Pull all the marked packages
+5c - Mash all the packages into the distribution / release / live image
+
+I need to send this before my connection dies again.
+Each section can use seperate tools, although some tools might be able
+to do several of the steps.  (I *think* bodhi can do several of the
+steps, but I haven't had any real world experience with it)
+What would also be ideal is anyone can do a mini-fork at any point after 1b.
+So if you had your own distribution (TAR - Troys Awesome Release) that
+was exactly like Ascendos, except that openoffice had a purple theme,
+You would create your own diff of openoffice at point 1c and mark that
+diff "TAR", and you could manually (or automatically if you set it up)
+walk that diff through all the steps, creating your own distribution
+with the tag of TAR.
+
+Ok, now I really have to go.
+Troy
+_______________________________________________
+Ascendos-dev mailing list
+Ascendos-dev@lists.ascendos.org
+http://lists.ascendos.org/mailman/listinfo/ascendos-dev
