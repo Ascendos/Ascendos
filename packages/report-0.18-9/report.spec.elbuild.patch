@@ -1,0 +1,41 @@
+--- report.spec.orig	2011-11-22 20:45:53.516015321 -0600
++++ report.spec	2011-11-22 20:49:21.691015281 -0600
+@@ -18,7 +18,7 @@
+ #
+ 
+ %if 0%{?rhel}
+-%define build_as_for_rhel 1
++%define build_as_for_rhel 0
+ %endif
+ 
+ %if 0%{?build_as_for_rhel}
+@@ -67,7 +67,7 @@
+ %else
+ # then for everything else
+ %if "%{?bugzilla}" == ""
+-%define bugzilla 1
++%define bugzilla 0
+ %endif
+ %if "%{?obsolete_old_RHEL}" == ""
+ %define obsolete_old_RHEL 0
+@@ -78,7 +78,7 @@
+ 
+ Name:           report
+ Version:        0.18
+-Release:        9%{?dist}
++Release:        9%{?dist}.asc
+ Summary:        Incident reporting library
+ 
+ Group:          System Environment/Libraries
+@@ -435,6 +435,11 @@
+ 
+ 
+ %changelog
++* Tue Nov 22 2011 Douglas McClendon <dmc@ascendos.org> 0.18-9.asc
++- Removed options to send reports to RedHat or Bugzilla
++- set "%define build_as_for_rhel" to 0
++- set "%define bugzilla" to 0
++
+ * Sat Feb 19 2011 Gavin Romig-Koch <gavin@redhat.com> 0.18-9
+ - Correct the patch for Allow Strata plugin to send original filenames from report to server (RHEL 626994)
+ 
