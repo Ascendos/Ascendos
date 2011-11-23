@@ -265,7 +265,7 @@ function uncomma_list {
     new_list=""
     for item in $@; do
 	append_entry=$( echo "${item}" | sed -e 's/,/ /g' )
-	new_list="${new_list} ${append_entry}"
+	new_list+=" ${append_entry}"
     done
     echo "${new_list}"
 }
