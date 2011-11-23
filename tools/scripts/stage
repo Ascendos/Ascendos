@@ -290,6 +290,15 @@ status "staging freshly pulled/signed packages ..."
 for package in ${pkg_list}; do
     status "processing package: staging: ${package} ..."
 
+    # get upstream package name if this is a modified version
+    upstream_package_name="${package}"
+    # I guess this is reasonable as '.' can't be part of a package name(?)
+    if ( echo "${upstream_package_name}" | grep "\.asc" ); then
+	upstream_package_name=$( \
+	    echo "${upstream_package_name}" \
+	    | sed -e 's/\.asc.*$//' )
+    fi
+
     pushd "${staging_dir}/${pkg_name}" 2>&1 > /dev/null
 
     ## initial values / global placements
@@ -331,7 +340,7 @@ ${x_dev_staging_root}/everything
 	# todo: sed .'s into \.'s in the grep arg?
 	chartline=$( \
 	    cat "${x_cached_repochart_text_filename}" \
-	    | grep "${package}\s" )
+	    | grep "${upstream_package_name}\s" )
 
 	bintype="${dist_version_major}.${pr}-base"
 
