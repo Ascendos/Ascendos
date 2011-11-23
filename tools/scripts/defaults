@@ -57,6 +57,7 @@ x_bake_vm_memory=1024
 
 #############################################################################
 # feeds into end-user installers, and their boot media filenames, etc...
+#  - and rpm Vendor for generated downstream packages
 x_bake_distroname="Ascendos"
 
 # used by livecd-creator, (limited to filename friendly single word?)

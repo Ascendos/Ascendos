@@ -74,6 +74,8 @@
 #  - and in general factor all configuration into proper configuration
 # - generate 'perfect' git tree 
 #  - (probably a good way to find the most obscure bugs)
+#   - though as mentioned elsewhere in code or bugzilla, would boil down
+#     to an ordered file-by-file code review, hence nothing atypical)
 # - ...
 #
 
