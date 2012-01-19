@@ -172,20 +172,15 @@ mkdir -p "${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS"
 for flavor in ${flavors}; do
 
     status "mirroring flavor: ${flavor} ..."
-    if [ -d "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS" ]; then
-	rm -rf "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS" 
-    fi
-    mkdir -p "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS" 
-
     status "prepopulating flavor target directory to minimize download bandwidth to upstream ..."
-    cp -a \
+    mkdir -p "${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS"
+    rsync -aq --delete \
 	"${tuv_flavor_root_cached}/${superset_flavor}/en/os/SRPMS/"*.src.rpm \
 	"${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS/" 
 
     status "pulling from the internets ..."
     # mirror one of the flavor's worth of source rpms
-    lftp "${mirrorx}" \
-	-e "cd ${flavor}/en/os ; mirror --continue --delete SRPMS ${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS ; quit"
+    rsync -avH rsync://${mirrorx}/${flavor}/en/os/SRPMS/* ${tuv_flavor_root_cached}/${flavor}/en/os/SRPMS
 
     status "merging flavor ${flavor} into ${superset_flavor} ..."
     # for each source package in the new set, compare against and merge it with the superset
