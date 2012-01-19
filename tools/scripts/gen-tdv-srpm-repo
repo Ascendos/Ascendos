@@ -160,7 +160,7 @@ fi
 #############################################################################
 status "validating arguments ..."
 
-if [ -d "${output_tdv_srpm_repo}" ]; then
+if [ ! -d "${output_tdv_srpm_repo}" ]; then
     mkdir -p "${output_tdv_srpm_repo}" 
 fi
 
@@ -237,14 +237,14 @@ for srpm in $( ls -1A "${tuv_srpm_repo}/"*.src.rpm ); do
 	    rpm \
 	    -i \
 	    "${tuv_srpm_repo}/${srpm_filename}" \
-	    > "${tmpdir}/${progname}.verbose.log" 2>&1
+	    >> "${tmpdir}/${progname}.verbose.log" 2>&1
 	
 	env HOME="${tmpdir}/rpmbuildhome" \
 	    rpmbuild \
 	    -bs \
 	    --rmspec \
 	    --rmsource "${tmpdir}/rpmbuildhome/rpmbuild/SPECS/"*.spec \
-	    > "${tmpdir}/${progname}.verbose.log" 2>&1
+	    >> "${tmpdir}/${progname}.verbose.log" 2>&1
 	
         # reviewer? is anything wrong with this method of preserving upstream
         #   source rpm filenames (i.e. so .el6_1.src.rpm doesn't become
